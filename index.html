@@ -101,6 +101,7 @@ button { cursor: pointer; }
 
 /* treino */
 .ex { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; background: var(--bg); }
+.hint.hoje { color: var(--fg); background: var(--surface); border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 6px; }
 .grp { font-size: .82rem; margin: 6px 0 -4px; padding: 6px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); }
 .ex.ing { border-left: 4px solid var(--accent); }
 .rest { font-size: .85rem; font-weight: 600; text-align: center; color: var(--muted); margin: -2px 0; }
@@ -273,6 +274,7 @@ table.rt { min-width: 0; font-size: .85rem; }
 
 .gitem.gin { border-left: 4px solid var(--accent); margin-left: 10px; }
 .gname small { font-weight: 400; color: var(--muted); }
+.gnota { margin-top: 6px; font-size: .85rem; }
 </style>
 </head>
 <body>
@@ -623,7 +625,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         <h2>Importar plano do Excel</h2>
         <span class="kicker">Colar linhas</span>
       </header>
-      <p class="small">Copia as linhas do Excel e cola aqui. Colunas: Dia (Seg a Dom), Bloco (Warm-up, Preparation, Main, Accessory), Exercício, Séries, Repetições, Registar carga (sim ou não), Vídeo (link), Padrão, Lateralidade, Tipo de registo (opcional: carga, vbt, tempo, cmj ou bj) e Nome do treino (opcional). Padrão: squat, hip hinge, push, pull ou core anti-extension, core anti-lateral flexion, core anti-rotation. Lateralidade: bilateral ou unilateral. Para um dia sem exercícios, escreve só o dia e Descanso (ou Água), por exemplo: Qui e Descanso.</p>
+      <p class="small">Copia as linhas do Excel e cola aqui. Colunas: Dia (Seg a Dom), Bloco (Warm-up, Preparation, Main, Accessory), Exercício, Séries, Repetições, Registar carga (sim ou não), Vídeo (link), Padrão, Lateralidade, Tipo de registo (opcional: carga, vbt, tempo, cmj ou bj) e Nome do treino (opcional). Padrão: squat, hip hinge, push, pull, plyo, olympic weightlifting, core extension, core flexion, core lateral flexion ou core rotation. Lateralidade: bilateral ou unilateral. Para um dia sem exercícios, escreve só o dia e Descanso (ou Água), por exemplo: Qui e Descanso.</p>
       <label for="paste" class="small" style="font-weight:600">Linhas do plano</label>
       <textarea id="paste" spellcheck="false"></textarea>
       <button class="primary" id="preview">Pré-visualizar plano</button>
@@ -677,8 +679,8 @@ table.rt { min-width: 0; font-size: .85rem; }
     };
   }
 
-  var PADROES = { squat: 'Squat', hinge: 'Hip hinge', push: 'Push', pull: 'Pull' };
-  var COREC = { ext: 'Anti-extension', lat: 'Anti-lateral flexion', rot: 'Anti-rotation' };
+  var PADROES = { squat: 'Squat', hinge: 'Hip hinge', push: 'Push', pull: 'Pull', plyo: 'Plyo', olympic: 'Olympic weightlifting' };
+  var COREC = { ext: 'Core extension', flex: 'Core flexion', lat: 'Core lateral flexion', rot: 'Core rotation' };
   /* exercícios com carga: pad = padrão de movimento, lat = lateralidade (uni conta os dois lados na tonelagem) */
   var EXS = [
     { n: 'Back squat', dia: 0, base: 70, reps: 6, s: 4, pad: 'squat', lat: 'bi' },
@@ -723,7 +725,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   ATLETAS.forEach(function (a) {
     var r = rng(a.seed);
     a.rec = []; a.loads = {}; a.cmj = []; a.bj = []; a.vbt = [];
-    a.core = { ext: [], lat: [], rot: [] };
+    a.core = { ext: [], flex: [], lat: [], rot: [] };
     EXS.forEach(function (e) { a.loads[e.n] = []; });
     for (var i = 0; i <= TODAY_I; i++) {
       var d = dow(i), ramp = clamp((i - 29) / 14, 0, 1), rec = { w: null, ses: [], ton: 0, tu: 0, tp: {}, core: {}, falta: null };
@@ -954,6 +956,8 @@ table.rt { min-width: 0; font-size: .85rem; }
                 body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + field(k + '_b', uni ? 'reps/side' : 'reps', 'numeric', '0') + '</div>';
               } else if (T === 'vbt') {
                 body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + field(k + '_b', 'm/s', 'decimal', '0,00') + '</div>';
+              } else if (T === 'reps') {
+                body += '<div class="set single"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', uni ? 'reps/side' : 'reps', 'numeric', '0') + '</div>';
               } else if (T === 'tempo') {
                 body += '<div class="set single"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', uni ? 's/side' : 's', 'numeric', '0') + '</div>';
               } else {
@@ -963,13 +967,14 @@ table.rt { min-width: 0; font-size: .85rem; }
           }
           var tags = '';
           if (e.pad) tags += '<span class="mtag">' + PADROES[e.pad] + '</span>';
-          if (e.core) tags += '<span class="mtag">Core · ' + COREC[e.core] + '</span>';
+          if (e.core) tags += '<span class="mtag">' + COREC[e.core] + '</span>';
           if (e.lat) tags += '<span class="mtag">' + (uni ? 'Unilateral' : 'Bilateral') + '</span>';
           var vurl = e.href ? (/^https?:\/\//i.test(e.href) ? e.href : '') : (e.v ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(e.v) : '');
           var vid = vurl ? '<a class="vid" href="' + esc(vurl) + '" target="_blank" rel="noopener">Ver vídeo</a>' : '';
           var last = e.last ? '<span class="last">Última sessão: ' + e.last + '</span>' : '';
           return grpHead(bl, i) + '<article class="ex' + (e.g ? ' ing' : '') + '"><header><h3>' + e.n + '</h3><span class="pres">' + e.pres + '</span></header>' +
             (tags ? '<div class="tags">' + tags + '</div>' : '') +
+            (e.hn ? '<p class="hint hoje"><b>Neste treino:</b> ' + esc(e.hn) + '</p>' : '') +
             (e.h ? '<p class="hint">' + esc(e.h) + '</p>' : '') +
             ((last || vid) ? '<div class="meta">' + last + vid + '</div>' : '') +
             '<div style="display:grid;gap:6px">' + body + '</div></article>' + restTxt(bl, i);
@@ -1483,7 +1488,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#t-ton').innerHTML = tableOrEmpty(['Semana de', 'Tonelagem'], st.order.map(function (w) { return [fmtDate(w), num(st.wk[w].ton / 1000) + ' t']; }));
 
     /* tonelagem por padrão de movimento */
-    var pk = ['squat', 'hinge', 'push', 'pull'], pmax = 0, ptot = 0;
+    var pk = ['squat', 'hinge', 'push', 'pull', 'olympic', 'plyo'], pmax = 0, ptot = 0;
     pk.forEach(function (q) { pmax = Math.max(pmax, st.tp[q] || 0); ptot += st.tp[q] || 0; });
     $('#c-pad').innerHTML = ptot ? pk.map(function (q) {
       var v = st.tp[q] || 0;
@@ -1520,22 +1525,23 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#t-met').innerHTML = tableOrEmpty(['Data', 'Teste', 'Melhor valor'], mrows);
 
     /* core: tempo por série e tempo total */
-    var ck = ['ext', 'lat', 'rot'];
+    var ck = ['ext', 'flex', 'lat', 'rot'];
+    function cR(q) { return (a.core['r_' + q] || []).filter(inR).length > 0; }
     var coreItems = ck.map(function (q, j) {
       return {
-        id: 'co-' + j, title: COREC[q], unit: 's', step: 5, pts: a.core[q].filter(inR),
-        label: COREC[q] + ' de ' + a.n + ', tempo por série',
-        tipv: function (p) { return p.y + ' s por série'; },
+        id: 'co-' + j, title: COREC[q], unit: cR(q) ? 'reps' : 's', step: cR(q) ? 2 : 5, pts: (cR(q) ? a.core['r_' + q] : a.core[q]).filter(inR),
+        label: COREC[q] + ' de ' + a.n + (cR(q) ? ', repetições por série' : ', tempo por série'),
+        tipv: function (p) { return p.y + (cR(q) ? ' reps por série' : ' s por série'); },
         tipl: function (p) { return fmtDate(p.x) + ' · ' + p.n; }
       };
     });
     multiples($('#c-core'), coreItems);
-    var csec = ck.map(function (q) { return st.core[q] || 0; });
-    $('#core-sum').textContent = 'Tempo total de core no período: ' + Math.round(sum(csec) / 60) + ' min (' + ck.map(function (q, j) { return COREC[q].toLowerCase() + ' ' + Math.round(csec[j] / 60); }).join(' · ') + '). Nos exercícios unilaterais conta os dois lados.';
+    var csec = ck.map(function (q) { return st.core[q] || 0; }), crep = ck.map(function (q) { return st.core['r_' + q] || 0; });
+    $('#core-sum').textContent = 'Core no período: ' + Math.round(sum(csec) / 60) + ' min de tempo e ' + Math.round(sum(crep)) + ' repetições (' + ck.map(function (q, j) { return COREC[q].toLowerCase() + ' ' + (crep[j] ? Math.round(crep[j]) + ' reps' : Math.round(csec[j] / 60) + ' min'); }).join(' · ') + '). Nos exercícios unilaterais conta os dois lados.';
     var crows = [];
-    coreItems.forEach(function (it) { it.pts.forEach(function (p) { crows.push({ x: p.x, r: [fmtDate(p.x), it.title, p.y + ' s por série'] }); }); });
+    coreItems.forEach(function (it) { it.pts.forEach(function (p) { crows.push({ x: p.x, r: [fmtDate(p.x), it.title, p.y + (it.unit === 'reps' ? ' reps por série' : ' s por série')] }); }); });
     crows.sort(function (u, v) { return u.x - v.x; });
-    $('#t-core').innerHTML = tableOrEmpty(['Data', 'Tipo', 'Tempo'], crows.map(function (c) { return c.r; }));
+    $('#t-core').innerHTML = tableOrEmpty(['Data', 'Tipo', 'Valor'], crows.map(function (c) { return c.r; }));
 
     if (!$('#rep-out').hidden) renderReport();
   }
@@ -1648,7 +1654,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var motivos = $('#rep-motivos').checked;
     var periodo = fmtDate(range.i0) + ' a ' + fmtDate(range.i1);
     var td = '<td>';
-    var pk = ['squat', 'hinge', 'push', 'pull'], ck = ['ext', 'lat', 'rot'];
+    var pk = ['squat', 'hinge', 'push', 'pull', 'olympic', 'plyo'], ck = ['ext', 'flex', 'lat', 'rot'];
     var rows = '', secs = '', txt = ['Relatório de acompanhamento · ' + periodo, ''];
     idx.forEach(function (ai) {
       var a = ATLETAS[ai], st = stats(a, range.i0, range.i1), nw = st.order.length || 1;
@@ -1669,15 +1675,18 @@ table.rt { min-width: 0; font-size: .85rem; }
       }).join('');
       var prTxt = pk.map(function (q) { return PADROES[q] + ' ' + num((st.tp[q] || 0) / 1000) + ' t'; }).join(' · ');
       var cmin = ck.map(function (q) { return Math.round((st.core[q] || 0) / 60); });
-      var ctot = Math.round(sum(ck.map(function (q) { return st.core[q] || 0; })) / 60);
-      var cSub = 'anti-extensão ' + cmin[0] + ' · lateral ' + cmin[1] + ' · rotação ' + cmin[2];
+      var crp = ck.map(function (q) { return Math.round(st.core['r_' + q] || 0); });
+      var ctotM = Math.round(sum(ck.map(function (q) { return st.core[q] || 0; })) / 60), ctotR = sum(crp);
+      var ctot = ctotR ? (ctotM ? ctotM + ' min · ' : '') + ctotR + ' reps' : ctotM + ' min';
+      function cv(j) { return (crp[j] ? crp[j] + ' reps' : '') + (crp[j] && cmin[j] ? ' + ' : '') + (cmin[j] || !crp[j] ? cmin[j] + ' min' : ''); }
+      var cSub = 'extensão ' + cv(0) + ' · flexão ' + cv(1) + ' · flexão lateral ' + cv(2) + ' · rotação ' + cv(3);
       var upct = st.ton ? Math.round(100 * st.tu / st.ton) : 0;
       secs += '<section class="ra"><h3>' + esc(a.n) + '<small>' + esc(a.m) + '</small></h3><div class="rgrid">' +
         kv('Presença', pres, st.done + ' de ' + st.plan + ' sessões') +
         kv('Wellness', st.ph == null ? '–' : num(st.ph), 'Hooper médio · ' + st.att + (st.att === 1 ? ' dia' : ' dias') + ' em atenção') +
         kv('PSE', st.pm == null ? '–' : num(st.pm), 'média · ' + fmtN(st.ua / nw) + ' UA por semana') +
         kv('Tonelagem', num(st.ton / 1000) + ' t', num(st.ton / 1000 / nw) + ' t por semana') +
-        kv('Core', ctot + ' min', cSub) +
+        kv('Core', ctot, cSub) +
         kv('Unilateral', upct + '%', 'da tonelagem') +
         '</div><p class="small">' + faltas + '</p>' +
         '<p class="kicker">Tonelagem por padrão</p><div class="scroll"><table class="rt"><thead><tr><th>Padrão</th><th>Tonelagem</th><th>%</th></tr></thead><tbody>' + pr + '</tbody></table></div>' +
@@ -1688,7 +1697,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       txt.push('PSE média ' + (st.pm == null ? '–' : num(st.pm)) + ' · carga ' + fmtN(st.ua) + ' UA (' + fmtN(st.ua / nw) + ' UA por semana)');
       txt.push('Tonelagem: ' + num(st.ton / 1000) + ' t (' + num(st.ton / 1000 / nw) + ' t por semana). Unilaterais: ' + upct + '%');
       txt.push('Por padrão: ' + prTxt);
-      txt.push('Core: ' + ctot + ' min (' + cSub + ')');
+      txt.push('Core: ' + ctot + ' (' + cSub + ')');
       if (exTxt.length) txt.push('Cargas: ' + exTxt.join('; '));
       txt.push('');
     });
@@ -1808,6 +1817,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var s = u.series[0];
     if (T === 'carga' && s.carga_kg != null) return pt(s.carga_kg) + ' kg' + (s.reps != null ? ' × ' + s.reps : '');
     if (T === 'vbt' && s.carga_kg != null) return pt(s.carga_kg) + ' kg' + (s.vbt_ms != null ? ' · ' + pt(s.vbt_ms) + ' m/s' : '');
+    if (T === 'reps' && s.reps != null) return s.reps + ' reps';
     if (T === 'tempo' && s.tempo_s != null) return s.tempo_s + ' s';
     if (T === 'cmj' && s.cmj_cm != null) return pt(s.cmj_cm) + ' cm';
     if (T === 'bj' && s.bj_cm != null) return pt(s.bj_cm) + ' cm';
@@ -1821,7 +1831,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     else pres = it.series + ' × ' + reps;
     if (uni && reps && !/lado|perna|side|leg/i.test(reps)) pres += ' / side';
     return {
-      id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null,
+      id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, hn: it.nota_item || undefined,
       pad: it.padrao && it.padrao !== 'core' ? it.padrao : undefined,
       core: it.core_tipo || undefined,
       lat: (it.padrao || uni) ? it.lateralidade : undefined,
@@ -1919,6 +1929,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (T === 'feito') { if (x.feito != null) reg[base + '_f'] = !!x.feito; return; }
       if (T === 'carga') { a = x.carga_kg; b = x.reps; }
       else if (T === 'vbt') { a = x.carga_kg; b = x.vbt_ms; }
+      else if (T === 'reps') a = x.reps;
       else if (T === 'tempo') a = x.tempo_s;
       else if (T === 'cmj') a = x.cmj_cm;
       else a = x.bj_cm;
@@ -2001,6 +2012,7 @@ table.rt { min-width: 0; font-size: .85rem; }
           var row = { item_id: e.id, serie: s + 1 };
           if (T === 'carga') { row.carga_kg = a; row.reps = b === '' ? '' : Math.round(b); }
           else if (T === 'vbt') { row.carga_kg = a; row.vbt_ms = b; }
+          else if (T === 'reps') row.reps = a === '' ? '' : Math.round(a);
           else if (T === 'tempo') row.tempo_s = a === '' ? '' : Math.round(a);
           else if (T === 'cmj') row.cmj_cm = a;
           else row.bj_cm = a;
@@ -2149,7 +2161,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       idx[a.id] = k;
       var rec = [];
       for (var i = 0; i <= TODAY_I; i++) rec.push({ w: null, ses: [], ton: 0, tu: 0, tp: {}, core: {}, falta: null });
-      return { id: a.id, n: a.nome, m: a.modalidade, g: a.grupo === 'pt' ? 'pt' : 'atleta', rec: rec, loads: {}, cmj: [], bj: [], vbt: [], core: { ext: [], lat: [], rot: [] }, plan: {} };
+      return { id: a.id, n: a.nome, m: a.modalidade, g: a.grupo === 'pt' ? 'pt' : 'atleta', rec: rec, loads: {}, cmj: [], bj: [], vbt: [], core: { ext: [], flex: [], lat: [], rot: [], r_ext: [], r_flex: [], r_lat: [], r_rot: [] }, plan: {} };
     });
     function at(id, iso) {
       var k = idx[id], i = fromISO(iso);
@@ -2174,7 +2186,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       var ex = row.item && row.item.exercicios;
       if (!x || !ex) return;
       var uni = ex.lateralidade === 'uni', k = x.a.id + '|' + x.i + '|' + ex.nome;
-      var g = agg[k] || (agg[k] = { a: x.a, i: x.i, ex: ex, kgMax: null, repsAtMax: null, vs: [], cm: null, bj: null, ts: [] });
+      var g = agg[k] || (agg[k] = { a: x.a, i: x.i, ex: ex, kgMax: null, repsAtMax: null, vs: [], cm: null, bj: null, ts: [], rs: [] });
       if (row.carga_kg != null) {
         var kg = +row.carga_kg, reps = row.reps != null ? +row.reps : (row.vbt_ms != null ? (parseInt(row.item.reps, 10) || 0) : 0);
         if (g.kgMax == null || kg > g.kgMax) { g.kgMax = kg; g.repsAtMax = reps; }
@@ -2188,6 +2200,10 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (row.vbt_ms != null) { g.vs.push(+row.vbt_ms); if (vbtNames.indexOf(ex.nome) < 0) vbtNames.push(ex.nome); }
       if (row.cmj_cm != null) g.cm = Math.max(g.cm == null ? 0 : g.cm, +row.cmj_cm);
       if (row.bj_cm != null) g.bj = Math.max(g.bj == null ? 0 : g.bj, +row.bj_cm);
+      if (row.reps != null && ex.registo === 'reps' && ex.core_tipo && x.a.core['r_' + ex.core_tipo]) {
+        g.rs.push(+row.reps);
+        x.r.core['r_' + ex.core_tipo] = (x.r.core['r_' + ex.core_tipo] || 0) + (+row.reps) * (uni ? 2 : 1);
+      }
       if (row.tempo_s != null && ex.core_tipo && x.a.core[ex.core_tipo]) {
         g.ts.push(+row.tempo_s);
         x.r.core[ex.core_tipo] = (x.r.core[ex.core_tipo] || 0) + (+row.tempo_s) * (uni ? 2 : 1);
@@ -2199,6 +2215,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (g.vs.length) a.vbt.push({ x: g.i, kg: g.kgMax || 0, y: Math.round(sum(g.vs) / g.vs.length * 100) / 100, n: nome });
       if (g.cm != null) a.cmj.push({ x: g.i, y: g.cm });
       if (g.bj != null) a.bj.push({ x: g.i, y: g.bj });
+      if (g.rs.length) a.core['r_' + g.ex.core_tipo].push({ x: g.i, y: Math.round(sum(g.rs) / g.rs.length), n: nome });
       if (g.ts.length) a.core[g.ex.core_tipo].push({ x: g.i, y: Math.round(sum(g.ts) / g.ts.length), n: nome });
     });
     EXS = Object.keys(exNames).sort().map(function (n) { return exNames[n]; });
@@ -2277,8 +2294,10 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (/hinge/.test(s)) return { padrao: 'hinge' };
     if (/^push/.test(s)) return { padrao: 'push' };
     if (/^pull/.test(s)) return { padrao: 'pull' };
+    if (/^plyo/.test(s)) return { padrao: 'plyo' };
+    if (/olymp|weightlift|halter/.test(s)) return { padrao: 'olympic' };
     if (/^core/.test(s)) {
-      var t = /exten/.test(s) ? 'ext' : /later|lat\b/.test(s) ? 'lat' : /rot/.test(s) ? 'rot' : null;
+      var t = /later|lat\b/.test(s) ? 'lat' : /exten/.test(s) ? 'ext' : /flex|flec/.test(s) ? 'flex' : /rot/.test(s) ? 'rot' : null;
       return t ? { padrao: 'core', core_tipo: t } : null;
     }
     return null;
@@ -2334,7 +2353,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var linhas = [];
     imp.days.forEach(function (x) { linhas.push({ data: isoAdd(mon, x.d), treino_nome: x.nome, tipo: x.tipo }); });
     imp.rows.forEach(function (x) {
-      var rt = /^(carga|vbt|tempo|cmj|bj)$/.test(x.regTipo) ? x.regTipo : (x.pad && x.pad.padrao === 'core' ? 'tempo' : '');
+      var rt = /^(carga|vbt|tempo|reps|cmj|bj)$/.test(x.regTipo) ? x.regTipo : (x.pad && x.pad.padrao === 'core' ? 'reps' : '');
       if (x.pede && !rt) rt = 'carga';
       linhas.push({
         data: isoAdd(mon, x.d), treino_nome: nomes[x.d] || 'Treino', tipo: 'gym', bloco: x.bloco, exercicio: x.ex, series: x.series, reps: x.reps, pede_registo: x.pede,
@@ -2383,8 +2402,8 @@ table.rt { min-width: 0; font-size: .85rem; }
   /* ====================== GESTÃO (treinador): atletas, exercícios, planear semana ====================== */
   var G = { atl: [], ex: [], tab: 'plano', sel: {}, semana: '', plan: null, edit: null, exEdit: null, exQ: '', srcAtl: '', srcSem: '' };
   var GBL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
-  var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['core:ext', 'Core · anti-extension'], ['core:lat', 'Core · anti-lateral flexion'], ['core:rot', 'Core · anti-rotation']];
-  var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'VBT (kg e m/s)'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Broad jump (cm)'], ['feito', 'Só "feito"']];
+  var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['olympic', 'Olympic weightlifting'], ['core:ext', 'Core extension'], ['core:flex', 'Core flexion'], ['core:lat', 'Core lateral flexion'], ['core:rot', 'Core rotation']];
+  var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Broad jump (cm)'], ['feito', 'Só "feito"']];
   var DIASL = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
   function gNewPlan() { var d = []; for (var i = 0; i < 7; i++) d.push({ tipo: 'none', nome: '', itens: [] }); return d; }
@@ -2616,7 +2635,8 @@ table.rt { min-width: 0; font-size: .85rem; }
               (reg !== 'feito' ? '<button class="chip" data-act="tog" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + (!!o.it.pede) + '">Registar</button>' : '') +
               '<button class="chip" data-act="up" data-d="' + i + '" data-k="' + o.k + '" aria-label="Subir">↑</button>' +
               '<button class="chip" data-act="down" data-d="' + i + '" data-k="' + o.k + '" aria-label="Descer">↓</button>' +
-              '<button class="chip" data-act="rm" data-d="' + i + '" data-k="' + o.k + '" aria-label="Remover">✕</button></div></div>';
+              '<button class="chip" data-act="rm" data-d="' + i + '" data-k="' + o.k + '" aria-label="Remover">✕</button></div>' +
+              '<input class="dt gnota" data-f="nota" data-d="' + i + '" data-k="' + o.k + '" placeholder="Nota só para este treino (opcional)" value="' + esc(o.it.nota || '') + '"></div>';
           }).join('');
           x += '<div class="gadd"><input class="dt" list="g-exlist" data-add="' + i + '|' + b[0] + '" placeholder="Adicionar exercício…" autocomplete="off"><button class="chip" data-act="add" data-d="' + i + '" data-b="' + b[0] + '">Adicionar</button></div></div>';
         });
@@ -2633,7 +2653,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   function gAddItem(d, bloco, nome) {
     var ex = gExByName(nome);
     if (!ex) { gMsg('g-msg-plano', '"' + nome + '" não está na biblioteca. Cria-o primeiro no separador Exercícios.', true); return false; }
-    G.plan[d].itens.push({ bloco: bloco, ex: ex.nome, series: '3', reps: '', pede: ex.registo !== 'feito', lig: false, desc: '' });
+    G.plan[d].itens.push({ bloco: bloco, ex: ex.nome, series: '3', reps: '', pede: ex.registo !== 'feito', lig: false, desc: '', nota: '' });
     return true;
   }
   function gLoadPlan() {
@@ -2643,7 +2663,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var mon = gMon(sem);
     gMsg('g-msg-src', 'A carregar…');
     tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(aid) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
-      '&select=data,nome,tipo,treino_itens(bloco,ordem,series,reps,pede_registo,grupo,descanso_s,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
+      '&select=data,nome,tipo,treino_itens(bloco,ordem,series,reps,pede_registo,grupo,descanso_s,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
       var plan = gNewPlan(), n = 0;
       rows.forEach(function (t) {
         var i = isoDow(t.data);
@@ -2653,7 +2673,7 @@ table.rt { min-width: 0; font-size: .85rem; }
           if (!ex) return;
           var arr = plan[i].itens, pv = arr.length ? arr[arr.length - 1] : null;
           plan[i].itens.push({ bloco: it.bloco, ex: ex.nome, series: String(it.series), reps: it.reps || '', pede: !!it.pede_registo,
-            lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '' }); n++;
+            lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', nota: it.nota || '' }); n++;
         });
       });
       if (!rows.length) { gMsg('g-msg-src', 'Esse atleta não tem treinos nessa semana.', true); return; }
@@ -2679,7 +2699,7 @@ table.rt { min-width: 0; font-size: .85rem; }
           if (lig) { grupo = cur; } else if (nxt && nxt.lig) { grupo = cur = ++gn; ser = String(parseInt(it.series, 10) || 3); } else { cur = null; ser = null; }
           var sr = lig ? ser : String(parseInt(it.series, 10) || 3), ds = parseInt(it.desc, 10);
           linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: sr, reps: String(it.reps || '').trim(), pede_registo: !!it.pede,
-            grupo: grupo, descanso_s: ult && ds > 0 ? ds : null });
+            grupo: grupo, descanso_s: ult && ds > 0 ? ds : null, nota_item: String(it.nota || '').trim() });
         });
       });
       if (!n) avisos.push(DIASL[i] + ' está como Ginásio mas não tem exercícios.');
@@ -2752,6 +2772,10 @@ table.rt { min-width: 0; font-size: .85rem; }
     else if (a === 'carregar') gLoadPlan();
     else if (a === 'guardar') gSavePlan();
     else if (a === 'limpar') { G.plan = gNewPlan(); gRenderPlano(); gMsg('g-msg-plano', 'Editor limpo.'); }
+  });
+  $('#g-panel').addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.id === 'gx-pad' && /^core:/.test(t.value)) { var rg = $('#gx-reg'); if (rg && rg.value !== 'reps') rg.value = 'reps'; }
   });
   $('#g-panel').addEventListener('input', function (e) {
     var t = e.target;
