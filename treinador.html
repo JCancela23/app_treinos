@@ -101,6 +101,9 @@ button { cursor: pointer; }
 
 /* treino */
 .ex { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; background: var(--bg); }
+.grp { font-size: .82rem; margin: 6px 0 -4px; padding: 6px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); }
+.ex.ing { border-left: 4px solid var(--accent); }
+.rest { font-size: .85rem; font-weight: 600; text-align: center; color: var(--muted); margin: -2px 0; }
 .ex header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .pres { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; white-space: nowrap; color: var(--accent); }
 .last { font-size: .8rem; color: var(--muted); }
@@ -267,6 +270,9 @@ table.rt { min-width: 0; font-size: .85rem; }
 .gn input { width: 76px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px; font-weight: 600; }
 .gadd { display: flex; gap: 6px; }
 .gadd .dt { flex: 1; }
+
+.gitem.gin { border-left: 4px solid var(--accent); margin-left: 10px; }
+.gname small { font-weight: 400; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -962,11 +968,11 @@ table.rt { min-width: 0; font-size: .85rem; }
           var vurl = e.href ? (/^https?:\/\//i.test(e.href) ? e.href : '') : (e.v ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(e.v) : '');
           var vid = vurl ? '<a class="vid" href="' + esc(vurl) + '" target="_blank" rel="noopener">Ver vídeo</a>' : '';
           var last = e.last ? '<span class="last">Última sessão: ' + e.last + '</span>' : '';
-          return '<article class="ex"><header><h3>' + e.n + '</h3><span class="pres">' + e.pres + '</span></header>' +
+          return grpHead(bl, i) + '<article class="ex' + (e.g ? ' ing' : '') + '"><header><h3>' + e.n + '</h3><span class="pres">' + e.pres + '</span></header>' +
             (tags ? '<div class="tags">' + tags + '</div>' : '') +
             (e.h ? '<p class="hint">' + esc(e.h) + '</p>' : '') +
             ((last || vid) ? '<div class="meta">' + last + vid + '</div>' : '') +
-            '<div style="display:grid;gap:6px">' + body + '</div></article>';
+            '<div style="display:grid;gap:6px">' + body + '</div></article>' + restTxt(bl, i);
         }).join('');
         var nk = day + '_' + bi;
         var chips = MOTIVOS.map(function (m) {
@@ -1815,13 +1821,28 @@ table.rt { min-width: 0; font-size: .85rem; }
     else pres = it.series + ' × ' + reps;
     if (uni && reps && !/lado|perna|side|leg/i.test(reps)) pres += ' / side';
     return {
-      id: it.id, n: it.nome, pres: pres, series: it.series, t: T,
+      id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null,
       pad: it.padrao && it.padrao !== 'core' ? it.padrao : undefined,
       core: it.core_tipo || undefined,
       lat: (it.padrao || uni) ? it.lateralidade : undefined,
       h: it.nota || undefined, href: it.video_url || undefined, v: it.nome + ' technique',
       last: lastTxt(it, T)
     };
+  }
+  function fmtRest(n) { return n < 60 ? n + ' s' : Math.floor(n / 60) + ' min' + (n % 60 ? ' ' + (n % 60) + ' s' : ''); }
+  function grpHead(bl, i) {
+    var e = bl.ex[i];
+    if (!e.g || (i > 0 && bl.ex[i - 1].g === e.g)) return '';
+    var j = i, k, seen = [], L;
+    while (j < bl.ex.length && bl.ex[j].g === e.g) j++;
+    for (k = 0; k < i; k++) if (bl.ex[k].g && seen.indexOf(bl.ex[k].g) < 0) seen.push(bl.ex[k].g);
+    L = String.fromCharCode(65 + seen.length);
+    return '<p class="grp"><b>Grupo ' + L + '</b> · ' + (j - i) + ' exercícios seguidos · ' + e.series + ' voltas</p>';
+  }
+  function restTxt(bl, i) {
+    var e = bl.ex[i], nx = bl.ex[i + 1];
+    if (!e.rest || (e.g && nx && nx.g === e.g)) return '';
+    return '<p class="rest">Descanso: ' + fmtRest(e.rest) + (e.g ? ' entre voltas' : ' entre séries') + '</p>';
   }
   function buildDay(t) {
     var p = { id: t.id, iso: t.data, feito: t.feito_em || null, nome: t.nome, tipo: t.tipo };
@@ -2380,6 +2401,13 @@ table.rt { min-width: 0; font-size: .85rem; }
     G.atl.forEach(function (a) { if (a.modalidade && m.indexOf(a.modalidade) < 0) m.push(a.modalidade); });
     return m.sort(function (x, y) { return x.localeCompare(y, 'pt'); });
   }
+  function gModsSug() {
+    var m = gMods();
+    ['Surf', 'SUP', 'Bodyboard', 'Natação', 'Triatlo', 'Corrida', 'Ciclismo', 'PT'].forEach(function (x) {
+      if (!m.some(function (y) { return y.toLowerCase() === x.toLowerCase(); })) m.push(x);
+    });
+    return m.sort(function (x, y) { return x.localeCompare(y, 'pt'); });
+  }
   var GM = {};
   function gMsg(id, t, bad) { GM[id] = { t: t || '', bad: !!bad }; var e = $('#' + id); if (e) { e.textContent = t || ''; e.className = bad ? 'err' : 'small'; } }
   function gReapply() { Object.keys(GM).forEach(function (id) { var e = $('#' + id); if (e) { e.textContent = GM[id].t; e.className = GM[id].bad ? 'err' : 'small'; } }); }
@@ -2438,7 +2466,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     return r;
   }
   function gRenderAtl() {
-    var mods = gMods();
+    var mods = gModsSug();
     var h = '<div class="gbox"><p class="kicker">Novo atleta</p>' +
       '<div class="field"><label for="ga-nome">Nome</label><input class="dt" id="ga-nome" autocomplete="off"></div>' +
       '<div class="field"><label for="ga-mod">Modalidade</label><input class="dt" id="ga-mod" list="ga-mods" autocomplete="off" placeholder="Ex.: Surf"><datalist id="ga-mods">' +
@@ -2579,9 +2607,12 @@ table.rt { min-width: 0; font-size: .85rem; }
           x += '<div class="gblock"><p class="kicker">' + b[1] + '</p>';
           x += its.map(function (o, pos) {
             var ex = gExByName(o.it.ex), reg = ex ? ex.registo : 'feito';
-            return '<div class="gitem"><div class="gname"><b>' + esc(o.it.ex) + '</b></div><div class="gctl">' +
-              '<label class="gn">Séries<input inputmode="numeric" data-f="series" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.series) + '"></label>' +
+            var lig = pos > 0 && !!o.it.lig, nxt = its[pos + 1], ult = !(nxt && nxt.it.lig);
+            return '<div class="gitem' + (lig ? ' gin' : '') + '"><div class="gname"><b>' + esc(o.it.ex) + '</b>' + (lig ? '<small> · no mesmo grupo que o anterior (as voltas são as do primeiro)</small>' : '') + '</div><div class="gctl">' +
+              (lig ? '' : '<label class="gn">' + ((nxt && nxt.it.lig) ? 'Voltas' : 'Séries') + '<input inputmode="numeric" data-f="series" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.series) + '"></label>') +
               '<label class="gn">Reps / s<input data-f="reps" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.reps) + '"></label>' +
+ (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
+              (pos > 0 ? '<button class="chip" data-act="lig" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + lig + '">Com o anterior</button>' : '') +
               (reg !== 'feito' ? '<button class="chip" data-act="tog" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + (!!o.it.pede) + '">Registar</button>' : '') +
               '<button class="chip" data-act="up" data-d="' + i + '" data-k="' + o.k + '" aria-label="Subir">↑</button>' +
               '<button class="chip" data-act="down" data-d="' + i + '" data-k="' + o.k + '" aria-label="Descer">↓</button>' +
@@ -2602,7 +2633,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   function gAddItem(d, bloco, nome) {
     var ex = gExByName(nome);
     if (!ex) { gMsg('g-msg-plano', '"' + nome + '" não está na biblioteca. Cria-o primeiro no separador Exercícios.', true); return false; }
-    G.plan[d].itens.push({ bloco: bloco, ex: ex.nome, series: '3', reps: '', pede: ex.registo !== 'feito' });
+    G.plan[d].itens.push({ bloco: bloco, ex: ex.nome, series: '3', reps: '', pede: ex.registo !== 'feito', lig: false, desc: '' });
     return true;
   }
   function gLoadPlan() {
@@ -2612,7 +2643,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var mon = gMon(sem);
     gMsg('g-msg-src', 'A carregar…');
     tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(aid) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
-      '&select=data,nome,tipo,treino_itens(bloco,ordem,series,reps,pede_registo,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
+      '&select=data,nome,tipo,treino_itens(bloco,ordem,series,reps,pede_registo,grupo,descanso_s,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
       var plan = gNewPlan(), n = 0;
       rows.forEach(function (t) {
         var i = isoDow(t.data);
@@ -2620,7 +2651,9 @@ table.rt { min-width: 0; font-size: .85rem; }
         (t.treino_itens || []).slice().sort(function (a, b) { return a.ordem - b.ordem; }).forEach(function (it) {
           var ex = Array.isArray(it.exercicios) ? it.exercicios[0] : it.exercicios;
           if (!ex) return;
-          plan[i].itens.push({ bloco: it.bloco, ex: ex.nome, series: String(it.series), reps: it.reps || '', pede: !!it.pede_registo }); n++;
+          var arr = plan[i].itens, pv = arr.length ? arr[arr.length - 1] : null;
+          plan[i].itens.push({ bloco: it.bloco, ex: ex.nome, series: String(it.series), reps: it.reps || '', pede: !!it.pede_registo,
+            lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '' }); n++;
         });
       });
       if (!rows.length) { gMsg('g-msg-src', 'Esse atleta não tem treinos nessa semana.', true); return; }
@@ -2637,12 +2670,16 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (d.tipo === 'none') return;
       if (d.tipo === 'rest') { linhas.push({ data: data, treino_nome: d.nome || 'Descanso', tipo: 'rest' }); return; }
       if (d.tipo === 'agua') { linhas.push({ data: data, treino_nome: d.nome || 'Treino na água', tipo: 'agua' }); return; }
-      var n = 0;
+      var n = 0, gn = 0;
       GBL.forEach(function (b) {
-        d.itens.forEach(function (it) {
-          if (it.bloco !== b[0] || !it.ex) return;
+        var bi = d.itens.filter(function (it) { return it.bloco === b[0] && it.ex; }), cur = null, ser = null;
+        bi.forEach(function (it, pos) {
           n++;
-          linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: String(parseInt(it.series, 10) || 3), reps: String(it.reps || '').trim(), pede_registo: !!it.pede });
+          var lig = pos > 0 && !!it.lig, nxt = bi[pos + 1], ult = !(nxt && nxt.lig), grupo = null;
+          if (lig) { grupo = cur; } else if (nxt && nxt.lig) { grupo = cur = ++gn; ser = String(parseInt(it.series, 10) || 3); } else { cur = null; ser = null; }
+          var sr = lig ? ser : String(parseInt(it.series, 10) || 3), ds = parseInt(it.desc, 10);
+          linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: sr, reps: String(it.reps || '').trim(), pede_registo: !!it.pede,
+            grupo: grupo, descanso_s: ult && ds > 0 ? ds : null });
         });
       });
       if (!n) avisos.push(DIASL[i] + ' está como Ginásio mas não tem exercícios.');
@@ -2704,6 +2741,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (inp) inp.value = '';
       if (vv && gAddItem(d, b.getAttribute('data-b'), vv)) gRenderPlano();
     }
+    else if (a === 'lig') { G.plan[d].itens[k].lig = !G.plan[d].itens[k].lig; gRenderPlano(); }
     else if (a === 'tog') { G.plan[d].itens[k].pede = !G.plan[d].itens[k].pede; gRenderPlano(); }
     else if (a === 'rm') { G.plan[d].itens.splice(k, 1); gRenderPlano(); }
     else if (a === 'up' || a === 'down') {
