@@ -2395,7 +2395,7 @@ table.rt { min-width: 0; font-size: .85rem; }
 
   function gLoad() {
     return Promise.all([
-      tGet('atletas', 'select=id,nome,modalidade,grupo,ativo&order=nome,id'),
+      tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo&order=nome,id'),
       tGet('exercicios', 'select=id,nome,video_url,padrao,lateralidade,core_tipo,registo,nota&order=nome,id')
     ]).then(function (r) {
       G.atl = r[0] || []; G.ex = r[1] || [];
@@ -2419,23 +2419,43 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
 
   /* ---------- atletas ---------- */
+  var ESP_D = ['Velocista', 'Meio-fundo', 'Fundo', 'Águas abertas'], ESP_E = ['Bruços', 'Crol', 'Costas', 'Mariposa', 'Estilos'];
+  function gEhNat(m) { return /nata/i.test(String(m || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')); }
+  function gEspHtml(pre, a) {
+    function grp(lbl, key, lista, sel) {
+      return '<div class="field"><label>' + lbl + ' (podes escolher várias)</label><div class="chips">' + lista.map(function (v) {
+        return '<button type="button" class="chip" data-act="esp-tog" data-g="' + key + '" data-v="' + esc(v) + '" aria-pressed="' + ((sel || []).indexOf(v) >= 0) + '">' + esc(v) + '</button>';
+      }).join('') + '</div></div>';
+    }
+    var vis = a && (gEhNat(a.modalidade) || (a.distancias || []).length || (a.estilos || []).length);
+    return '<div id="' + pre + '-esp"' + (vis ? '' : ' hidden') + '>' + grp('Distância', 'd', ESP_D, a && a.distancias) + grp('Estilo', 'e', ESP_E, a && a.estilos) + '</div>';
+  }
+  function gEspLer(pre) {
+    var r = { d: [], e: [] };
+    var box = $('#' + pre + '-esp');
+    if (!box || box.hidden) return null;
+    [].forEach.call(box.querySelectorAll('[aria-pressed="true"]'), function (b) { r[b.getAttribute('data-g')].push(b.getAttribute('data-v')); });
+    return r;
+  }
   function gRenderAtl() {
     var mods = gMods();
     var h = '<div class="gbox"><p class="kicker">Novo atleta</p>' +
       '<div class="field"><label for="ga-nome">Nome</label><input class="dt" id="ga-nome" autocomplete="off"></div>' +
       '<div class="field"><label for="ga-mod">Modalidade</label><input class="dt" id="ga-mod" list="ga-mods" autocomplete="off" placeholder="Ex.: Surf"><datalist id="ga-mods">' +
       mods.map(function (m) { return '<option value="' + esc(m) + '">'; }).join('') + '</datalist></div>' +
+      gEspHtml('ga', null) +
       '<div class="inline"><div class="field"><label for="ga-grp">Grupo</label><select class="sel" id="ga-grp"><option value="atleta">Atleta</option><option value="pt">Cliente PT</option></select></div>' +
       '<div class="field"><label for="ga-pin">PIN (4 dígitos)</label><div class="f"><input id="ga-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar" type="button">Gerar</button></div></div></div>' +
       '<button class="primary" data-act="atl-criar">Criar atleta</button><p class="small" id="g-msg-atl" role="status"></p></div>' +
       '<p class="kicker">' + G.atl.length + (G.atl.length === 1 ? ' atleta' : ' atletas') + '</p>';
     h += G.atl.map(function (a) {
-      var row = '<div class="grow"><div class="who"><b>' + esc(a.nome) + '</b><small>' + esc(a.modalidade) + ' · ' + (a.grupo === 'pt' ? 'Cliente PT' : 'Atleta') + (a.ativo === false ? ' · inativo' : '') + '</small></div>' +
+      var row = '<div class="grow"><div class="who"><b>' + esc(a.nome) + '</b><small>' + esc(a.modalidade) + (((a.distancias || []).concat(a.estilos || [])).length ? ' · ' + esc((a.distancias || []).concat(a.estilos || []).join(', ')) : '') + ' · ' + (a.grupo === 'pt' ? 'Cliente PT' : 'Atleta') + (a.ativo === false ? ' · inativo' : '') + '</small></div>' +
         '<button class="chip" data-act="atl-edit" data-id="' + a.id + '">' + (G.edit === a.id ? 'Fechar' : 'Editar') + '</button></div>';
       if (G.edit === a.id) {
         row += '<div class="gbox">' +
           '<div class="field"><label for="ge-nome">Nome</label><input class="dt" id="ge-nome" value="' + esc(a.nome) + '"></div>' +
           '<div class="field"><label for="ge-mod">Modalidade</label><input class="dt" id="ge-mod" list="ga-mods" value="' + esc(a.modalidade) + '"></div>' +
+          gEspHtml('ge', a) +
           '<div class="inline"><div class="field"><label for="ge-grp">Grupo</label><select class="sel" id="ge-grp"><option value="atleta"' + (a.grupo === 'atleta' ? ' selected' : '') + '>Atleta</option><option value="pt"' + (a.grupo === 'pt' ? ' selected' : '') + '>Cliente PT</option></select></div>' +
           '<div class="field"><label for="ge-pin">Novo PIN (opcional)</label><div class="f"><input id="ge-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar2" type="button">Gerar</button></div></div></div>' +
           '<div class="chips"><button class="primary" data-act="atl-save" data-id="' + a.id + '" style="padding:10px 18px">Guardar</button>' +
@@ -2456,7 +2476,8 @@ table.rt { min-width: 0; font-size: .85rem; }
     gMsg('g-msg-atl', 'A criar…');
     tReq('/rest/v1/rpc/criar_atleta', { method: 'POST', body: { p_nome: nome, p_modalidade: mod, p_grupo: grp, p_pin: pin } }).then(function (r) {
       if (!r || !r.ok) { gMsg('g-msg-atl', ERRS_ATL[r && r.erro] || 'Não foi possível criar.', true); return; }
-      return carregar().then(function () { gMsg('g-msg-atl', nome + ' criado. PIN: ' + pin + '. Guarda-o e entrega-o ao atleta.'); });
+      var esp = gEspLer('ga');
+      return Promise.resolve(esp && (esp.d.length || esp.e.length) ? tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', body: { distancias: esp.d, estilos: esp.e } }) : null).then(function () { return carregar(); }).then(function () { gMsg('g-msg-atl', nome + ' criado. PIN: ' + pin + '. Guarda-o e entrega-o ao atleta.'); });
     }).catch(function (e) { gMsg('g-msg-atl', gFail(e), true); });
   }
   function gAtlSave(id) {
@@ -2464,7 +2485,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (!nome || !mod) { gMsg('g-msg-edit', 'Preenche o nome e a modalidade.', true); return; }
     if (pin && !/^\d{4}$/.test(pin)) { gMsg('g-msg-edit', 'O PIN tem de ter 4 dígitos.', true); return; }
     gMsg('g-msg-edit', 'A guardar…');
-    tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: { nome: nome, modalidade: mod, grupo: grp } }).then(function () {
+    tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: (function () { var o = { nome: nome, modalidade: mod, grupo: grp }, esp = gEspLer('ge'); if (esp) { o.distancias = esp.d; o.estilos = esp.e; } return o; })() }).then(function () {
       return pin ? tReq('/rest/v1/rpc/definir_pin_treinador', { method: 'POST', body: { p_atleta: id, p_pin: pin } }) : { ok: true };
     }).then(function (r) {
       if (r && r.ok === false) { gMsg('g-msg-edit', ERRS_ATL[r.erro] || 'Não foi possível mudar o PIN.', true); return; }
@@ -2659,7 +2680,8 @@ table.rt { min-width: 0; font-size: .85rem; }
     var b = e.target.closest('[data-act]');
     if (!b) return;
     var a = b.getAttribute('data-act'), d = +b.getAttribute('data-d'), k = +b.getAttribute('data-k'), id = b.getAttribute('data-id');
-    if (a === 'atl-gerar') $('#ga-pin').value = gPinRand();
+    if (a === 'esp-tog') b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+    else if (a === 'atl-gerar') $('#ga-pin').value = gPinRand();
     else if (a === 'atl-gerar2') $('#ge-pin').value = gPinRand();
     else if (a === 'atl-criar') gAtlCriar();
     else if (a === 'atl-edit') { G.edit = G.edit === id ? null : id; gRenderAtl(); }
@@ -2695,6 +2717,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   });
   $('#g-panel').addEventListener('input', function (e) {
     var t = e.target;
+    if (t.id === 'ga-mod' || t.id === 'ge-mod') { var bx = $('#' + t.id.slice(0, 2) + '-esp'); if (bx) bx.hidden = !gEhNat(t.value) && !bx.querySelector('[aria-pressed="true"]'); return; }
     if (t.id === 'gx-q') { G.exQ = t.value; gRenderExList(); return; }
     var f = t.getAttribute('data-f');
     if (!f) return;
