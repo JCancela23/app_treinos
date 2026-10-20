@@ -1,0 +1,2250 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D120F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Alvo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: uma coluna estreita, pensada para telemóvel. Duas vistas (Atleta / Treinador) com a mesma identidade: verde, preto e branco, números grandes e condensados. Nos gráficos, a única cor de dados é o verde da marca; tudo o resto é tinta e linhas finas. */
+:root {
+  --bg: #F2F5F1;
+  --surface: #FFFFFF;
+  --fg: #0D120F;
+  --muted: #5A665E;
+  --line: #DEE4DF;
+  --axis: #B9C3BB;
+  --accent: #16803F;
+  --accent-fg: #FFFFFF;
+  --accent-soft: #DCEFE2;
+  --warn: #A85F00;
+  --warn-soft: #F8E9D2;
+  --crit: #B3261E;
+  --crit-soft: #F8DEDB;
+  --font-display: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0A0E0B; --surface: #131913; --fg: #EEF3EF; --muted: #93A097; --line: #243026; --axis: #3A473C;
+    --accent: #3FCB77; --accent-fg: #06110A; --accent-soft: #13301E;
+    --warn: #E5A445; --warn-soft: #34260F; --crit: #F28B83; --crit-soft: #3A1815;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0A0E0B; --surface: #131913; --fg: #EEF3EF; --muted: #93A097; --line: #243026; --axis: #3A473C;
+  --accent: #3FCB77; --accent-fg: #06110A; --accent-soft: #13301E;
+  --warn: #E5A445; --warn-soft: #34260F; --crit: #F28B83; --crit-soft: #3A1815;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.45;
+  padding-block: 16px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.wrap .wrap { margin: 0; max-width: none; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+h2 { font-size: 1.6rem; line-height: 1.1; }
+h3 { font-size: 1.2rem; line-height: 1.15; }
+p { margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { width: 38px; height: 38px; flex: none; }
+.brand b { font-family: var(--font-display); font-size: 1.9rem; letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
+.demo { font-size: .75rem; color: var(--muted); text-align: right; max-width: 15ch; }
+
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 4px; gap: 4px; }
+.seg button { border: 0; background: transparent; padding: 10px; border-radius: 7px; font-weight: 600; color: var(--muted); }
+.seg button[aria-selected="true"] { background: var(--fg); color: var(--bg); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.panel > header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.kicker { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.big { font-family: var(--font-display); font-weight: 700; font-size: 2.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.unit { font-size: .85rem; color: var(--muted); font-weight: 500; font-family: var(--font-body); margin-left: 4px; }
+
+/* dias */
+.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.day { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 0 14px; text-align: center; font-weight: 600; font-size: .85rem; position: relative; min-width: 0; }
+.day[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.day.today::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--accent); }
+
+/* wellness */
+.hrow { display: grid; gap: 8px; }
+.hrow .lab { display: flex; justify-content: space-between; font-weight: 600; }
+.hrow .lab span { color: var(--muted); font-weight: 500; font-size: .85rem; }
+.scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.scale button { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 10px 0; font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; }
+.scale button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.ends { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); }
+.total { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+
+/* treino */
+.ex { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; background: var(--bg); }
+.ex header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.pres { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; white-space: nowrap; color: var(--accent); }
+.last { font-size: .8rem; color: var(--muted); }
+.set { display: grid; grid-template-columns: 2.2rem 1fr 1fr; gap: 8px; align-items: center; }
+.sn { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.f { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; min-width: 0; }
+.f input { border: 0; background: transparent; padding: 10px 0; width: 100%; min-width: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
+.f input:focus-visible { outline: none; }
+.f:focus-within { border-color: var(--accent); }
+.f span { font-size: .8rem; color: var(--muted); }
+.check { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-weight: 500; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.note { border: 1px dashed var(--line); border-radius: 10px; padding: 14px; color: var(--muted); }
+.prog { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* blocos */
+.block { display: grid; gap: 10px; }
+.block + .block { border-top: 1px solid var(--line); padding-top: 16px; }
+.meta { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.vid { font-size: .85rem; font-weight: 600; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.bnotas { display: grid; gap: 8px; }
+.bnota { min-height: 64px; font-family: var(--font-body); font-size: .9rem; }
+
+/* PSE */
+.pse { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.pse button { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 10px 0; font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; }
+.pse button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.pse-label { font-weight: 600; min-height: 1.4em; }
+.inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.primary { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 10px; padding: 13px; font-weight: 600; }
+.primary:disabled { opacity: .4; cursor: not-allowed; }
+.status { font-size: .85rem; color: var(--muted); min-height: 1.2em; }
+
+/* entrada */
+.pickl { display: grid; gap: 8px; }
+.pick { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 12px; text-align: left; }
+.pick b { font-weight: 600; }
+.pick small { color: var(--muted); }
+.pick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bar b { font-family: var(--font-display); font-size: 1.6rem; letter-spacing: .01em; }
+
+/* treinador */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 6px 14px; font-weight: 600; font-size: .85rem; }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 440px; }
+th { text-align: left; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+td button { all: unset; box-sizing: border-box; display: block; width: 100%; padding: 12px 8px; cursor: pointer; }
+tr[aria-selected="true"] td { background: var(--accent-soft); }
+td .who b { display: block; font-weight: 600; }
+td .who small { color: var(--muted); }
+.num { font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; border-radius: 99px; padding: 3px 10px; font-size: .78rem; font-weight: 600; }
+.pill.ok { background: var(--accent-soft); color: var(--accent); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.crit { background: var(--crit-soft); color: var(--crit); }
+.pill.none { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+textarea { width: 100%; min-height: 120px; resize: vertical; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8rem; }
+.small { font-size: .85rem; color: var(--muted); }
+.err { color: var(--crit); font-size: .85rem; }
+
+/* filtros e gráficos */
+.frow { display: grid; gap: 12px; }
+.dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sel, .dt { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-weight: 600; min-width: 0; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 4px; min-width: 0; align-content: start; }
+.tile .big { font-size: 2rem; }
+.tile .small { font-size: .78rem; line-height: 1.25; }
+.cwrap { position: relative; }
+.chart { width: 100%; height: auto; display: block; touch-action: pan-y; }
+.chart:focus-visible { outline-offset: 4px; border-radius: 6px; }
+.chart text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
+.chart .val { fill: var(--fg); font-weight: 600; }
+.chart line { stroke: var(--line); stroke-width: 1; }
+.chart line.axis { stroke: var(--axis); }
+.chart line.ref { stroke: var(--muted); opacity: .55; }
+.chart line.cross { stroke: var(--muted); }
+.chart path.ln { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chart .dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.chart .b { fill: var(--accent); }
+.chart .b.hl { stroke: var(--fg); stroke-width: 1.5; }
+.tip { position: absolute; top: 0; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; box-shadow: 0 2px 10px rgba(0, 0, 0, .14); pointer-events: none; white-space: nowrap; font-size: .8rem; line-height: 1.25; z-index: 2; }
+.tip strong { display: block; font-family: var(--font-display); font-size: 1.2rem; line-height: 1.1; }
+.tip span { color: var(--muted); }
+.sm { display: grid; grid-template-columns: 1fr; gap: 18px; }
+@media (min-width: 560px) { .sm { grid-template-columns: 1fr 1fr; } }
+.smi { display: grid; gap: 4px; min-width: 0; }
+.smh { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tscroll { max-height: 280px; overflow: auto; }
+
+.set.single { grid-template-columns: 2.2rem 1fr; }
+.chart line.mk { stroke: var(--fg); opacity: .35; }
+summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+details > .frow, details > div { margin-top: 10px; }
+
+/* calendario */
+.calh { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.calh b { font-family: var(--font-display); font-size: 1.4rem; text-transform: capitalize; text-align: center; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal .dh { font-size: .7rem; text-align: center; color: var(--muted); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 2px 0; }
+.cd { appearance: none; text-align: left; font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px; min-height: 58px; min-width: 0; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; cursor: pointer; }
+.cd.today { border-color: var(--accent); }
+.cd.today .dn { color: var(--accent); }
+.cd[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.dn { font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tag { font-size: .62rem; font-weight: 700; line-height: 1; background: var(--fg); color: var(--bg); border-radius: 4px; padding: 3px 4px; letter-spacing: .02em; }
+.more { font-size: .62rem; color: var(--muted); font-weight: 600; }
+.clist { display: grid; gap: 8px; }
+.ci { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--bg); }
+.ci > div { min-width: 0; }
+.ci b { font-weight: 600; display: block; }
+.ci small { color: var(--muted); }
+.when { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; white-space: nowrap; text-align: right; line-height: 1.1; }
+.when small { display: block; font-family: var(--font-body); font-weight: 500; font-size: .75rem; }
+
+/* relatorio */
+.checks { display: grid; gap: 8px; }
+.paper { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 18px; min-width: 0; }
+.ra { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
+.ra h3 small { font-family: var(--font-body); font-size: .8rem; color: var(--muted); font-weight: 500; margin-left: 8px; }
+.rgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.kv { display: grid; gap: 2px; min-width: 0; }
+.kv .k { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.kv .v { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.kv .s { font-size: .8rem; color: var(--muted); }
+.calh .chip { font-size: 1.3rem; line-height: 1; padding: 6px 18px; }
+table.rt { min-width: 0; font-size: .85rem; }
+.rt th { padding: 6px 4px; letter-spacing: .04em; }
+.rt td { padding: 8px 4px; white-space: nowrap; }
+.rt td:first-child { white-space: normal; }
+.rt.sum { font-size: .78rem; }
+.rt.sum th { letter-spacing: 0; padding: 6px 3px; }
+.rt.sum td { padding: 8px 3px; }
+
+.tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.mtag { font-size: .72rem; font-weight: 600; border: 1px solid var(--line); border-radius: 99px; padding: 2px 9px; color: var(--muted); background: var(--surface); }
+.hint { font-size: .82rem; color: var(--muted); }
+.pbars { display: grid; gap: 10px; }
+.pb { display: grid; grid-template-columns: 5.4rem minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.pl { font-weight: 600; }
+.pt { display: block; height: 16px; border-left: 1px solid var(--axis); }
+.pf { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; }
+.pv { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: no-preference) {
+  button { transition: background-color .12s, color .12s, border-color .12s; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <svg viewBox="0 0 40 40" role="img" aria-label="Logótipo Alvo">
+        <circle cx="20" cy="20" r="18" fill="var(--fg)"/>
+        <circle cx="20" cy="20" r="14" fill="var(--bg)"/>
+        <circle cx="20" cy="20" r="10" fill="var(--fg)"/>
+        <circle cx="20" cy="20" r="6" fill="var(--bg)"/>
+        <circle cx="20" cy="20" r="2.8" fill="var(--accent)"/>
+      </svg>
+      <b>Alvo</b>
+    </div>
+    <p class="demo" id="demo-note">Protótipo com dados de exemplo. Nada é guardado.</p>
+  </div>
+
+  <div class="seg" id="tabs" role="tablist" aria-label="Vista">
+    <button role="tab" id="tab-atleta" aria-selected="true" data-view="atleta">Atleta</button>
+    <button role="tab" id="tab-treinador" aria-selected="false" data-view="treinador">Treinador</button>
+  </div>
+
+  <!-- ATLETA -->
+  <section id="view-atleta" class="wrap" style="padding:0" aria-labelledby="tab-atleta">
+    <div class="panel" id="entrada">
+      <header>
+        <h2>Quem és?</h2>
+        <span class="kicker">Entrada</span>
+      </header>
+      <div class="pickl" id="pick" role="group" aria-label="Escolhe o teu nome"></div>
+      <div class="field">
+        <label for="pin">PIN de 4 dígitos</label>
+        <div class="f"><input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="····"></div>
+      </div>
+      <button class="primary" id="entrar">Entrar</button>
+      <p class="err" id="entrar-err" role="alert"></p>
+      <p class="small" id="pin-note">O PIN só é pedido na primeira vez em cada telemóvel. Neste protótipo, o PIN de todos é 1234. Na versão real, defines tu o PIN de cada atleta.</p>
+    </div>
+
+    <div class="wrap" style="padding:0" id="atleta-app" hidden>
+      <div class="bar"><b id="ola"></b><button class="chip" id="sair">Sair</button></div>
+
+      <div class="panel" id="gate">
+        <header>
+          <h2>Como estás hoje?</h2>
+          <span class="kicker">Wellness · Hooper</span>
+        </header>
+        <p class="small">Antes de veres o treino, preenche o wellness de hoje.</p>
+        <div id="hooper" style="display:grid;gap:16px"></div>
+        <div class="total">
+          <span class="small">Índice de Hooper (4 a 20, menor é melhor)</span>
+          <span><span class="big" id="htotal">–</span> <span class="pill ok" id="hstate" hidden>Bom</span></span>
+        </div>
+        <button class="primary" id="hsave" disabled>Guardar e ver o treino</button>
+        <p class="err" id="h-err" role="alert"></p>
+      </div>
+
+      <div class="bar" id="wsum" hidden>
+        <span class="small" id="wsum-t"></span>
+        <button class="chip" id="walterar">Alterar</button>
+      </div>
+
+      <div class="wrap" style="padding:0" id="after" hidden>
+        <div class="days" id="days" role="group" aria-label="Dia da semana"></div>
+
+        <div class="panel">
+          <header>
+            <div>
+              <p class="kicker" id="work-kicker">Treino</p>
+              <h2 id="work-title"></h2>
+            </div>
+            <span class="prog" id="prog"></span>
+          </header>
+          <div id="work" style="display:grid;gap:12px"></div>
+          <p class="small" id="autosave" role="status"></p>
+        </div>
+
+        <div class="panel" id="pse-panel">
+          <header>
+            <h2>Esforço da sessão</h2>
+            <span class="kicker">PSE · CR10</span>
+          </header>
+          <div class="pse" id="pse" role="group" aria-label="PSE de 0 a 10"></div>
+          <p class="pse-label" id="pse-label"></p>
+          <div class="inline">
+            <div class="field">
+              <label for="dur">Duração (min)</label>
+              <div class="f"><input id="dur" inputmode="numeric" value="60"><span>min</span></div>
+            </div>
+            <div>
+              <p class="kicker">Carga da sessão</p>
+              <p class="big"><span id="load">0</span><span class="unit">UA</span></p>
+            </div>
+          </div>
+          <button class="primary" id="save">Guardar sessão</button>
+          <p class="status" id="status" role="status"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TREINADOR -->
+  <section id="view-treinador" class="wrap" style="padding:0" hidden aria-labelledby="tab-treinador">
+    <div class="panel" id="t-login" hidden>
+      <header>
+        <h2>Entrar</h2>
+        <span class="kicker">Treinador</span>
+      </header>
+      <div class="field">
+        <label for="t-email">Email</label>
+        <div class="f"><input id="t-email" type="email" autocomplete="username" inputmode="email"></div>
+      </div>
+      <div class="field">
+        <label for="t-pass">Palavra-passe</label>
+        <div class="f"><input id="t-pass" type="password" autocomplete="current-password"></div>
+      </div>
+      <button class="primary" id="t-go">Entrar</button>
+      <p class="err" id="t-err" role="alert"></p>
+    </div>
+    <div class="panel">
+      <header>
+        <h2 id="t-date">Quarta, 14 de outubro</h2>
+        <span class="kicker">Painel do treinador</span><button class="chip" id="t-sair" hidden>Sair</button>
+      </header>
+      <div class="chips" id="filters" role="group" aria-label="Filtrar"></div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Atleta</th><th>Hooper</th><th>Semana (UA)</th><th>Estado</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="small">Estado: até 8 bom, 9 a 13 moderado, 14 ou mais atenção. Limiares de exemplo, ajustáveis por atleta. Toca num atleta para ver a evolução dele.</p>
+    </div>
+
+    <div class="panel" id="p-cal">
+      <header>
+        <h2>Calendário de competições</h2>
+        <span class="kicker">Por atleta</span>
+      </header>
+      <div class="field">
+        <label for="cal-a">Mostrar</label>
+        <select id="cal-a" class="sel"></select>
+      </div>
+      <div class="calh">
+        <button class="chip" id="cal-prev" aria-label="Mês anterior">‹</button>
+        <b id="cal-title"></b>
+        <button class="chip" id="cal-next" aria-label="Mês seguinte">›</button>
+      </div>
+      <div class="cal" id="cal"></div>
+      <div id="cal-det" style="display:grid;gap:8px"></div>
+      <div style="display:grid;gap:8px">
+        <p class="kicker">Próximos 30 dias</p>
+        <div class="clist" id="cal-up"></div>
+      </div>
+      <details>
+        <summary>Adicionar competição</summary>
+        <div class="frow">
+          <div class="field">
+            <label for="c-a">Atleta</label>
+            <select id="c-a" class="sel"></select>
+          </div>
+          <div class="field">
+            <label for="c-d">Data</label>
+            <input id="c-d" class="dt" type="date">
+          </div>
+          <div class="field">
+            <label for="c-n">Competição</label>
+            <input id="c-n" class="dt" type="text" placeholder="Ex.: Etapa do circuito nacional">
+          </div>
+          <div class="field">
+            <label for="c-l">Local</label>
+            <input id="c-l" class="dt" type="text" placeholder="Ex.: Peniche">
+          </div>
+          <button class="primary" id="c-add">Adicionar ao calendário</button>
+          <p class="err" id="c-err" role="alert"></p>
+        </div>
+      </details>
+    </div>
+
+    <div class="panel" id="filtros">
+      <header>
+        <h2>Evolução da época</h2>
+        <span class="kicker">Filtros</span>
+      </header>
+      <div class="frow">
+        <div class="field">
+          <label for="f-atleta">Atleta</label>
+          <select id="f-atleta" class="sel"></select>
+        </div>
+        <div class="chips" id="presets" role="group" aria-label="Período"></div>
+        <div class="dates">
+          <div class="field">
+            <label for="d-de">De</label>
+            <input id="d-de" class="dt" type="date">
+          </div>
+          <div class="field">
+            <label for="d-ate">Até</label>
+            <input id="d-ate" class="dt" type="date">
+          </div>
+        </div>
+      </div>
+      <p class="small" id="range-info"></p>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <div class="panel" id="p-hooper">
+      <header>
+        <div>
+          <p class="kicker">Wellness</p>
+          <h2>Índice de Hooper</h2>
+        </div>
+        <button class="chip" data-tab="hooper" aria-pressed="false">Ver tabela</button>
+      </header>
+      <p class="small">Menor é melhor. A linha de referência marca o limiar de atenção e as linhas verticais marcam as competições do atleta.</p>
+      <div class="cwrap" id="c-hooper"></div>
+      <div class="tscroll" id="t-hooper" hidden></div>
+    </div>
+
+    <div class="panel" id="p-pse">
+      <header>
+        <div>
+          <p class="kicker">Esforço</p>
+          <h2>PSE por sessão</h2>
+        </div>
+        <button class="chip" data-tab="pse" aria-pressed="false">Ver tabela</button>
+      </header>
+      <p class="small">Escala CR10, de 0 a 10, uma entrada por sessão. As linhas verticais marcam as competições.</p>
+      <div class="cwrap" id="c-pse"></div>
+      <div class="tscroll" id="t-pse" hidden></div>
+    </div>
+
+    <div class="panel" id="p-carga">
+      <header>
+        <div>
+          <p class="kicker">Carga</p>
+          <h2>Carga semanal</h2>
+        </div>
+        <button class="chip" data-tab="carga" aria-pressed="false">Ver tabela</button>
+      </header>
+      <p class="small">Soma de PSE × minutos de cada sessão, em UA, por semana (segunda a domingo).</p>
+      <div class="cwrap" id="c-carga"></div>
+      <div class="tscroll" id="t-carga" hidden></div>
+    </div>
+
+    <div class="panel" id="p-ton">
+      <header>
+        <div>
+          <p class="kicker">Volume</p>
+          <h2>Tonelagem semanal</h2>
+        </div>
+        <button class="chip" data-tab="ton" aria-pressed="false">Ver tabela</button>
+      </header>
+      <p class="small">Carga × repetições × séries, em toneladas (t) por semana. Nos exercícios unilaterais conta os dois lados (×2) e, nos halteres, a carga é o total dos dois.</p>
+      <div class="cwrap" id="c-ton"></div>
+      <div class="tscroll" id="t-ton" hidden></div>
+    </div>
+
+    <div class="panel" id="p-pad">
+      <header>
+        <div>
+          <p class="kicker">Equilíbrio</p>
+          <h2>Tonelagem por padrão</h2>
+        </div>
+      </header>
+      <p class="small">Squat, hip hinge, push e pull no período escolhido. Serve para comparar empurrar com puxar, e agachar com dobrar a anca.</p>
+      <div class="pbars" id="c-pad"></div>
+      <p class="small" id="pad-uni"></p>
+    </div>
+
+    <div class="panel" id="p-ex">
+      <header>
+        <div>
+          <p class="kicker">Força</p>
+          <h2>Cargas por exercício</h2>
+        </div>
+        <button class="chip" data-tab="ex" aria-pressed="false">Ver tabela</button>
+      </header>
+      <p class="small">Melhor série de cada sessão, em kg, nos exercícios em que pedes registo.</p>
+      <div class="sm" id="c-ex"></div>
+      <div class="tscroll" id="t-ex" hidden></div>
+    </div>
+
+    <div class="panel" id="p-met">
+      <header>
+        <div>
+          <p class="kicker">Testes e velocidade</p>
+          <h2>CMJ, broad jump e VBT</h2>
+        </div>
+        <button class="chip" data-tab="met" aria-pressed="false">Ver tabela</button>
+      </header>
+      <p class="small">Melhor tentativa de cada sessão. O VBT mostra a velocidade média (m/s) da série de trabalho no agachamento.</p>
+      <div class="sm" id="c-met"></div>
+      <div class="tscroll" id="t-met" hidden></div>
+    </div>
+
+    <div class="panel" id="p-core">
+      <header>
+        <div>
+          <p class="kicker">Core</p>
+          <h2>Tempo por série</h2>
+        </div>
+        <button class="chip" data-tab="core" aria-pressed="false">Ver tabela</button>
+      </header>
+      <p class="small" id="core-sum"></p>
+      <div class="sm" id="c-core"></div>
+      <div class="tscroll" id="t-core" hidden></div>
+    </div>
+
+    <div class="panel" id="p-rep">
+      <header>
+        <h2>Relatório para treinadores</h2>
+        <span class="kicker">Atletas e período</span>
+      </header>
+      <p class="small">Usa o período escolhido em "Evolução da época". Escolhe os atletas a incluir.</p>
+      <div class="checks" id="rep-list"></div>
+      <label class="check"><input type="checkbox" id="rep-motivos">Incluir os motivos das faltas (por exemplo, lesão ou dor)</label>
+      <button class="primary" id="rep-go">Gerar relatório</button>
+      <div id="rep-out" hidden></div>
+      <div id="rep-actions" hidden style="display:grid;gap:8px">
+        <button class="chip" id="rep-copy">Copiar resumo em texto</button>
+        <p class="small" id="rep-msg" role="status"></p>
+      </div>
+      <textarea id="rep-text" hidden readonly aria-label="Resumo em texto"></textarea>
+      <p class="small">Na versão real, o relatório descarrega-se em PDF. Neste protótipo podes ver o resultado e copiar o resumo.</p>
+    </div>
+
+    <div class="panel">
+      <header>
+        <h2>Importar plano do Excel</h2>
+        <span class="kicker">Colar linhas</span>
+      </header>
+      <p class="small">Copia as linhas do Excel e cola aqui. Colunas: Dia (Seg a Dom), Bloco (Warm-up, Preparation, Main, Accessory), Exercício, Séries, Repetições, Registar carga (sim ou não), Vídeo (link), Padrão, Lateralidade, Tipo de registo (opcional: carga, vbt, tempo, cmj ou bj) e Nome do treino (opcional). Padrão: squat, hip hinge, push, pull ou core anti-extension, core anti-lateral flexion, core anti-rotation. Lateralidade: bilateral ou unilateral. Para um dia sem exercícios, escreve só o dia e Descanso (ou Água), por exemplo: Qui e Descanso.</p>
+      <label for="paste" class="small" style="font-weight:600">Linhas do plano</label>
+      <textarea id="paste" spellcheck="false"></textarea>
+      <button class="primary" id="preview">Pré-visualizar plano</button>
+      <p class="err" id="perr" role="alert"></p>
+      <div class="scroll" id="pout" hidden>
+        <table style="min-width:600px">
+          <thead><tr><th>Dia</th><th>Bloco</th><th>Exercício</th><th>Padrão</th><th>Lateralidade</th><th>Carga</th><th>Vídeo</th></tr></thead>
+          <tbody id="prows"></tbody>
+        </table>
+      </div>
+      <div id="imp-live" hidden style="display:grid;gap:12px">
+        <p class="small" style="font-weight:600">Quem recebe este plano</p>
+        <div id="imp-list" style="display:grid;gap:8px"></div>
+        <div class="field">
+          <label for="imp-sem">Semana (escolhe qualquer dia dessa semana)</label>
+          <input id="imp-sem" class="dt" type="date">
+        </div>
+        <button class="primary" id="imp-go">Importar para a base de dados</button>
+        <p class="small" id="imp-msg" role="status"></p>
+      </div>
+    </div>
+  </section>
+  <p style="text-align:center;margin:24px 0"><a id="t-link" href="#treinador" class="small">Área do treinador</a></p>
+</div>
+
+<script>window.ALVO_CONFIG = {url:'https://fkvuboinveyesapgikoi.supabase.co', key:'sb_publishable_xKvLi7tTXtDeXddFlxumSg_ZacV0p0a', epoca:'2026-09-01'};</script>
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  var DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  var MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  var TODAY = 2;
+  var SUPA = window.ALVO_CONFIG || null;
+  var LIVE = !!(SUPA && SUPA.url && SUPA.key);
+  var VBTN = 'Back squat';
+
+  /* ---------- dados de exemplo (uma época a partir de 1 de setembro) ---------- */
+  var DAY = 864e5, START = Date.UTC(2026, 8, 1), TODAY_I = 43;
+  function dow(i) { return (new Date(START + i * DAY).getUTCDay() + 6) % 7; }
+  function fmtDate(i) { var d = new Date(START + i * DAY); return d.getUTCDate() + ' ' + MES[d.getUTCMonth()]; }
+  function toISO(i) { return new Date(START + i * DAY).toISOString().slice(0, 10); }
+  function fromISO(s) { var p = String(s).split('-'); if (p.length !== 3) return NaN; return Math.round((Date.UTC(+p[0], +p[1] - 1, +p[2]) - START) / DAY); }
+  function num(n) { return String(Math.round(n * 10) / 10).replace('.', ','); }
+  function sum(a) { return a.reduce(function (x, y) { return x + y; }, 0); }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function rng(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  var PADROES = { squat: 'Squat', hinge: 'Hip hinge', push: 'Push', pull: 'Pull' };
+  var COREC = { ext: 'Anti-extension', lat: 'Anti-lateral flexion', rot: 'Anti-rotation' };
+  /* exercícios com carga: pad = padrão de movimento, lat = lateralidade (uni conta os dois lados na tonelagem) */
+  var EXS = [
+    { n: 'Back squat', dia: 0, base: 70, reps: 6, s: 4, pad: 'squat', lat: 'bi' },
+    { n: 'Romanian deadlift', dia: 0, base: 62, reps: 8, s: 3, pad: 'hinge', lat: 'bi' },
+    { n: 'Bulgarian split squat', dia: 0, base: 18, reps: 8, s: 3, pad: 'squat', lat: 'uni' },
+    { n: 'Dumbbell bench press', dia: 2, base: 28, reps: 8, s: 4, pad: 'push', lat: 'bi' },
+    { n: 'Barbell row', dia: 2, base: 48, reps: 8, s: 4, pad: 'pull', lat: 'bi' },
+    { n: 'Dumbbell snatch', dia: 4, base: 20, reps: 4, s: 4, pad: 'hinge', lat: 'uni' }
+  ];
+  /* exercícios de core, registados em tempo (segundos por série) */
+  var COREX = [
+    { n: 'Front plank', dia: 0, s: 3, sec: 40, cat: 'ext', lat: 'bi' },
+    { n: 'Side plank', dia: 2, s: 3, sec: 30, cat: 'lat', lat: 'uni' },
+    { n: 'Pallof hold', dia: 2, s: 3, sec: 20, cat: 'rot', lat: 'uni' },
+    { n: 'Front plank', dia: 4, s: 3, sec: 45, cat: 'ext', lat: 'bi' }
+  ];
+  var ATLETAS = [
+    { n: 'Marta S.', m: 'Surf competitivo', g: 'atleta', seed: 11, hb: 8.5, hd: 0, pse0: 6.5, dur0: 65, str: 1.0, miss: .05, water: true, cm0: 36, bj0: 218 },
+    { n: 'Tiago R.', m: 'SUP', g: 'atleta', seed: 23, hb: 9.5, hd: 3, pse0: 6, dur0: 62, str: 1.1, miss: .06, water: true, cm0: 34, bj0: 232 },
+    { n: 'Inês C.', m: 'Bodyboard', g: 'atleta', seed: 37, hb: 9, hd: 8, pse0: 6.8, dur0: 68, str: .85, miss: .05, water: true, cm0: 29, bj0: 192 },
+    { n: 'Ana M.', m: 'Surf amador', g: 'atleta', seed: 41, hb: 7.5, hd: 0, pse0: 5.5, dur0: 50, str: .7, miss: .1, water: true, semHoje: true, cm0: 27, bj0: 184 },
+    { n: 'Rui P.', m: 'Cliente PT', g: 'pt', seed: 53, hb: 8, hd: 0, pse0: 5, dur0: 45, str: 1.15, miss: .08, water: false, cm0: 33, bj0: 228 }
+  ];
+  /* competições de exemplo: a = índice do atleta, i = dia desde 1 de setembro */
+  var COMP = [
+    { a: 0, i: 30, n: 'Etapa do circuito nacional', l: 'Peniche' },
+    { a: 1, i: 35, n: 'Campeonato de SUP', l: 'Cascais' },
+    { a: 2, i: 38, n: 'Open de bodyboard', l: 'Nazaré' },
+    { a: 0, i: 49, n: 'Etapa do circuito nacional', l: 'Ericeira' },
+    { a: 1, i: 49, n: 'Taça de SUP', l: 'Sesimbra' },
+    { a: 3, i: 56, n: 'Open amador de surf', l: 'Figueira da Foz' },
+    { a: 2, i: 63, n: 'Campeonato nacional de bodyboard', l: 'Peniche' },
+    { a: 0, i: 70, n: 'Final do circuito nacional', l: 'Nazaré' }
+  ];
+  function planned(a, i) { if (LIVE) return !!(a.plan && a.plan[i]); var d = dow(i); return d === 0 || d === 2 || d === 4 || ((d === 1 || d === 5) && a.water); }
+  function motivo(r, lesao) {
+    var x = r();
+    if (lesao && x < .6) return 'Lesão ou dor';
+    return x < .5 ? 'Sem tempo' : x < .7 ? 'Outro' : x < .85 ? 'Sem material' : 'Lesão ou dor';
+  }
+  function fmtN(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+  ATLETAS.forEach(function (a) {
+    var r = rng(a.seed);
+    a.rec = []; a.loads = {}; a.cmj = []; a.bj = []; a.vbt = [];
+    a.core = { ext: [], lat: [], rot: [] };
+    EXS.forEach(function (e) { a.loads[e.n] = []; });
+    for (var i = 0; i <= TODAY_I; i++) {
+      var d = dow(i), ramp = clamp((i - 29) / 14, 0, 1), rec = { w: null, ses: [], ton: 0, tu: 0, tp: {}, core: {}, falta: null };
+      var hoje = i === TODAY_I, wk7 = Math.floor(i / 7), fat = a.hd > 5 ? ramp : 0;
+      if (!(hoje && a.semHoje) && r() > .06) {
+        var mu = (a.hb + a.hd * ramp) / 4;
+        rec.w = [0, 1, 2, 3].map(function () { return clamp(Math.round(mu + (r() - .5) * 1.8), 1, 5); });
+      }
+      var gym = d === 0 || d === 2 || d === 4;
+      var agua = (d === 1 || d === 5) && a.water;
+      if ((gym || agua) && !(hoje && a.semHoje)) {
+        if (hoje || r() > a.miss) {
+          var pse = clamp(Math.round(a.pse0 - (agua ? 1 : 0) + (r() - .5) * 2.4 + ramp * (a.hd ? 1 : 0)), 2, 9);
+          var min = Math.round((a.dur0 + (r() - .5) * 16) * (agua ? 1.2 : 1));
+          rec.ses.push({ t: gym ? 'gym' : 'agua', pse: pse, min: min, ua: pse * min });
+          if (gym && r() > .03) {
+            EXS.forEach(function (e) {
+              if (e.dia !== d) return;
+              var kg = e.base * a.str * (1 + .012 * wk7) * (1 - .05 * fat) + (r() - .5) * 4;
+              kg = Math.round(kg / 2.5) * 2.5;
+              a.loads[e.n].push({ x: i, y: kg, reps: e.reps });
+              var t = kg * e.reps * e.s * (e.lat === 'uni' ? 2 : 1);
+              rec.ton += t;
+              rec.tp[e.pad] = (rec.tp[e.pad] || 0) + t;
+              if (e.lat === 'uni') rec.tu += t;
+              if (e.n === 'Back squat') a.vbt.push({ x: i, kg: kg, y: Math.round((.72 + (r() - .5) * .08 - .07 * fat + .003 * wk7) * 100) / 100 });
+            });
+            COREX.forEach(function (c) {
+              if (c.dia !== d) return;
+              var sec = Math.round((c.sec * (.6 + .4 * a.str) * (1 + .015 * wk7) - 4 * fat + (r() - .5) * 6) / 5) * 5;
+              sec = Math.max(10, sec);
+              a.core[c.cat].push({ x: i, y: sec, n: c.n });
+              rec.core[c.cat] = (rec.core[c.cat] || 0) + sec * c.s * (c.lat === 'uni' ? 2 : 1);
+            });
+            if (d === 4) {
+              a.cmj.push({ x: i, y: Math.round((a.cm0 + .25 * wk7 - 3.5 * fat + (r() - .5) * 2.4) * 10) / 10 });
+              a.bj.push({ x: i, y: Math.round(a.bj0 + 1.5 * wk7 - 6 * fat + (r() - .5) * 8) });
+            }
+          }
+        } else {
+          rec.falta = motivo(r, fat > .3);
+        }
+      }
+      a.rec.push(rec);
+    }
+  });
+
+  var PLAN = [
+    { nome: 'Força inferior', tipo: 'gym', blocos: [
+      { b: 'Warm-up', ex: [
+        { n: 'Hip mobility', pres: '2 × 10', v: 'hip mobility warm-up' },
+        { n: 'Banded glute activation', pres: '2 × 15', v: 'banded glute activation' } ] },
+      { b: 'Preparation', ex: [
+        { n: 'Pogo jumps', pres: '3 × 5', v: 'pogo jumps landing technique' } ] },
+      { b: 'Main', ex: [
+        { n: 'Back squat (VBT)', pres: '4 × 6', series: 4, t: 'vbt', pad: 'squat', lat: 'bi', last: '72,5 kg · 0,70 m/s', v: 'back squat technique' },
+        { n: 'Romanian deadlift', pres: '3 × 8', series: 3, t: 'carga', pad: 'hinge', lat: 'bi', last: '65 kg × 8', v: 'romanian deadlift technique' } ] },
+      { b: 'Accessory', ex: [
+        { n: 'Bulgarian split squat', pres: '3 × 8 / leg', series: 3, t: 'carga', pad: 'squat', lat: 'uni', h: 'Reps per leg. Log the total load you carry.', last: '20 kg × 8', v: 'bulgarian split squat technique' },
+        { n: 'Calf raise', pres: '3 × 12', v: 'calf raise' },
+        { n: 'Front plank', pres: '3 × 40 s', series: 3, t: 'tempo', core: 'ext', lat: 'bi', last: '40 s', v: 'front plank anti-extension' } ] }
+    ]},
+    { nome: 'Treino na água', tipo: 'agua' },
+    { nome: 'Força superior e core', tipo: 'gym', blocos: [
+      { b: 'Warm-up', ex: [
+        { n: 'Shoulder mobility', pres: '2 × 10', v: 'shoulder mobility warm-up' },
+        { n: 'Thoracic rotation', pres: '2 × 8 / side', v: 'thoracic rotation mobility' } ] },
+      { b: 'Preparation', ex: [
+        { n: 'Band row', pres: '2 × 12', pad: 'pull', lat: 'bi', v: 'band row' } ] },
+      { b: 'Main', ex: [
+        { n: 'Dumbbell bench press', pres: '4 × 8', series: 4, t: 'carga', pad: 'push', lat: 'bi', h: 'Log the combined weight of both dumbbells. Example: 2 × 14 kg = 28 kg.', last: '28 kg × 8', v: 'dumbbell bench press technique' },
+        { n: 'Barbell row', pres: '4 × 8', series: 4, t: 'carga', pad: 'pull', lat: 'bi', last: '50 kg × 8', v: 'barbell row technique' },
+        { n: 'Paused push-up', pres: '3 × 10', pad: 'push', lat: 'bi', v: 'paused push-up technique' } ] },
+      { b: 'Accessory', ex: [
+        { n: 'Side plank', pres: '3 × 30 s / side', series: 3, t: 'tempo', core: 'lat', lat: 'uni', h: 'Time for each side.', last: '30 s', v: 'side plank technique' },
+        { n: 'Pallof hold', pres: '3 × 20 s / side', series: 3, t: 'tempo', core: 'rot', lat: 'uni', h: 'Time for each side.', last: '20 s', v: 'pallof hold technique' } ] }
+    ]},
+    { nome: 'Descanso', tipo: 'rest' },
+    { nome: 'Potência e testes', tipo: 'gym', blocos: [
+      { b: 'Warm-up', ex: [
+        { n: 'Skipping and mobility', pres: '2 × 20 m', v: 'skipping warm-up' } ] },
+      { b: 'Preparation', ex: [
+        { n: 'Low hops', pres: '3 × 5', v: 'low hops plyometrics' } ] },
+      { b: 'Main', ex: [
+        { n: 'CMJ', pres: '3 tentativas', series: 3, t: 'cmj', last: '36,4 cm', v: 'countermovement jump technique' },
+        { n: 'Broad jump', pres: '3 tentativas', series: 3, t: 'bj', last: '218 cm', v: 'broad jump technique' },
+        { n: 'Dumbbell snatch', pres: '4 × 4 / side', series: 4, t: 'carga', pad: 'hinge', lat: 'uni', h: 'Reps per side. Single dumbbell: log its weight.', last: '22 kg × 4', v: 'dumbbell snatch technique' } ] },
+      { b: 'Accessory', ex: [
+        { n: 'Front plank', pres: '3 × 45 s', series: 3, t: 'tempo', core: 'ext', lat: 'bi', last: '45 s', v: 'front plank anti-extension' } ] }
+    ]},
+    { nome: 'Treino na água', tipo: 'agua' },
+    { nome: 'Descanso', tipo: 'rest' }
+  ];
+
+  var PSE_LABELS = ['Repouso', 'Muito fácil', 'Fácil', 'Moderado', 'Algo difícil', 'Difícil', 'Difícil +', 'Muito difícil', 'Muito difícil +', 'Quase máximo', 'Máximo'];
+  var HOOPER = [
+    { k: 'Sono', d: 'Como dormiste?' },
+    { k: 'Stress', d: 'Nível de stress' },
+    { k: 'Fadiga', d: 'Cansaço geral' },
+    { k: 'Dor muscular', d: 'Dor nos músculos' }
+  ];
+  var HLAB = ['', 'Ótimo', 'Bom', 'Normal', 'Mau', 'Muito mau'];
+
+  var day = TODAY;
+  var reg = {};
+  var well = [null, null, null, null];
+  var wellDone = false;
+  var pse = 7;
+
+  function estado(t) {
+    if (t == null) return { c: 'none', t: 'Sem registo' };
+    if (t <= 8) return { c: 'ok', t: 'Bom' };
+    if (t <= 13) return { c: 'warn', t: 'Moderado' };
+    return { c: 'crit', t: 'Atenção' };
+  }
+  function esc(t) {
+    return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  /* ---------- vistas ---------- */
+  document.querySelectorAll('[data-view]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var v = b.getAttribute('data-view');
+      document.querySelectorAll('[data-view]').forEach(function (x) {
+        x.setAttribute('aria-selected', x === b ? 'true' : 'false');
+      });
+      $('#view-atleta').hidden = v !== 'atleta';
+      $('#view-treinador').hidden = v !== 'treinador';
+    });
+  });
+
+  /* ---------- atleta: dias ---------- */
+  function renderDays() {
+    $('#days').innerHTML = DAYS.map(function (d, i) {
+      return '<button class="day' + (i === TODAY ? ' today' : '') + '" data-day="' + i + '" aria-pressed="' + (i === day) + '">' + d + '</button>';
+    }).join('');
+  }
+  $('#days').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-day]');
+    if (!b) return;
+    day = +b.getAttribute('data-day');
+    renderDays();
+    renderWork();
+  });
+
+  /* ---------- atleta: wellness (obrigatório antes do treino) ---------- */
+  function hooperTotal() {
+    for (var i = 0; i < well.length; i++) if (well[i] == null) return null;
+    return sum(well);
+  }
+  function renderHooper() {
+    $('#hooper').innerHTML = HOOPER.map(function (h, i) {
+      var btns = [1, 2, 3, 4, 5].map(function (n) {
+        return '<button data-h="' + i + '" data-v="' + n + '" aria-pressed="' + (well[i] === n) + '" aria-label="' + h.k + ' ' + n + ', ' + HLAB[n] + '">' + n + '</button>';
+      }).join('');
+      return '<div class="hrow"><div class="lab">' + h.k + '<span>' + h.d + '</span></div><div class="scale">' + btns + '</div><div class="ends"><span>1 · Ótimo</span><span>5 · Muito mau</span></div></div>';
+    }).join('');
+    var t = hooperTotal();
+    $('#htotal').textContent = t == null ? '–' : t;
+    $('#hstate').hidden = t == null;
+    if (t != null) {
+      var s = estado(t);
+      $('#hstate').textContent = s.t;
+      $('#hstate').className = 'pill ' + s.c;
+    }
+    $('#hsave').disabled = t == null;
+  }
+  $('#hooper').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-h]');
+    if (!b) return;
+    well[+b.getAttribute('data-h')] = +b.getAttribute('data-v');
+    renderHooper();
+  });
+  function applyGate() {
+    $('#gate').hidden = wellDone;
+    $('#after').hidden = !wellDone;
+    $('#wsum').hidden = !wellDone;
+    if (wellDone) {
+      var t = hooperTotal();
+      $('#wsum-t').textContent = 'Wellness de hoje · Hooper ' + t + ' · ' + estado(t).t;
+    }
+  }
+  $('#hsave').addEventListener('click', function () {
+    if (LIVE) return liveSaveWellness();
+    if (hooperTotal() == null) return;
+    wellDone = true;
+    applyGate();
+  });
+  $('#walterar').addEventListener('click', function () {
+    wellDone = false;
+    applyGate();
+  });
+
+  /* ---------- atleta: treino ---------- */
+  function field(key, unit, mode, ph) {
+    var v = reg[key] || '';
+    return '<label class="f"><input id="i-' + key + '" data-k="' + key + '" inputmode="' + mode + '" placeholder="' + ph + '" value="' + esc(v) + '" aria-label="' + unit + '"><span>' + unit + '</span></label>';
+  }
+  var MOTIVOS = ['Lesão ou dor', 'Sem tempo', 'Sem material', 'Outro'];
+  function renderWork() {
+    var p = PLAN[day];
+    $('#work-kicker').textContent = DAYS[day] + (day === TODAY ? ' · hoje' : '');
+    $('#work-title').textContent = p.nome;
+    $('#pse-panel').hidden = p.tipo === 'rest' || (LIVE && day !== TODAY);
+    var el = $('#work');
+    if (p.tipo === 'rest') {
+      el.innerHTML = '<p class="note">Dia de descanso. Não há exercícios nem esforço para registar. Aproveita para recuperar.</p>';
+    } else if (p.tipo === 'none') {
+      el.innerHTML = '<p class="note">Ainda não há treino definido para este dia.</p>';
+    } else if (p.tipo === 'agua') {
+      el.innerHTML = '<p class="note">Sessão na água. Não há cargas para registar, só o esforço da sessão no fim.</p>';
+    } else {
+      el.innerHTML = p.blocos.map(function (bl, bi) {
+        var exs = bl.ex.map(function (e, i) {
+          var base = day + '_' + bi + '_' + i;
+          var body = '';
+          var T = e.t || 'feito';
+          var uni = e.lat === 'uni';
+          if (T === 'feito') {
+            body = '<label class="check"><input type="checkbox" data-k="' + base + '_f"' + (reg[base + '_f'] ? ' checked' : '') + '>Feito</label>';
+          } else {
+            for (var s = 0; s < e.series; s++) {
+              var k = base + '_' + s;
+              if (T === 'carga') {
+                body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + field(k + '_b', uni ? 'reps/side' : 'reps', 'numeric', '0') + '</div>';
+              } else if (T === 'vbt') {
+                body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + field(k + '_b', 'm/s', 'decimal', '0,00') + '</div>';
+              } else if (T === 'tempo') {
+                body += '<div class="set single"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', uni ? 's/side' : 's', 'numeric', '0') + '</div>';
+              } else {
+                body += '<div class="set single"><span class="sn">T' + (s + 1) + '</span>' + field(k + '_a', 'cm', 'decimal', '0') + '</div>';
+              }
+            }
+          }
+          var tags = '';
+          if (e.pad) tags += '<span class="mtag">' + PADROES[e.pad] + '</span>';
+          if (e.core) tags += '<span class="mtag">Core · ' + COREC[e.core] + '</span>';
+          if (e.lat) tags += '<span class="mtag">' + (uni ? 'Unilateral' : 'Bilateral') + '</span>';
+          var vurl = e.href ? (/^https?:\/\//i.test(e.href) ? e.href : '') : (e.v ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(e.v) : '');
+          var vid = vurl ? '<a class="vid" href="' + esc(vurl) + '" target="_blank" rel="noopener">Ver vídeo</a>' : '';
+          var last = e.last ? '<span class="last">Última sessão: ' + e.last + '</span>' : '';
+          return '<article class="ex"><header><h3>' + e.n + '</h3><span class="pres">' + e.pres + '</span></header>' +
+            (tags ? '<div class="tags">' + tags + '</div>' : '') +
+            (e.h ? '<p class="hint">' + esc(e.h) + '</p>' : '') +
+            ((last || vid) ? '<div class="meta">' + last + vid + '</div>' : '') +
+            '<div style="display:grid;gap:6px">' + body + '</div></article>';
+        }).join('');
+        var nk = day + '_' + bi;
+        var chips = MOTIVOS.map(function (m) {
+          return '<button class="chip" data-m="' + nk + '" data-v="' + esc(m) + '" aria-pressed="' + (reg['m_' + nk] === m) + '">' + m + '</button>';
+        }).join('');
+        return '<section class="block"><p class="kicker">' + bl.b + '</p>' + exs +
+          '<div class="bnotas"><p class="small" style="font-weight:600">Não fizeste tudo?</p><div class="chips">' + chips + '</div>' +
+          '<label class="small" for="n-' + nk + '">Notas do bloco (opcional)</label>' +
+          '<textarea class="bnota" id="n-' + nk + '" data-k="n_' + nk + '" placeholder="Ex.: dor no joelho direito no afundo">' + esc(reg['n_' + nk] || '') + '</textarea></div></section>';
+      }).join('');
+    }
+    updateProg();
+    if (LIVE) liveAfterRender();
+  }
+  function updateProg() {
+    var p = PLAN[day];
+    if (p.tipo !== 'gym') { $('#prog').textContent = ''; return; }
+    var total = 0, done = 0;
+    p.blocos.forEach(function (bl, bi) {
+      bl.ex.forEach(function (e, i) {
+        var base = day + '_' + bi + '_' + i;
+        if (e.t) {
+          for (var s = 0; s < e.series; s++) { total++; if (reg[base + '_' + s + '_a']) done++; }
+        } else {
+          total++; if (reg[base + '_f']) done++;
+        }
+      });
+    });
+    $('#prog').textContent = done + ' de ' + total + ' registos';
+  }
+  $('#work').addEventListener('input', function (e) {
+    var k = e.target.getAttribute('data-k');
+    if (!k) return;
+    reg[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    updateProg();
+  });
+  $('#work').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-m]');
+    if (!b) return;
+    var nk = b.getAttribute('data-m'), v = b.getAttribute('data-v');
+    reg['m_' + nk] = reg['m_' + nk] === v ? '' : v;
+    document.querySelectorAll('[data-m="' + nk + '"]').forEach(function (x) {
+      x.setAttribute('aria-pressed', reg['m_' + nk] === x.getAttribute('data-v') ? 'true' : 'false');
+    });
+  });
+
+  /* ---------- atleta: PSE ---------- */
+  function renderPse() {
+    var h = '';
+    for (var i = 0; i <= 10; i++) {
+      h += '<button data-p="' + i + '" aria-pressed="' + (pse === i) + '" aria-label="PSE ' + i + ', ' + PSE_LABELS[i] + '">' + i + '</button>';
+    }
+    $('#pse').innerHTML = h;
+    $('#pse-label').textContent = pse == null ? 'Escolhe o esforço da sessão' : pse + ' · ' + PSE_LABELS[pse];
+    updateLoad();
+  }
+  function updateLoad() {
+    var m = parseInt($('#dur').value, 10);
+    $('#load').textContent = pse != null && m > 0 ? pse * m : 0;
+  }
+  $('#pse').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-p]');
+    if (!b) return;
+    pse = +b.getAttribute('data-p');
+    renderPse();
+  });
+  $('#dur').addEventListener('input', updateLoad);
+  $('#save').addEventListener('click', function () {
+    if (LIVE) return liveSaveSessao();
+    $('#status').textContent = 'Sessão registada neste protótipo. Ainda não fica guardada.';
+  });
+
+  /* ---------- entrada ---------- */
+  var escolhido = null;
+  function renderEntrada() {
+    if (LIVE) {
+      $('#pick').innerHTML = LISTA.length ? LISTA.map(function (a, i) {
+        return '<button class="pick" data-e="' + i + '" aria-pressed="' + (escolhido === i) + '"><b>' + esc(a.nome) + '</b><small>' + esc(a.modalidade) + '</small></button>';
+      }).join('') : '<p class="note">' + esc(listErr || 'A carregar…') + '</p>';
+      return;
+    }
+    $('#pick').innerHTML = ATLETAS.map(function (a, i) {
+      if (a.g !== 'atleta') return '';
+      return '<button class="pick" data-e="' + i + '" aria-pressed="' + (escolhido === i) + '"><b>' + a.n + '</b><small>' + a.m + '</small></button>';
+    }).join('');
+  }
+  $('#pick').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-e]');
+    if (!b) return;
+    escolhido = +b.getAttribute('data-e');
+    $('#entrar-err').textContent = '';
+    renderEntrada();
+    $('#pin').focus();
+  });
+  function resetWellness() {
+    well = [null, null, null, null];
+    wellDone = false;
+    renderHooper();
+    applyGate();
+  }
+  function entrar() {
+    if (LIVE) return liveEntrar();
+    if (escolhido == null) { $('#entrar-err').textContent = 'Escolhe primeiro o teu nome.'; return; }
+    if ($('#pin').value !== '1234') { $('#entrar-err').textContent = 'PIN incorreto. Tenta outra vez ou fala com o teu treinador.'; return; }
+    $('#entrar-err').textContent = '';
+    $('#pin').value = '';
+    $('#ola').textContent = 'Olá, ' + ATLETAS[escolhido].n.split(' ')[0];
+    $('#entrada').hidden = true;
+    $('#atleta-app').hidden = false;
+    resetWellness();
+  }
+  $('#entrar').addEventListener('click', entrar);
+  $('#pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') entrar(); });
+  $('#sair').addEventListener('click', function () {
+    if (LIVE) return liveSair();
+    escolhido = null;
+    $('#status').textContent = '';
+    renderEntrada();
+    $('#atleta-app').hidden = true;
+    $('#entrada').hidden = false;
+    resetWellness();
+  });
+
+  /* ---------- treinador: lista de hoje ---------- */
+  var filtro = 'todos', sel = 0;
+  function visiveis() {
+    return ATLETAS.filter(function (a) { return filtro === 'todos' || a.g === filtro; });
+  }
+  function hooperHoje(a) {
+    var w = a.rec[TODAY_I].w;
+    return w ? sum(w) : null;
+  }
+  function cargaSemana(a) {
+    var t = 0;
+    for (var i = TODAY_I - dow(TODAY_I); i <= TODAY_I; i++) a.rec[i].ses.forEach(function (s) { t += s.ua; });
+    return t;
+  }
+  function renderFilters() {
+    var f = [['todos', 'Todos'], ['atleta', 'Atletas'], ['pt', 'Clientes PT']];
+    $('#filters').innerHTML = f.map(function (x) {
+      return '<button class="chip" data-f="' + x[0] + '" aria-pressed="' + (filtro === x[0]) + '">' + x[1] + '</button>';
+    }).join('');
+  }
+  function renderRows() {
+    var vis = visiveis();
+    if (vis.indexOf(ATLETAS[sel]) < 0) sel = ATLETAS.indexOf(vis[0]);
+    $('#rows').innerHTML = vis.map(function (a) {
+      var i = ATLETAS.indexOf(a);
+      var t = hooperHoje(a);
+      var s = estado(t);
+      return '<tr aria-selected="' + (i === sel) + '"><td><button data-a="' + i + '"><span class="who"><b>' + a.n + '</b><small>' + a.m + nextTxt(a) + '</small></span></button></td>' +
+        '<td><button data-a="' + i + '"><span class="num">' + (t == null ? '–' : t) + '</span></button></td>' +
+        '<td><button data-a="' + i + '"><span class="num">' + cargaSemana(a) + '</span></button></td>' +
+        '<td><button data-a="' + i + '"><span class="pill ' + s.c + '">' + s.t + '</span></button></td></tr>';
+    }).join('');
+    $('#f-atleta').value = String(sel);
+  }
+  $('#filters').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-f]');
+    if (!b) return;
+    filtro = b.getAttribute('data-f');
+    renderFilters();
+    renderRows();
+    renderPainel();
+  });
+  $('#rows').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-a]');
+    if (!b) return;
+    sel = +b.getAttribute('data-a');
+    renderRows();
+    renderPainel();
+  });
+
+  /* ---------- treinador: filtros do período ---------- */
+  var range = { i0: 0, i1: TODAY_I, preset: 'epoca' };
+  var PRESETS = [['epoca', 'Toda a época'], ['30', 'Últimos 30 dias'], ['7', 'Últimos 7 dias']];
+  function renderPresets() {
+    $('#presets').innerHTML = PRESETS.map(function (p) {
+      return '<button class="chip" data-p="' + p[0] + '" aria-pressed="' + (range.preset === p[0]) + '">' + p[1] + '</button>';
+    }).join('');
+    $('#d-de').value = toISO(range.i0);
+    $('#d-ate').value = toISO(range.i1);
+    $('#range-info').textContent = 'De ' + fmtDate(range.i0) + ' a ' + fmtDate(range.i1) + ' · ' + (range.i1 - range.i0 + 1) + ' dias.' + (LIVE ? '' : ' Época de exemplo, desde 1 de setembro.');
+  }
+  $('#d-de').min = $('#d-ate').min = toISO(0);
+  $('#d-de').max = $('#d-ate').max = toISO(TODAY_I);
+  $('#f-atleta').innerHTML = ATLETAS.map(function (a, i) {
+    return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>';
+  }).join('');
+  $('#f-atleta').addEventListener('change', function () {
+    sel = +this.value;
+    var vis = visiveis();
+    if (vis.indexOf(ATLETAS[sel]) < 0) { filtro = 'todos'; renderFilters(); }
+    renderRows();
+    renderPainel();
+  });
+  $('#presets').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-p]');
+    if (!b) return;
+    var p = b.getAttribute('data-p');
+    range.preset = p;
+    range.i1 = TODAY_I;
+    range.i0 = p === 'epoca' ? 0 : p === '30' ? TODAY_I - 29 : TODAY_I - 6;
+    renderPresets();
+    renderPainel();
+  });
+  function dateChanged() {
+    var a = fromISO($('#d-de').value), b = fromISO($('#d-ate').value);
+    if (isNaN(a) || isNaN(b)) return;
+    a = clamp(a, 0, TODAY_I); b = clamp(b, 0, TODAY_I);
+    range.i0 = Math.min(a, b); range.i1 = Math.max(a, b);
+    range.preset = null;
+    renderPresets();
+    renderPainel();
+  }
+  $('#d-de').addEventListener('change', dateChanged);
+  $('#d-ate').addEventListener('change', dateChanged);
+
+  /* ---------- gráficos ---------- */
+  function xTicks(x0, x1) {
+    var span = x1 - x0, out = [], i;
+    if (span > 100) {
+      for (i = x0; i <= x1; i++) { if (new Date(START + i * DAY).getUTCDate() === 1) out.push(i); }
+      if (!out.length) out.push(x0);
+      return out;
+    }
+    var st = span <= 7 ? 1 : span <= 16 ? 2 : span <= 50 ? 7 : 14;
+    for (i = x0; i <= x1; i += st) out.push(i);
+    return out;
+  }
+  function empty(host) { host.innerHTML = '<p class="note">Sem registos neste período.</p>'; }
+  function placeTip(host, tip, svg, W, cx) {
+    var r = svg.getBoundingClientRect();
+    var w = r.width || W;
+    tip.style.left = Math.max(54, Math.min(w - 54, cx * (w / W))) + 'px';
+  }
+  function setTip(tip, value, label) {
+    tip.hidden = false;
+    tip.textContent = '';
+    var a = document.createElement('strong'); a.textContent = value;
+    var b = document.createElement('span'); b.textContent = label;
+    tip.appendChild(a); tip.appendChild(b);
+  }
+
+  function drawLine(host, o) {
+    var pts = o.pts;
+    if (!pts.length) { empty(host); return; }
+    var W = 360, H = o.h || 190, L = 34, R = 14, T = 14, B = 26;
+    function sx(x) { return L + (o.x1 === o.x0 ? .5 : (x - o.x0) / (o.x1 - o.x0)) * (W - L - R); }
+    function sy(y) { return T + (1 - (y - o.y0) / (o.y1 - o.y0)) * (H - T - B); }
+    var g = '';
+    o.yt.forEach(function (t) {
+      g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + sy(t).toFixed(1) + '" y2="' + sy(t).toFixed(1) + '"/><text x="' + (L - 6) + '" y="' + (sy(t) + 3.5).toFixed(1) + '" text-anchor="end">' + (o.fmt || num)(t) + '</text>';
+    });
+    g += '<line class="axis" x1="' + L + '" x2="' + (W - R) + '" y1="' + (H - B) + '" y2="' + (H - B) + '"/>';
+    xTicks(o.x0, o.x1).forEach(function (t) {
+      g += '<text x="' + sx(t).toFixed(1) + '" y="' + (H - B + 16) + '" text-anchor="middle">' + fmtDate(t) + '</text>';
+    });
+    (o.marks || []).forEach(function (m) {
+      var mx = sx(m.i);
+      g += '<line class="mk" x1="' + mx.toFixed(1) + '" x2="' + mx.toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '"/><text x="' + mx.toFixed(1) + '" y="' + (T - 3) + '" text-anchor="' + (mx < L + 22 ? 'start' : mx > W - R - 22 ? 'end' : 'middle') + '">Prova</text>';
+    });
+    if (o.ref) {
+      g += '<line class="ref" x1="' + L + '" x2="' + (W - R) + '" y1="' + sy(o.ref.v).toFixed(1) + '" y2="' + sy(o.ref.v).toFixed(1) + '"/><text x="' + (W - R) + '" y="' + (sy(o.ref.v) - 4).toFixed(1) + '" text-anchor="end">' + o.ref.label + '</text>';
+    }
+    var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + sx(p.x).toFixed(1) + ',' + sy(p.y).toFixed(1); }).join('');
+    var last = pts[pts.length - 1];
+    g += '<path class="ln" d="' + d + '"/><circle class="dot" cx="' + sx(last.x).toFixed(1) + '" cy="' + sy(last.y).toFixed(1) + '" r="4.5"/>';
+    g += '<line class="cross" visibility="hidden" x1="0" x2="0" y1="' + T + '" y2="' + (H - B) + '"/><circle class="dot hov" visibility="hidden" cx="0" cy="0" r="4.5"/>';
+    host.innerHTML = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" tabindex="0" aria-label="' + esc(o.label) + '">' + g + '</svg><div class="tip" hidden></div>';
+    var svg = host.querySelector('svg'), tip = host.querySelector('.tip'), cross = svg.querySelector('.cross'), hov = svg.querySelector('.hov');
+    var cur = pts.length - 1;
+    function show(k) {
+      cur = k;
+      var p = pts[k];
+      cross.setAttribute('x1', sx(p.x)); cross.setAttribute('x2', sx(p.x)); cross.setAttribute('visibility', 'visible');
+      hov.setAttribute('cx', sx(p.x)); hov.setAttribute('cy', sy(p.y)); hov.setAttribute('visibility', 'visible');
+      setTip(tip, o.tipv(p), o.tipl(p));
+      placeTip(host, tip, svg, W, sx(p.x));
+    }
+    function hide() {
+      cross.setAttribute('visibility', 'hidden'); hov.setAttribute('visibility', 'hidden'); tip.hidden = true;
+    }
+    function near(e) {
+      var r = svg.getBoundingClientRect();
+      var px = (e.clientX - r.left) * (W / (r.width || W));
+      var best = 0, bd = 1e9;
+      pts.forEach(function (p, k) { var dd = Math.abs(sx(p.x) - px); if (dd < bd) { bd = dd; best = k; } });
+      show(best);
+    }
+    svg.addEventListener('pointermove', near);
+    svg.addEventListener('pointerdown', near);
+    svg.addEventListener('pointerleave', hide);
+    svg.addEventListener('blur', hide);
+    svg.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); show(Math.max(0, cur - 1)); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); show(Math.min(pts.length - 1, cur + 1)); }
+    });
+  }
+
+  function rbar(x, y, w, h, r) {
+    x = +x; y = +y; w = +w; h = +h;
+    r = Math.min(r, h, w / 2);
+    return 'M' + x + ',' + (y + h) + 'V' + (y + r) + 'Q' + x + ',' + y + ' ' + (x + r) + ',' + y + 'H' + (x + w - r) + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) + 'V' + (y + h) + 'Z';
+  }
+  function drawBars(host, o) {
+    var items = o.items, n = items.length;
+    if (!n) { empty(host); return; }
+    var W = 360, H = 190, L = 38, R = 14, T = 22, B = 28;
+    function sy(v) { return T + (1 - v / o.top) * (H - T - B); }
+    var slot = (W - L - R) / n, bw = Math.min(24, slot * .6);
+    var g = '';
+    o.yt.forEach(function (t) {
+      g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + sy(t).toFixed(1) + '" y2="' + sy(t).toFixed(1) + '"/><text x="' + (L - 6) + '" y="' + (sy(t) + 3.5).toFixed(1) + '" text-anchor="end">' + num(t) + '</text>';
+    });
+    g += '<line class="axis" x1="' + L + '" x2="' + (W - R) + '" y1="' + (H - B) + '" y2="' + (H - B) + '"/>';
+    var maxK = 0;
+    items.forEach(function (it, k) { if (it.v > items[maxK].v) maxK = k; });
+    var every = n <= 8 ? 1 : Math.ceil(n / 7);
+    items.forEach(function (it, k) {
+      var cx = L + slot * (k + .5), y = sy(it.v), h = (H - B) - y;
+      it.cx = cx;
+      if (h > 0) g += '<path class="b" data-k="' + k + '" d="' + rbar((cx - bw / 2).toFixed(1), y.toFixed(1), bw, h.toFixed(1), 4) + '"/>';
+      if ((k === n - 1 || k === maxK) && it.v > 0) g += '<text class="val" x="' + cx.toFixed(1) + '" y="' + (y - 5).toFixed(1) + '" text-anchor="middle">' + num(it.v) + '</text>';
+      if (k % every === 0) g += '<text x="' + cx.toFixed(1) + '" y="' + (H - B + 16) + '" text-anchor="middle">' + it.lx + '</text>';
+    });
+    host.innerHTML = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" tabindex="0" aria-label="' + esc(o.label) + '">' + g + '</svg><div class="tip" hidden></div>';
+    var svg = host.querySelector('svg'), tip = host.querySelector('.tip');
+    var cur = n - 1;
+    function show(k) {
+      cur = k;
+      svg.querySelectorAll('.b').forEach(function (b) { b.classList.remove('hl'); });
+      var bar = svg.querySelector('.b[data-k="' + k + '"]');
+      if (bar) bar.classList.add('hl');
+      setTip(tip, items[k].tipv, items[k].tipl);
+      placeTip(host, tip, svg, W, items[k].cx);
+    }
+    function hide() {
+      svg.querySelectorAll('.b').forEach(function (b) { b.classList.remove('hl'); });
+      tip.hidden = true;
+    }
+    function near(e) {
+      var r = svg.getBoundingClientRect();
+      var px = (e.clientX - r.left) * (W / (r.width || W));
+      show(clamp(Math.floor((px - L) / slot), 0, n - 1));
+    }
+    svg.addEventListener('pointermove', near);
+    svg.addEventListener('pointerdown', near);
+    svg.addEventListener('pointerleave', hide);
+    svg.addEventListener('blur', hide);
+    svg.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); show(Math.max(0, cur - 1)); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); show(Math.min(n - 1, cur + 1)); }
+    });
+  }
+
+  function tbl(heads, rows) {
+    return '<table style="min-width:280px"><thead><tr>' + heads.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      rows.map(function (r) { return '<tr>' + r.map(function (c) { return '<td style="padding:8px">' + c + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
+  }
+  function tableOrEmpty(heads, rows) {
+    return rows.length ? tbl(heads, rows) : '<p class="note">Sem registos neste período.</p>';
+  }
+
+  document.querySelectorAll('[data-tab]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var id = b.getAttribute('data-tab');
+      var on = b.getAttribute('aria-pressed') !== 'true';
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.textContent = on ? 'Ver gráfico' : 'Ver tabela';
+      $('#c-' + id).hidden = on;
+      $('#t-' + id).hidden = !on;
+    });
+  });
+
+  function inR(p) { return p.x >= range.i0 && p.x <= range.i1; }
+  function compMarks(ai) { return COMP.filter(function (c) { return c.a === ai && c.i >= range.i0 && c.i <= range.i1; }); }
+  function nextComp(ai) {
+    var best = null;
+    COMP.forEach(function (c) { if (c.a === ai && c.i >= TODAY_I && (!best || c.i < best.i)) best = c; });
+    return best;
+  }
+  function nextTxt(a) {
+    var c = nextComp(ATLETAS.indexOf(a));
+    if (!c) return '';
+    var n = c.i - TODAY_I;
+    return ' · prova ' + (n === 0 ? 'hoje' : n === 1 ? 'amanhã' : 'em ' + n + ' dias');
+  }
+  function tile(l, v, u) {
+    return '<div class="tile"><p class="small">' + l + '</p><p class="big">' + v + (u ? '<span class="unit">' + u + '</span>' : '') + '</p></div>';
+  }
+  function v2(v) { return (Math.round(v * 100) / 100).toFixed(2).replace('.', ','); }
+  function ticks(mx, steps) {
+    var step = steps[steps.length - 1], k;
+    for (k = 0; k < steps.length; k++) { if (mx / steps[k] <= 5) { step = steps[k]; break; } }
+    var top = Math.max(step, Math.ceil(mx / step) * step), yt = [];
+    for (k = 0; k <= top + 1e-9; k += step) yt.push(Math.round(k * 100) / 100);
+    return { top: top, yt: yt };
+  }
+
+  function stats(a, i0, i1) {
+    var st = { hp: [], pp: [], hs: 0, att: 0, ps: 0, ua: 0, ton: 0, tu: 0, tp: {}, core: {}, plan: 0, done: 0, nf: 0, faltas: {}, wk: {}, order: [] };
+    for (var i = i0; i <= i1; i++) {
+      var r = a.rec[i], ws = i - dow(i);
+      if (!st.wk[ws]) { st.wk[ws] = { ua: 0, n: 0, ton: 0 }; st.order.push(ws); }
+      if (r.w) { var t = sum(r.w); st.hp.push({ x: i, y: t }); st.hs += t; if (t >= 14) st.att++; }
+      r.ses.forEach(function (s) {
+        st.pp.push({ x: i, y: s.pse, s: s });
+        st.ps += s.pse; st.ua += s.ua; st.wk[ws].ua += s.ua; st.wk[ws].n++;
+      });
+      st.ton += r.ton; st.tu += r.tu; st.wk[ws].ton += r.ton;
+      Object.keys(r.tp).forEach(function (q) { st.tp[q] = (st.tp[q] || 0) + r.tp[q]; });
+      Object.keys(r.core).forEach(function (q) { st.core[q] = (st.core[q] || 0) + r.core[q]; });
+      if (planned(a, i) && !(i === TODAY_I && !r.ses.length)) {
+        st.plan++;
+        if (r.ses.length) st.done++;
+        else if (r.falta) { st.nf++; st.faltas[r.falta] = (st.faltas[r.falta] || 0) + 1; }
+      }
+    }
+    st.ph = st.hp.length ? st.hs / st.hp.length : null;
+    st.pm = st.pp.length ? st.ps / st.pp.length : null;
+    st.pres = st.plan ? Math.round(100 * st.done / st.plan) : null;
+    return st;
+  }
+
+  function multiples(host, items) {
+    var html = '';
+    items.forEach(function (it) {
+      var pts = it.pts, f = it.fmt || num, lastP = pts[pts.length - 1];
+      var delta = pts.length > 1 ? lastP.y - pts[0].y : null;
+      html += '<div class="smi"><div class="smh"><h3>' + esc(it.title) + '</h3><span class="num">' + (lastP ? f(lastP.y) + '<span class="unit">' + it.unit + '</span>' : '–') + '</span></div>' +
+        '<p class="small">' + (delta == null ? (pts.length ? 'Uma sessão no período' : 'Sem registos') : (delta >= 0 ? '+' : '−') + f(Math.abs(delta)) + ' ' + it.unit + ' desde ' + fmtDate(pts[0].x)) + '</p>' +
+        '<div class="cwrap" id="' + it.id + '"></div></div>';
+    });
+    host.innerHTML = html;
+    items.forEach(function (it) {
+      var pts = it.pts, lo = 0, hi = 10, stp = it.step;
+      if (pts.length) {
+        var ys = pts.map(function (p) { return p.y; });
+        lo = Math.floor((Math.min.apply(null, ys) - stp / 2) / stp + 1e-9) * stp;
+        hi = Math.ceil((Math.max.apply(null, ys) + stp / 2) / stp - 1e-9) * stp;
+        if (hi - lo < stp) hi = lo + stp;
+        if (Math.round((hi - lo) / stp) % 2) hi += stp;
+        lo = Math.round(lo * 100) / 100; hi = Math.round(hi * 100) / 100;
+      }
+      var mid = Math.round((lo + hi) / 2 * 100) / 100;
+      drawLine($('#' + it.id), {
+        pts: pts, x0: range.i0, x1: range.i1, y0: lo, y1: hi, yt: [lo, mid, hi], h: 140, fmt: it.fmt,
+        label: it.label, tipv: it.tipv, tipl: it.tipl
+      });
+    });
+  }
+
+  function renderPainel() {
+    var a = ATLETAS[sel], k;
+    if (!a) { $('#tiles').innerHTML = '<p class="note">Ainda não há atletas registados.</p>'; return; }
+    var st = stats(a, range.i0, range.i1), marks = compMarks(sel);
+
+    $('#tiles').innerHTML =
+      tile('Presença', st.pres == null ? '–' : st.pres, st.pres == null ? '' : '%') +
+      tile('Hooper médio', st.ph == null ? '–' : num(st.ph)) +
+      tile('PSE média', st.pm == null ? '–' : num(st.pm)) +
+      tile('Carga total', fmtN(st.ua), 'UA') +
+      tile('Tonelagem', num(st.ton / 1000), 't') +
+      tile('Dias em atenção', st.att);
+
+    /* Hooper */
+    drawLine($('#c-hooper'), {
+      pts: st.hp, x0: range.i0, x1: range.i1, y0: 4, y1: 20, yt: [4, 8, 12, 16, 20], marks: marks,
+      ref: { v: 14, label: 'Atenção' },
+      label: 'Índice de Hooper de ' + a.n + ' ao longo do período',
+      tipv: function (p) { return 'Hooper ' + p.y; },
+      tipl: function (p) { return fmtDate(p.x) + ' · ' + estado(p.y).t; }
+    });
+    $('#t-hooper').innerHTML = tableOrEmpty(['Data', 'Hooper', 'Estado'], st.hp.map(function (p) { return [fmtDate(p.x), p.y, estado(p.y).t]; }));
+
+    /* PSE */
+    drawLine($('#c-pse'), {
+      pts: st.pp, x0: range.i0, x1: range.i1, y0: 0, y1: 10, yt: [0, 2, 4, 6, 8, 10], marks: marks,
+      label: 'PSE de ' + a.n + ' por sessão',
+      tipv: function (p) { return 'PSE ' + p.y; },
+      tipl: function (p) { return fmtDate(p.x) + ' · ' + (p.s.t === 'gym' ? 'Ginásio' : 'Água') + ' · ' + p.s.min + ' min'; }
+    });
+    $('#t-pse').innerHTML = tableOrEmpty(['Data', 'Sessão', 'PSE', 'Min', 'UA'], st.pp.map(function (p) { return [fmtDate(p.x), p.s.t === 'gym' ? 'Ginásio' : 'Água', p.y, p.s.min, p.s.ua]; }));
+
+    /* carga semanal */
+    var mx = 0;
+    st.order.forEach(function (w) { mx = Math.max(mx, st.wk[w].ua); });
+    var tk = ticks(mx, [100, 200, 250, 500, 1000, 2000, 5000]);
+    drawBars($('#c-carga'), {
+      top: tk.top, yt: tk.yt,
+      label: 'Carga semanal de ' + a.n,
+      items: st.order.map(function (w) {
+        return { v: st.wk[w].ua, lx: fmtDate(w), tipv: st.wk[w].ua + ' UA', tipl: 'Semana de ' + fmtDate(w) + ' · ' + st.wk[w].n + (st.wk[w].n === 1 ? ' sessão' : ' sessões') };
+      })
+    });
+    $('#t-carga').innerHTML = tableOrEmpty(['Semana de', 'UA', 'Sessões'], st.order.map(function (w) { return [fmtDate(w), st.wk[w].ua, st.wk[w].n]; }));
+
+    /* tonelagem semanal */
+    var mt = 0;
+    st.order.forEach(function (w) { mt = Math.max(mt, st.wk[w].ton / 1000); });
+    var tt = ticks(mt, [1, 2, 5, 10, 20]);
+    drawBars($('#c-ton'), {
+      top: tt.top, yt: tt.yt,
+      label: 'Tonelagem semanal de ' + a.n,
+      items: st.order.map(function (w) {
+        var v = Math.round(st.wk[w].ton / 100) / 10;
+        return { v: v, lx: fmtDate(w), tipv: num(v) + ' t', tipl: 'Semana de ' + fmtDate(w) };
+      })
+    });
+    $('#t-ton').innerHTML = tableOrEmpty(['Semana de', 'Tonelagem'], st.order.map(function (w) { return [fmtDate(w), num(st.wk[w].ton / 1000) + ' t']; }));
+
+    /* tonelagem por padrão de movimento */
+    var pk = ['squat', 'hinge', 'push', 'pull'], pmax = 0, ptot = 0;
+    pk.forEach(function (q) { pmax = Math.max(pmax, st.tp[q] || 0); ptot += st.tp[q] || 0; });
+    $('#c-pad').innerHTML = ptot ? pk.map(function (q) {
+      var v = st.tp[q] || 0;
+      return '<div class="pb"><span class="pl">' + PADROES[q] + '</span><span class="pt"><span class="pf" style="width:' + (pmax ? Math.round(100 * v / pmax) : 0) + '%"></span></span><span class="pv">' + num(v / 1000) + ' t · ' + Math.round(100 * v / ptot) + '%</span></div>';
+    }).join('') : '<p class="note">Sem registos neste período.</p>';
+    $('#pad-uni').textContent = ptot ? 'Exercícios unilaterais: ' + Math.round(100 * st.tu / ptot) + '% da tonelagem' + ((st.tp.push && st.tp.pull) ? ' · Relação push/pull: ' + num(st.tp.push / st.tp.pull) : '') + '.' : '';
+
+    /* cargas por exercício */
+    var exItems = EXS.map(function (e, j) {
+      return {
+        id: 'sm-' + j, title: e.n, unit: 'kg', step: 5, pts: a.loads[e.n].filter(inR),
+        label: e.n + ' de ' + a.n + ', melhor série por sessão',
+        tipv: function (p) { return num(p.y) + ' kg × ' + p.reps + (e.lat === 'uni' ? ' por lado' : ''); },
+        tipl: function (p) { return fmtDate(p.x); }
+      };
+    });
+    multiples($('#c-ex'), exItems);
+    var rows = [];
+    exItems.forEach(function (it) { it.pts.forEach(function (p) { rows.push([fmtDate(p.x), it.title, num(p.y) + ' kg × ' + p.reps]); }); });
+    $('#t-ex').innerHTML = tableOrEmpty(['Data', 'Exercício', 'Melhor série'], rows);
+
+    /* CMJ, broad jump e VBT */
+    var metItems = [
+      { id: 'mt-0', title: 'CMJ', unit: 'cm', step: 2, pts: a.cmj.filter(inR), label: 'CMJ de ' + a.n,
+        tipv: function (p) { return num(p.y) + ' cm'; }, tipl: function (p) { return fmtDate(p.x); } },
+      { id: 'mt-1', title: 'Broad jump', unit: 'cm', step: 10, pts: a.bj.filter(inR), label: 'Broad jump de ' + a.n,
+        tipv: function (p) { return p.y + ' cm'; }, tipl: function (p) { return fmtDate(p.x); } },
+      { id: 'mt-2', title: 'VBT · ' + VBTN, unit: 'm/s', step: .1, fmt: v2, pts: a.vbt.filter(inR), label: 'Velocidade média em ' + VBTN + ' de ' + a.n,
+        tipv: function (p) { return v2(p.y) + ' m/s'; }, tipl: function (p) { return fmtDate(p.x) + ' · ' + num(p.kg) + ' kg'; } }
+    ];
+    multiples($('#c-met'), metItems);
+    var mrows = [];
+    metItems.forEach(function (it) { it.pts.forEach(function (p) { mrows.push([fmtDate(p.x), it.title, (it.fmt || num)(p.y) + ' ' + it.unit]); }); });
+    $('#t-met').innerHTML = tableOrEmpty(['Data', 'Teste', 'Melhor valor'], mrows);
+
+    /* core: tempo por série e tempo total */
+    var ck = ['ext', 'lat', 'rot'];
+    var coreItems = ck.map(function (q, j) {
+      return {
+        id: 'co-' + j, title: COREC[q], unit: 's', step: 5, pts: a.core[q].filter(inR),
+        label: COREC[q] + ' de ' + a.n + ', tempo por série',
+        tipv: function (p) { return p.y + ' s por série'; },
+        tipl: function (p) { return fmtDate(p.x) + ' · ' + p.n; }
+      };
+    });
+    multiples($('#c-core'), coreItems);
+    var csec = ck.map(function (q) { return st.core[q] || 0; });
+    $('#core-sum').textContent = 'Tempo total de core no período: ' + Math.round(sum(csec) / 60) + ' min (' + ck.map(function (q, j) { return COREC[q].toLowerCase() + ' ' + Math.round(csec[j] / 60); }).join(' · ') + '). Nos exercícios unilaterais conta os dois lados.';
+    var crows = [];
+    coreItems.forEach(function (it) { it.pts.forEach(function (p) { crows.push({ x: p.x, r: [fmtDate(p.x), it.title, p.y + ' s por série'] }); }); });
+    crows.sort(function (u, v) { return u.x - v.x; });
+    $('#t-core').innerHTML = tableOrEmpty(['Data', 'Tipo', 'Tempo'], crows.map(function (c) { return c.r; }));
+
+    if (!$('#rep-out').hidden) renderReport();
+  }
+
+  /* ---------- calendário de competições ---------- */
+  var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  var cal = { y: 2026, m: 9, a: 'all', sel: null };
+  function ini(n) {
+    var p = n.replace('.', '').split(' ');
+    return (p[0].charAt(0) + (p[1] ? p[1].charAt(0) : '')).toUpperCase();
+  }
+  function compsOn(i) {
+    return COMP.filter(function (c) { return c.i === i && (cal.a === 'all' || c.a === +cal.a); });
+  }
+  function dayName(i) { return DAYS[dow(i)] + ', ' + fmtDate(i); }
+  function renderCal() {
+    $('#cal-title').textContent = MESES[cal.m] + ' ' + cal.y;
+    var first = (new Date(Date.UTC(cal.y, cal.m, 1)).getUTCDay() + 6) % 7;
+    var n = new Date(Date.UTC(cal.y, cal.m + 1, 0)).getUTCDate();
+    var h = DAYS.map(function (d) { return '<div class="dh">' + d + '</div>'; }).join('');
+    var k, d;
+    for (k = 0; k < first; k++) h += '<div></div>';
+    for (d = 1; d <= n; d++) {
+      var i = Math.round((Date.UTC(cal.y, cal.m, d) - START) / DAY);
+      var cs = compsOn(i);
+      var tags = cs.slice(0, 2).map(function (c) { return '<span class="tag">' + esc(ini(ATLETAS[c.a].n)) + '</span>'; }).join('') + (cs.length > 2 ? '<span class="more">+' + (cs.length - 2) + '</span>' : '');
+      h += '<button class="cd' + (i === TODAY_I ? ' today' : '') + '" data-ci="' + i + '" aria-pressed="' + (cal.sel === i) + '" aria-label="' + d + ' de ' + MESES[cal.m] + (cs.length ? ', ' + cs.length + (cs.length === 1 ? ' competição' : ' competições') : '') + '"><span class="dn">' + d + '</span>' + tags + '</button>';
+    }
+    $('#cal').innerHTML = h;
+  }
+  function renderCalDet() {
+    var el = $('#cal-det');
+    if (cal.sel == null) { el.innerHTML = '<p class="note">Toca num dia para ver quem compete.</p>'; return; }
+    var cs = compsOn(cal.sel);
+    el.innerHTML = '<p class="kicker">' + dayName(cal.sel) + '</p>' + (cs.length ? '<div class="clist">' + cs.map(function (c) {
+      return '<div class="ci"><div><b>' + esc(ATLETAS[c.a].n) + '</b><small>' + esc(c.n) + (c.l ? ' · ' + esc(c.l) : '') + '</small></div><button class="chip" data-del="' + COMP.indexOf(c) + '">Remover</button></div>';
+    }).join('') + '</div>' : '<p class="note">Sem competições neste dia.</p>');
+  }
+  function renderUp() {
+    var list = COMP.filter(function (c) {
+      return c.i >= TODAY_I && c.i <= TODAY_I + 30 && (cal.a === 'all' || c.a === +cal.a);
+    }).sort(function (x, y) { return x.i - y.i; });
+    $('#cal-up').innerHTML = list.length ? list.map(function (c) {
+      var n = c.i - TODAY_I;
+      return '<div class="ci"><div><b>' + esc(ATLETAS[c.a].n) + '</b><small>' + esc(c.n) + (c.l ? ' · ' + esc(c.l) : '') + '</small></div><div class="when">' + fmtDate(c.i) + '<small>' + (n === 0 ? 'hoje' : n === 1 ? 'amanhã' : 'em ' + n + ' dias') + '</small></div></div>';
+    }).join('') : '<p class="note">Sem competições nos próximos 30 dias.</p>';
+  }
+  function initCal() {
+    var opts = ATLETAS.map(function (a, i) { return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>'; }).join('');
+    $('#cal-a').innerHTML = '<option value="all">Todos os atletas</option>' + opts;
+    $('#c-a').innerHTML = opts;
+    var nx = COMP.filter(function (c) { return c.i >= TODAY_I; }).sort(function (x, y) { return x.i - y.i; })[0];
+    if (nx) {
+      cal.sel = nx.i;
+      var dt = new Date(START + nx.i * DAY);
+      cal.y = dt.getUTCFullYear(); cal.m = dt.getUTCMonth();
+    }
+    renderCal(); renderCalDet(); renderUp();
+  }
+  $('#cal-a').addEventListener('change', function () { cal.a = this.value; renderCal(); renderCalDet(); renderUp(); });
+  $('#cal-prev').addEventListener('click', function () { cal.m--; if (cal.m < 0) { cal.m = 11; cal.y--; } renderCal(); });
+  $('#cal-next').addEventListener('click', function () { cal.m++; if (cal.m > 11) { cal.m = 0; cal.y++; } renderCal(); });
+  $('#cal').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ci]');
+    if (!b) return;
+    cal.sel = +b.getAttribute('data-ci');
+    renderCal(); renderCalDet();
+  });
+  $('#cal-det').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-del]');
+    if (!b) return;
+    if (LIVE) return liveDelComp(+b.getAttribute('data-del'));
+    COMP.splice(+b.getAttribute('data-del'), 1);
+    renderCal(); renderCalDet(); renderUp(); renderRows(); renderPainel();
+  });
+  $('#c-add').addEventListener('click', function () {
+    var i = fromISO($('#c-d').value), nome = $('#c-n').value.trim(), loc = $('#c-l').value.trim();
+    if (isNaN(i)) { $('#c-err').textContent = 'Escolhe a data da competição.'; return; }
+    if (!nome) { $('#c-err').textContent = 'Escreve o nome da competição.'; return; }
+    $('#c-err').textContent = '';
+    if (LIVE) return liveAddComp(+$('#c-a').value, i, nome, loc);
+    COMP.push({ a: +$('#c-a').value, i: i, n: nome, l: loc });
+    $('#c-n').value = ''; $('#c-l').value = '';
+    var dt = new Date(START + i * DAY);
+    cal.y = dt.getUTCFullYear(); cal.m = dt.getUTCMonth(); cal.sel = i;
+    renderCal(); renderCalDet(); renderUp(); renderRows(); renderPainel();
+  });
+
+  /* ---------- relatório ---------- */
+  var lastText = '';
+  function kv(k, v, sub) {
+    return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + '</span><span class="s">' + sub + '</span></div>';
+  }
+  function sgn(d) { return (d >= 0 ? '+' : '−') + num(Math.abs(d)); }
+  function initReport() {
+    $('#rep-list').innerHTML = ATLETAS.map(function (a, i) {
+      return '<label class="check"><input type="checkbox" data-ra="' + i + '"' + (a.g === 'atleta' ? ' checked' : '') + '>' + esc(a.n) + ' · ' + esc(a.m) + '</label>';
+    }).join('');
+  }
+  function renderReport() {
+    var idx = [];
+    document.querySelectorAll('#rep-list input').forEach(function (c) { if (c.checked) idx.push(+c.getAttribute('data-ra')); });
+    var out = $('#rep-out');
+    out.hidden = false;
+    if (!idx.length) {
+      out.innerHTML = '<p class="note">Escolhe pelo menos um atleta.</p>';
+      $('#rep-actions').hidden = true;
+      return;
+    }
+    var motivos = $('#rep-motivos').checked;
+    var periodo = fmtDate(range.i0) + ' a ' + fmtDate(range.i1);
+    var td = '<td>';
+    var pk = ['squat', 'hinge', 'push', 'pull'], ck = ['ext', 'lat', 'rot'];
+    var rows = '', secs = '', txt = ['Relatório de acompanhamento · ' + periodo, ''];
+    idx.forEach(function (ai) {
+      var a = ATLETAS[ai], st = stats(a, range.i0, range.i1), nw = st.order.length || 1;
+      var pres = st.pres == null ? '–' : st.pres + '%';
+      var faltas = st.nf ? 'Faltas: ' + st.nf + (motivos ? ' (' + Object.keys(st.faltas).map(function (k) { return k.toLowerCase() + ' ' + st.faltas[k]; }).join(', ') + ')' : '') : 'Sem faltas';
+      rows += '<tr>' + td + esc(a.n) + '</td>' + td + pres + '</td>' + td + (st.ph == null ? '–' : num(st.ph)) + '</td>' + td + (st.pm == null ? '–' : num(st.pm)) + '</td>' + td + fmtN(st.ua) + '</td>' + td + num(st.ton / 1000) + ' t</td></tr>';
+      var ex = '', exTxt = [];
+      EXS.forEach(function (e) {
+        var pts = a.loads[e.n].filter(inR);
+        if (!pts.length) return;
+        var f = pts[0].y, l = pts[pts.length - 1].y;
+        ex += '<tr>' + td + esc(e.n) + '</td>' + td + num(f) + ' → ' + num(l) + ' kg</td>' + td + sgn(l - f) + ' kg</td></tr>';
+        exTxt.push(e.n + ' ' + num(f) + ' → ' + num(l) + ' kg');
+      });
+      var pr = pk.map(function (q) {
+        var v = st.tp[q] || 0;
+        return '<tr>' + td + PADROES[q] + '</td>' + td + num(v / 1000) + ' t</td>' + td + (st.ton ? Math.round(100 * v / st.ton) : 0) + '%</td></tr>';
+      }).join('');
+      var prTxt = pk.map(function (q) { return PADROES[q] + ' ' + num((st.tp[q] || 0) / 1000) + ' t'; }).join(' · ');
+      var cmin = ck.map(function (q) { return Math.round((st.core[q] || 0) / 60); });
+      var ctot = Math.round(sum(ck.map(function (q) { return st.core[q] || 0; })) / 60);
+      var cSub = 'anti-extensão ' + cmin[0] + ' · lateral ' + cmin[1] + ' · rotação ' + cmin[2];
+      var upct = st.ton ? Math.round(100 * st.tu / st.ton) : 0;
+      secs += '<section class="ra"><h3>' + esc(a.n) + '<small>' + esc(a.m) + '</small></h3><div class="rgrid">' +
+        kv('Presença', pres, st.done + ' de ' + st.plan + ' sessões') +
+        kv('Wellness', st.ph == null ? '–' : num(st.ph), 'Hooper médio · ' + st.att + (st.att === 1 ? ' dia' : ' dias') + ' em atenção') +
+        kv('PSE', st.pm == null ? '–' : num(st.pm), 'média · ' + fmtN(st.ua / nw) + ' UA por semana') +
+        kv('Tonelagem', num(st.ton / 1000) + ' t', num(st.ton / 1000 / nw) + ' t por semana') +
+        kv('Core', ctot + ' min', cSub) +
+        kv('Unilateral', upct + '%', 'da tonelagem') +
+        '</div><p class="small">' + faltas + '</p>' +
+        '<p class="kicker">Tonelagem por padrão</p><div class="scroll"><table class="rt"><thead><tr><th>Padrão</th><th>Tonelagem</th><th>%</th></tr></thead><tbody>' + pr + '</tbody></table></div>' +
+        (ex ? '<p class="kicker">Cargas por exercício</p><div class="scroll"><table class="rt"><thead><tr><th>Exercício</th><th>Evolução</th><th>Variação</th></tr></thead><tbody>' + ex + '</tbody></table></div>' : '<p class="small">Sem cargas registadas neste período.</p>') + '</section>';
+      txt.push(a.n + ' (' + a.m + ')');
+      txt.push('Presença: ' + pres + ' (' + st.done + ' de ' + st.plan + ' sessões). ' + faltas);
+      txt.push('Wellness: Hooper médio ' + (st.ph == null ? '–' : num(st.ph)) + ', dias em atenção ' + st.att);
+      txt.push('PSE média ' + (st.pm == null ? '–' : num(st.pm)) + ' · carga ' + fmtN(st.ua) + ' UA (' + fmtN(st.ua / nw) + ' UA por semana)');
+      txt.push('Tonelagem: ' + num(st.ton / 1000) + ' t (' + num(st.ton / 1000 / nw) + ' t por semana). Unilaterais: ' + upct + '%');
+      txt.push('Por padrão: ' + prTxt);
+      txt.push('Core: ' + ctot + ' min (' + cSub + ')');
+      if (exTxt.length) txt.push('Cargas: ' + exTxt.join('; '));
+      txt.push('');
+    });
+    out.innerHTML = '<article class="paper"><header><p class="kicker">Alvo · Relatório de acompanhamento</p><h2>' + periodo + '</h2><p class="small">' + idx.length + (idx.length === 1 ? ' atleta' : ' atletas') + (LIVE ? '' : ' · dados de exemplo') + '</p></header>' +
+      '<div class="scroll"><table class="rt sum"><thead><tr><th>Atleta</th><th>Pres.</th><th>Hooper</th><th>PSE</th><th>UA</th><th>Ton.</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + secs + '</article>';
+    lastText = txt.join('\n');
+    $('#rep-actions').hidden = false;
+    $('#rep-msg').textContent = '';
+    $('#rep-text').hidden = true;
+  }
+  $('#rep-go').addEventListener('click', renderReport);
+  $('#rep-motivos').addEventListener('change', function () { if (!$('#rep-out').hidden) renderReport(); });
+  $('#rep-list').addEventListener('change', function () { if (!$('#rep-out').hidden) renderReport(); });
+  $('#rep-copy').addEventListener('click', function () {
+    function fallback() {
+      var ta = $('#rep-text');
+      ta.hidden = false; ta.value = lastText; ta.focus(); ta.select();
+      $('#rep-msg').textContent = 'Seleciona o texto e copia.';
+    }
+    try {
+      navigator.clipboard.writeText(lastText).then(function () {
+        $('#rep-text').hidden = true;
+        $('#rep-msg').textContent = 'Resumo copiado.';
+      }, fallback);
+    } catch (err) { fallback(); }
+  });
+
+  /* ---------- importar ---------- */
+  $('#paste').value = [
+    'Seg\tAccessory\tBulgarian split squat\t3\t8\tsim\t\tsquat\tunilateral',
+    'Qua\tMain\tDumbbell bench press\t4\t8\tsim\thttps://youtu.be/exemplo\tpush\tbilateral',
+    'Qua\tMain\tBarbell row\t4\t8\tsim\t\tpull\tbilateral',
+    'Qua\tAccessory\tSide plank\t3\t30 s\tnão\t\tcore anti-lateral flexion\tunilateral'
+  ].join('\n');
+  /* ====================== MODO REAL (Supabase) ====================== */
+  var LISTA = [], listErr = '';
+  var sess = null, HOJE = null, WK = [], saveT = null, savePromise = Promise.resolve(), autoMsg = '';
+  var savedRows = {}, savedNotes = {};
+  var BL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
+  var DIASN = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
+
+  function p2(n) { return (n < 10 ? '0' : '') + n; }
+  function localISO() { var d = new Date(); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+  function isoAdd(iso, n) { var d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+  function isoDow(iso) { return (new Date(iso + 'T00:00:00Z').getUTCDay() + 6) % 7; }
+  function pt(n) { return String(n).replace('.', ','); }
+  function toNum(x) { var v = parseFloat(String(x == null ? '' : x).replace(',', '.')); return isNaN(v) ? '' : v; }
+  function netErr(e) { return e && e.status ? 'Erro ' + e.status + '. Tenta outra vez.' : 'Sem ligação. Verifica a internet e tenta outra vez.'; }
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* sem armazenamento */ } }
+
+  function api(path, o) {
+    o = o || {};
+    var h = { apikey: SUPA.key, 'Content-Type': 'application/json' };
+    if (o.token) h.Authorization = 'Bearer ' + o.token;
+    if (o.headers) Object.keys(o.headers).forEach(function (k) { h[k] = o.headers[k]; });
+    return fetch(SUPA.url + path, { method: o.method || 'GET', headers: h, body: o.body !== undefined ? JSON.stringify(o.body) : undefined }).then(function (r) {
+      return r.text().then(function (t) {
+        var j = null;
+        try { j = t ? JSON.parse(t) : null; } catch (e) { j = null; }
+        if (!r.ok) throw { status: r.status, body: j };
+        return j;
+      });
+    });
+  }
+  function rpc(name, args, token) { return api('/rest/v1/rpc/' + name, { method: 'POST', body: args, token: token }); }
+
+  /* ---------- atleta ---------- */
+  function liveLoadList() {
+    rpc('listar_atletas', {}).then(function (r) { LISTA = r || []; listErr = LISTA.length ? '' : 'Ainda não há atletas registados.'; renderEntrada(); })
+      .catch(function (e) { listErr = netErr(e); renderEntrada(); });
+  }
+  function loadWeek(id, pin) {
+    var dev = localISO(), mon = isoAdd(dev, -isoDow(dev));
+    return rpc('atleta_semana', { p_atleta: id, p_pin: pin, p_de: mon, p_ate: isoAdd(mon, 6) }).then(function (r) {
+      if (r && r.ok && (r.hoje < mon || r.hoje > isoAdd(mon, 6))) {
+        var m2 = isoAdd(r.hoje, -isoDow(r.hoje));
+        return rpc('atleta_semana', { p_atleta: id, p_pin: pin, p_de: m2, p_ate: isoAdd(m2, 6) });
+      }
+      return r;
+    });
+  }
+  function lastTxt(it, T) {
+    var u = it.ultima;
+    if (!T || !u || !u.series || !u.series.length) return undefined;
+    var s = u.series[0];
+    if (T === 'carga' && s.carga_kg != null) return pt(s.carga_kg) + ' kg' + (s.reps != null ? ' × ' + s.reps : '');
+    if (T === 'vbt' && s.carga_kg != null) return pt(s.carga_kg) + ' kg' + (s.vbt_ms != null ? ' · ' + pt(s.vbt_ms) + ' m/s' : '');
+    if (T === 'tempo' && s.tempo_s != null) return s.tempo_s + ' s';
+    if (T === 'cmj' && s.cmj_cm != null) return pt(s.cmj_cm) + ' cm';
+    if (T === 'bj' && s.bj_cm != null) return pt(s.bj_cm) + ' cm';
+    return undefined;
+  }
+  function mkEx(it) {
+    var uni = it.lateralidade === 'uni';
+    var T = it.pede_registo && it.registo && it.registo !== 'feito' ? it.registo : undefined;
+    var reps = it.reps || '', pres;
+    if (!reps) pres = (T === 'cmj' || T === 'bj') ? it.series + ' tentativas' : it.series + ' séries';
+    else pres = it.series + ' × ' + reps;
+    if (uni && reps && !/lado|perna|side|leg/i.test(reps)) pres += ' / side';
+    return {
+      id: it.id, n: it.nome, pres: pres, series: it.series, t: T,
+      pad: it.padrao && it.padrao !== 'core' ? it.padrao : undefined,
+      core: it.core_tipo || undefined,
+      lat: (it.padrao || uni) ? it.lateralidade : undefined,
+      h: it.nota || undefined, href: it.video_url || undefined, v: it.nome + ' technique',
+      last: lastTxt(it, T)
+    };
+  }
+  function buildDay(t, iso) {
+    if (!t) return { nome: 'Sem treino definido', tipo: 'none', iso: iso };
+    if (t.tipo !== 'gym') return { nome: t.nome, tipo: t.tipo, iso: iso };
+    var blocos = [];
+    BL.forEach(function (b) {
+      var its = (t.itens || []).filter(function (i) { return i.bloco === b[0]; }).sort(function (x, y) { return x.ordem - y.ordem; });
+      if (its.length) blocos.push({ b: b[1], code: b[0], ex: its.map(mkEx) });
+    });
+    return { nome: t.nome, tipo: 'gym', blocos: blocos, iso: iso };
+  }
+  function hydrate(r) {
+    HOJE = r.hoje;
+    var mon = isoAdd(HOJE, -isoDow(HOJE));
+    WK = [];
+    for (var k = 0; k < 7; k++) WK.push(isoAdd(mon, k));
+    TODAY = isoDow(HOJE); day = TODAY;
+    reg = {}; savedRows = {}; savedNotes = {}; autoMsg = '';
+    var byDate = {};
+    (r.treinos || []).forEach(function (t) { byDate[t.data] = t; });
+    PLAN = WK.map(function (iso) { return buildDay(byDate[iso], iso); });
+    var pos = {};
+    PLAN.forEach(function (p, d) {
+      if (p.tipo !== 'gym') return;
+      p.blocos.forEach(function (bl, bi) { bl.ex.forEach(function (e, i) { pos[e.id] = { d: d, bi: bi, i: i, e: e }; }); });
+    });
+    (r.registos || []).forEach(function (x) {
+      var q = pos[x.item_id];
+      if (!q) return;
+      var base = q.d + '_' + q.bi + '_' + q.i, T = q.e.t || 'feito', s = x.serie - 1, a = null, b = null;
+      if (T === 'feito') { if (x.feito != null) reg[base + '_f'] = !!x.feito; return; }
+      if (T === 'carga') { a = x.carga_kg; b = x.reps; }
+      else if (T === 'vbt') { a = x.carga_kg; b = x.vbt_ms; }
+      else if (T === 'tempo') a = x.tempo_s;
+      else if (T === 'cmj') a = x.cmj_cm;
+      else a = x.bj_cm;
+      if (a != null) reg[base + '_' + s + '_a'] = pt(a);
+      if (b != null) reg[base + '_' + s + '_b'] = pt(b);
+      savedRows[x.item_id + '_' + s] = true;
+    });
+    (r.notas || []).forEach(function (n) {
+      var d = WK.indexOf(n.data);
+      if (d < 0 || PLAN[d].tipo !== 'gym') return;
+      PLAN[d].blocos.forEach(function (bl, bi) {
+        if (bl.code !== n.bloco) return;
+        reg['m_' + d + '_' + bi] = n.motivo || '';
+        reg['n_' + d + '_' + bi] = n.nota || '';
+        savedNotes[n.data + '|' + n.bloco] = true;
+      });
+    });
+    var w = (r.wellness || []).filter(function (x) { return x.data === HOJE; })[0];
+    if (w) { well = [w.sono, w.stress, w.fadiga, w.dor]; wellDone = true; } else { well = [null, null, null, null]; wellDone = false; }
+    var s = (r.sessoes || []).filter(function (x) { return x.data === HOJE; })[0];
+    if (s) { pse = s.pse; $('#dur').value = s.minutos; $('#status').textContent = 'Já registaste a sessão de hoje. Podes alterar e guardar outra vez.'; }
+    else { pse = null; $('#dur').value = '60'; $('#status').textContent = ''; }
+    $('#ola').textContent = 'Olá, ' + sess.nome.split(' ')[0];
+    $('#entrada').hidden = true;
+    $('#atleta-app').hidden = false;
+    renderHooper(); applyGate(); renderDays(); renderWork(); renderPse();
+  }
+  function startSession(id, nome, pin) {
+    return loadWeek(id, pin).then(function (r) {
+      if (!r || !r.ok) return { ok: false, erro: r && r.erro };
+      sess = { id: id, nome: nome, pin: pin };
+      hydrate(r);
+      lsSet('alvo.sessao', JSON.stringify(sess));
+      return { ok: true };
+    });
+  }
+  function liveEntrar() {
+    var a = LISTA[escolhido], pin = $('#pin').value;
+    if (!a) { $('#entrar-err').textContent = 'Escolhe primeiro o teu nome.'; return; }
+    if (!/^\d{4}$/.test(pin)) { $('#entrar-err').textContent = 'O PIN tem 4 dígitos.'; return; }
+    $('#entrar').disabled = true;
+    $('#entrar-err').textContent = '';
+    startSession(a.id, a.nome, pin).then(function (r) {
+      $('#entrar').disabled = false;
+      if (r.ok) { $('#pin').value = ''; return; }
+      $('#entrar-err').textContent = r.erro === 'pin' ? 'PIN incorreto ou bloqueado. Depois de 5 tentativas falhadas, a entrada fica bloqueada 15 minutos. Fala com o teu treinador se precisares.' : 'Não foi possível entrar. Tenta outra vez.';
+    }).catch(function (e) { $('#entrar').disabled = false; $('#entrar-err').textContent = netErr(e); });
+  }
+  function liveSair() {
+    lsSet('alvo.sessao', null);
+    sess = null; escolhido = null;
+    $('#status').textContent = '';
+    $('#atleta-app').hidden = true;
+    $('#entrada').hidden = false;
+    renderEntrada();
+    resetWellness();
+  }
+  function liveSaveWellness() {
+    if (hooperTotal() == null || !sess) return;
+    $('#hsave').disabled = true;
+    $('#h-err').textContent = '';
+    rpc('atleta_wellness', { p_atleta: sess.id, p_pin: sess.pin, p_data: HOJE, p_sono: well[0], p_fadiga: well[2], p_dor: well[3], p_stress: well[1] }).then(function (r) {
+      renderHooper();
+      if (r && r.ok) { wellDone = true; applyGate(); renderWork(); return; }
+      $('#h-err').textContent = r && r.erro === 'pin' ? 'O PIN deixou de ser válido. Sai e entra outra vez.' : 'Não foi possível guardar. Tenta outra vez.';
+    }).catch(function (e) { renderHooper(); $('#h-err').textContent = netErr(e); });
+  }
+  function collect() {
+    var series = [], notas = [], p = PLAN[TODAY];
+    if (!p || p.tipo !== 'gym') return { series: series, notas: notas };
+    p.blocos.forEach(function (bl, bi) {
+      bl.ex.forEach(function (e, i) {
+        var base = TODAY + '_' + bi + '_' + i, T = e.t || 'feito';
+        if (T === 'feito') {
+          if (reg[base + '_f'] !== undefined) series.push({ item_id: e.id, serie: 1, feito: !!reg[base + '_f'] });
+          return;
+        }
+        for (var s = 0; s < e.series; s++) {
+          var a = toNum(reg[base + '_' + s + '_a']), b = toNum(reg[base + '_' + s + '_b']);
+          var row = { item_id: e.id, serie: s + 1 };
+          if (T === 'carga') { row.carga_kg = a; row.reps = b === '' ? '' : Math.round(b); }
+          else if (T === 'vbt') { row.carga_kg = a; row.vbt_ms = b; }
+          else if (T === 'tempo') row.tempo_s = a === '' ? '' : Math.round(a);
+          else if (T === 'cmj') row.cmj_cm = a;
+          else row.bj_cm = a;
+          if (a !== '' || b !== '' || savedRows[e.id + '_' + s]) series.push(row);
+        }
+      });
+      var nk = TODAY + '_' + bi, m = reg['m_' + nk] || '', n = (reg['n_' + nk] || '').trim();
+      if (m || n || savedNotes[HOJE + '|' + bl.code]) notas.push({ bloco: bl.code, motivo: m, nota: n });
+    });
+    return { series: series, notas: notas };
+  }
+  function setAuto(t) { autoMsg = t; if (day === TODAY) $('#autosave').textContent = t; }
+  function doSave() {
+    savePromise = savePromise.then(function () {
+      if (!sess) return false;
+      var pl = collect();
+      if (!pl.series.length && !pl.notas.length) { setAuto(''); return true; }
+      setAuto('A guardar…');
+      return rpc('atleta_registos', { p_atleta: sess.id, p_pin: sess.pin, p_data: HOJE, p_series: pl.series, p_notas: pl.notas }).then(function (r) {
+        if (!r || !r.ok) { setAuto(r && r.erro === 'pin' ? 'O PIN deixou de ser válido. Sai e entra outra vez.' : 'Não foi possível guardar. Tenta outra vez.'); return false; }
+        pl.series.forEach(function (x) { savedRows[x.item_id + '_' + (x.serie - 1)] = true; });
+        pl.notas.forEach(function (x) { savedNotes[HOJE + '|' + x.bloco] = true; });
+        var d = new Date();
+        setAuto('Guardado às ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + '.');
+        return true;
+      }).catch(function (e) { setAuto(netErr(e) + ' As alterações seguem na próxima vez que guardares.'); return false; });
+    });
+    return savePromise;
+  }
+  function schedSave() {
+    if (!LIVE || !sess || day !== TODAY) return;
+    clearTimeout(saveT);
+    setAuto('A guardar…');
+    saveT = setTimeout(doSave, 1200);
+  }
+  function liveSaveSessao() {
+    if (!sess) return;
+    if (pse == null) { $('#status').textContent = 'Escolhe primeiro o esforço da sessão.'; return; }
+    var m = parseInt($('#dur').value, 10);
+    if (!(m > 0)) { $('#status').textContent = 'Indica a duração em minutos.'; return; }
+    $('#save').disabled = true;
+    $('#status').textContent = 'A guardar…';
+    clearTimeout(saveT);
+    doSave().then(function () {
+      return rpc('atleta_sessao', { p_atleta: sess.id, p_pin: sess.pin, p_data: HOJE, p_pse: pse, p_minutos: m });
+    }).then(function (r) {
+      $('#save').disabled = false;
+      if (r && r.ok) $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.';
+      else if (r && r.erro === 'descanso') $('#status').textContent = 'Hoje é dia de descanso. Não há sessão para registar.';
+      else if (r && r.erro === 'wellness') $('#status').textContent = 'Preenche primeiro o wellness de hoje.';
+      else if (r && r.erro === 'pin') $('#status').textContent = 'O PIN deixou de ser válido. Sai e entra outra vez.';
+      else $('#status').textContent = 'Não foi possível guardar. Tenta outra vez.';
+    }).catch(function (e) { $('#save').disabled = false; $('#status').textContent = netErr(e); });
+  }
+  function liveAfterRender() {
+    var edit = day === TODAY;
+    $('#work').querySelectorAll('input,textarea,button').forEach(function (el) { el.disabled = !edit; });
+    var msg = '';
+    if (!edit && PLAN[day] && PLAN[day].tipo === 'gym') msg = day > TODAY ? 'Este dia ainda não chegou. Só podes registar no próprio dia.' : 'Só podes registar no próprio dia. Aqui vês o que ficou guardado.';
+    $('#autosave').textContent = edit ? autoMsg : msg;
+  }
+  $('#work').addEventListener('input', function () { if (LIVE) schedSave(); });
+  $('#work').addEventListener('click', function (e) { if (LIVE && e.target.closest('[data-m]')) schedSave(); });
+  window.addEventListener('pagehide', function () { if (LIVE && sess && day === TODAY) doSave(); });
+
+  /* ---------- treinador ---------- */
+  var TOK = null, tAuthed = false;
+  function authReq(body, grant) {
+    return fetch(SUPA.url + '/auth/v1/token?grant_type=' + grant, { method: 'POST', headers: { apikey: SUPA.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function (r) {
+      return r.text().then(function (t) {
+        var j = null;
+        try { j = t ? JSON.parse(t) : null; } catch (e) { j = null; }
+        if (!r.ok) throw { status: r.status, body: j };
+        return j;
+      });
+    });
+  }
+  function setTok(j) {
+    TOK = { access: j.access_token, refresh: j.refresh_token, exp: Date.now() + Math.max(30, (j.expires_in || 3600) - 60) * 1000 };
+    lsSet('alvo.t', JSON.stringify({ r: TOK.refresh }));
+  }
+  function tok() {
+    if (TOK && Date.now() < TOK.exp) return Promise.resolve(TOK.access);
+    if (!TOK) return Promise.reject({ status: 401 });
+    return authReq({ refresh_token: TOK.refresh }, 'refresh_token').then(function (j) { setTok(j); return TOK.access; });
+  }
+  function tReq(path, o) { return tok().then(function (t) { o = o || {}; o.token = t; return api(path, o); }); }
+  function tGet(table, q) {
+    var out = [], size = 1000;
+    function page(from) {
+      return tReq('/rest/v1/' + table + '?' + q, { headers: { 'Range-Unit': 'items', Range: from + '-' + (from + size - 1) } })
+        .catch(function (e) { if (e && e.status === 416) return []; throw e; })
+        .then(function (rows) { rows = rows || []; out = out.concat(rows); return rows.length === size ? page(from + size) : out; });
+    }
+    return page(0);
+  }
+  function showTrainer(authed) {
+    tAuthed = authed;
+    $('#t-login').hidden = authed;
+    $('#t-sair').hidden = !authed;
+    document.querySelectorAll('#view-treinador > .panel').forEach(function (p) { if (p.id !== 't-login') p.hidden = !authed; });
+  }
+  function route() {
+    var t = location.hash === '#treinador';
+    $('#view-atleta').hidden = t;
+    $('#view-treinador').hidden = !t;
+    $('#t-link').hidden = t;
+    if (t && !tAuthed) tryResume();
+  }
+  function tryResume() {
+    var s = lsGet('alvo.t'), r = null;
+    try { r = s ? JSON.parse(s).r : null; } catch (e) { r = null; }
+    if (!r || TOK) return;
+    authReq({ refresh_token: r }, 'refresh_token').then(function (j) { setTok(j); return carregar(); }).catch(function () { lsSet('alvo.t', null); showTrainer(false); });
+  }
+  $('#t-go').addEventListener('click', function () {
+    var em = $('#t-email').value.trim(), pw = $('#t-pass').value;
+    if (!em || !pw) { $('#t-err').textContent = 'Escreve o email e a palavra-passe.'; return; }
+    $('#t-go').disabled = true; $('#t-err').textContent = '';
+    authReq({ email: em, password: pw }, 'password').then(function (j) { setTok(j); $('#t-pass').value = ''; return carregar(); })
+      .catch(function (e) { $('#t-err').textContent = e && (e.status === 400 || e.status === 401 || e.status === 422) ? 'Email ou palavra-passe incorretos.' : netErr(e); })
+      .then(function () { $('#t-go').disabled = false; });
+  });
+  $('#t-pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#t-go').click(); });
+  $('#t-sair').addEventListener('click', function () {
+    TOK = null; lsSet('alvo.t', null); showTrainer(false);
+    ATLETAS = []; COMP = [];
+  });
+
+  var TREIN = {};   /* atleta_id|data -> tipo */
+  function buildLive(D, hojeISO) {
+    var p = SUPA.epoca.split('-');
+    START = Date.UTC(+p[0], +p[1] - 1, +p[2]);
+    TODAY_I = fromISO(hojeISO);
+    var idx = {}, exNames = {}, vbtNames = [];
+    ATLETAS = D.atletas.filter(function (a) { return a.ativo; }).map(function (a, k) {
+      idx[a.id] = k;
+      var rec = [];
+      for (var i = 0; i <= TODAY_I; i++) rec.push({ w: null, ses: [], ton: 0, tu: 0, tp: {}, core: {}, falta: null });
+      return { id: a.id, n: a.nome, m: a.modalidade, g: a.grupo === 'pt' ? 'pt' : 'atleta', rec: rec, loads: {}, cmj: [], bj: [], vbt: [], core: { ext: [], lat: [], rot: [] }, plan: {} };
+    });
+    function at(id, iso) {
+      var k = idx[id], i = fromISO(iso);
+      if (k == null || isNaN(i) || i < 0 || i > TODAY_I) return null;
+      return { a: ATLETAS[k], i: i, r: ATLETAS[k].rec[i] };
+    }
+    TREIN = {};
+    D.treinos.forEach(function (t) {
+      TREIN[t.atleta_id + '|' + t.data] = t.tipo;
+      var x = at(t.atleta_id, t.data);
+      if (x && (t.tipo === 'gym' || t.tipo === 'agua')) x.a.plan[x.i] = t.tipo;
+    });
+    D.wellness.forEach(function (w) { var x = at(w.atleta_id, w.data); if (x) x.r.w = [w.sono, w.stress, w.fadiga, w.dor]; });
+    D.sessoes.forEach(function (s) {
+      var x = at(s.atleta_id, s.data);
+      if (x) x.r.ses.push({ t: TREIN[s.atleta_id + '|' + s.data] === 'agua' ? 'agua' : 'gym', pse: s.pse, min: s.minutos, ua: s.pse * s.minutos });
+    });
+    D.notas.forEach(function (n) { var x = at(n.atleta_id, n.data); if (x && n.motivo && !x.r.falta) x.r.falta = n.motivo; });
+    var agg = {};
+    D.registos.forEach(function (row) {
+      var x = at(row.atleta_id, row.data);
+      var ex = row.item && row.item.exercicios;
+      if (!x || !ex) return;
+      var uni = ex.lateralidade === 'uni', k = x.a.id + '|' + x.i + '|' + ex.nome;
+      var g = agg[k] || (agg[k] = { a: x.a, i: x.i, ex: ex, kgMax: null, repsAtMax: null, vs: [], cm: null, bj: null, ts: [] });
+      if (row.carga_kg != null) {
+        var kg = +row.carga_kg, reps = row.reps != null ? +row.reps : (row.vbt_ms != null ? (parseInt(row.item.reps, 10) || 0) : 0);
+        if (g.kgMax == null || kg > g.kgMax) { g.kgMax = kg; g.repsAtMax = reps; }
+        if (ex.padrao && PADROES[ex.padrao]) {
+          var t = kg * reps * (uni ? 2 : 1);
+          x.r.ton += t; x.r.tp[ex.padrao] = (x.r.tp[ex.padrao] || 0) + t;
+          if (uni) x.r.tu += t;
+        }
+        exNames[ex.nome] = { n: ex.nome, lat: ex.lateralidade };
+      }
+      if (row.vbt_ms != null) { g.vs.push(+row.vbt_ms); if (vbtNames.indexOf(ex.nome) < 0) vbtNames.push(ex.nome); }
+      if (row.cmj_cm != null) g.cm = Math.max(g.cm == null ? 0 : g.cm, +row.cmj_cm);
+      if (row.bj_cm != null) g.bj = Math.max(g.bj == null ? 0 : g.bj, +row.bj_cm);
+      if (row.tempo_s != null && ex.core_tipo && x.a.core[ex.core_tipo]) {
+        g.ts.push(+row.tempo_s);
+        x.r.core[ex.core_tipo] = (x.r.core[ex.core_tipo] || 0) + (+row.tempo_s) * (uni ? 2 : 1);
+      }
+    });
+    Object.keys(agg).sort(function (u, v) { return agg[u].i - agg[v].i; }).forEach(function (k) {
+      var g = agg[k], a = g.a, nome = g.ex.nome;
+      if (g.kgMax != null) { (a.loads[nome] = a.loads[nome] || []).push({ x: g.i, y: g.kgMax, reps: g.repsAtMax }); }
+      if (g.vs.length) a.vbt.push({ x: g.i, kg: g.kgMax || 0, y: Math.round(sum(g.vs) / g.vs.length * 100) / 100, n: nome });
+      if (g.cm != null) a.cmj.push({ x: g.i, y: g.cm });
+      if (g.bj != null) a.bj.push({ x: g.i, y: g.bj });
+      if (g.ts.length) a.core[g.ex.core_tipo].push({ x: g.i, y: Math.round(sum(g.ts) / g.ts.length), n: nome });
+    });
+    EXS = Object.keys(exNames).sort().map(function (n) { return exNames[n]; });
+    ATLETAS.forEach(function (a) { EXS.forEach(function (e) { a.loads[e.n] = a.loads[e.n] || []; }); });
+    VBTN = vbtNames[0] || 'Back squat';
+    COMP = [];
+    D.competicoes.forEach(function (c) {
+      var k = idx[c.atleta_id], i = fromISO(c.data);
+      if (k != null && !isNaN(i)) COMP.push({ id: c.id, a: k, i: i, n: c.nome, l: c.local || '' });
+    });
+  }
+  function refreshTrainerUI() {
+    range = { i0: 0, i1: TODAY_I, preset: 'epoca' };
+    $('#d-de').min = $('#d-ate').min = toISO(0);
+    $('#d-de').max = $('#d-ate').max = toISO(TODAY_I);
+    var opts = ATLETAS.map(function (a, i) { return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>'; }).join('');
+    $('#f-atleta').innerHTML = opts;
+    $('#imp-list').innerHTML = ATLETAS.map(function (a, i) { return '<label class="check"><input type="checkbox" data-ia="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</label>'; }).join('');
+    sel = 0; filtro = 'todos';
+    var h = localISO(), d = new Date(h + 'T00:00:00Z');
+    $('#t-date').textContent = DIASN[isoDow(h)] + ', ' + d.getUTCDate() + ' de ' + MESES[d.getUTCMonth()];
+    $('#imp-sem').value = isoAdd(h, -isoDow(h) + 7);
+    renderFilters(); renderRows(); renderPresets(); renderPainel(); initCal(); initReport();
+  }
+  function carregar() {
+    var hojeISO = localISO();
+    $('#t-err').textContent = '';
+    return Promise.all([
+      tGet('atletas', 'select=id,nome,modalidade,grupo,ativo&order=nome,id'),
+      tGet('wellness', 'select=atleta_id,data,sono,fadiga,dor,stress&order=data,id'),
+      tGet('sessoes', 'select=atleta_id,data,pse,minutos&order=data,id'),
+      tGet('treinos', 'select=atleta_id,data,tipo&order=data,id'),
+      tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,item:treino_itens(reps,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id'),
+      tGet('notas_bloco', 'select=atleta_id,data,bloco,motivo,nota&order=data,id'),
+      tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id')
+    ]).then(function (r) {
+      buildLive({ atletas: r[0], wellness: r[1], sessoes: r[2], treinos: r[3], registos: r[4], notas: r[5], competicoes: r[6] }, hojeISO);
+      showTrainer(true);
+      refreshTrainerUI();
+    }).catch(function (e) {
+      showTrainer(false);
+      $('#t-err').textContent = e && e.status === 401 ? 'A sessão expirou. Entra outra vez.' : netErr(e);
+    });
+  }
+  function liveAddComp(ai, i, nome, loc) {
+    var a = ATLETAS[ai];
+    if (!a) return;
+    tReq('/rest/v1/competicoes', { method: 'POST', body: { atleta_id: a.id, data: toISO(i), nome: nome, local: loc || null }, headers: { Prefer: 'return=representation' } }).then(function (r) {
+      var row = r && r[0];
+      COMP.push({ id: row ? row.id : null, a: ai, i: i, n: nome, l: loc });
+      $('#c-n').value = ''; $('#c-l').value = '';
+      var dt = new Date(START + i * DAY);
+      cal.y = dt.getUTCFullYear(); cal.m = dt.getUTCMonth(); cal.sel = i;
+      renderCal(); renderCalDet(); renderUp(); renderRows(); renderPainel();
+    }).catch(function (e) { $('#c-err').textContent = netErr(e); });
+  }
+  function liveDelComp(k) {
+    var c = COMP[k];
+    if (!c) return;
+    tReq('/rest/v1/competicoes?id=eq.' + encodeURIComponent(c.id), { method: 'DELETE' }).then(function () {
+      COMP.splice(k, 1);
+      renderCal(); renderCalDet(); renderUp(); renderRows(); renderPainel();
+    }).catch(function (e) { $('#c-err').textContent = netErr(e); });
+  }
+
+  /* ---------- importar plano ---------- */
+  var DIAS_IDX = { seg: 0, mon: 0, ter: 1, tue: 1, qua: 2, wed: 2, qui: 3, thu: 3, sex: 4, fri: 4, 'sáb': 5, sab: 5, sat: 5, dom: 6, sun: 6 };
+  var BLOCOS_MAP = { 'warm-up': 'aquecimento', warmup: 'aquecimento', 'aquecimento': 'aquecimento', preparation: 'preparacao', 'preparação': 'preparacao', preparacao: 'preparacao', main: 'principal', principal: 'principal', 'parte principal': 'principal', accessory: 'acessorio', 'acessório': 'acessorio', acessorio: 'acessorio' };
+  var imp = { rows: [], days: [] };
+  function normDia(s) { var k = String(s || '').toLowerCase().replace(/\.$/, '').slice(0, 3); return DIAS_IDX[k]; }
+  function normPad(s) {
+    s = String(s || '').toLowerCase().trim();
+    if (!s) return null;
+    if (s === 'squat') return { padrao: 'squat' };
+    if (/hinge/.test(s)) return { padrao: 'hinge' };
+    if (/^push/.test(s)) return { padrao: 'push' };
+    if (/^pull/.test(s)) return { padrao: 'pull' };
+    if (/^core/.test(s)) {
+      var t = /exten/.test(s) ? 'ext' : /later|lat\b/.test(s) ? 'lat' : /rot/.test(s) ? 'rot' : null;
+      return t ? { padrao: 'core', core_tipo: t } : null;
+    }
+    return null;
+  }
+  function normLat(s) { s = String(s || '').toLowerCase().trim(); return s === 'bilateral' || s === 'bi' ? 'bi' : s === 'unilateral' || s === 'uni' ? 'uni' : null; }
+  function parseImport() {
+    var lines = $('#paste').value.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+    var rows = [], days = [], bad = 0;
+    lines.forEach(function (l, i) {
+      var c = l.split(/\t|;/).map(function (x) { return x.trim(); });
+      if (i === 0 && /^dia$/i.test(c[0])) return;
+      var d = normDia(c[0]);
+      if (c.length <= 3 && d != null && /^(descanso|rest|[áa]gua|water)$/i.test(c[1] || '')) {
+        days.push({ d: d, tipo: /^(descanso|rest)$/i.test(c[1]) ? 'rest' : 'agua', nome: c[2] || (/^(descanso|rest)$/i.test(c[1]) ? 'Descanso' : 'Treino na água') });
+        return;
+      }
+      if (c.length < 5 || d == null || !BLOCOS_MAP[(c[1] || '').toLowerCase()] || !c[2]) { bad++; return; }
+      var pd = normPad(c[7]), la = normLat(c[8]);
+      rows.push({
+        d: d, dia: c[0], bloco: BLOCOS_MAP[c[1].toLowerCase()], blocoTxt: c[1], ex: c[2], series: parseInt(c[3], 10) || 3, reps: c[4],
+        pede: /^(s|y)/i.test(c[5] || ''), video: c[6] || '', pad: pd, lat: la, regTipo: (c[9] || '').toLowerCase(), nome: c[10] || ''
+      });
+    });
+    imp = { rows: rows, days: days };
+    return { rows: rows, days: days, bad: bad };
+  }
+  $('#preview').addEventListener('click', function () {
+    var r = parseImport();
+    $('#perr').textContent = r.bad ? r.bad + (r.bad === 1 ? ' linha ignorada' : ' linhas ignoradas') + ' por faltarem colunas ou terem Dia ou Bloco inválido. Cada linha precisa de Dia, Bloco, Exercício, Séries e Repetições.' : '';
+    $('#pout').hidden = r.rows.length === 0 && r.days.length === 0;
+    var td = '<td style="padding:10px 8px">';
+    $('#prows').innerHTML = r.days.map(function (x) {
+      return '<tr>' + td + DAYS[x.d] + '</td>' + td + (x.tipo === 'rest' ? 'Descanso' : 'Água') + '</td><td colspan="5" style="padding:10px 8px">' + esc(x.nome) + '</td></tr>';
+    }).join('') + r.rows.map(function (x) {
+      return '<tr>' + td + esc(x.dia) + '</td>' + td + esc(x.blocoTxt) + '</td>' + td + esc(x.ex) + ' · ' + x.series + ' × ' + esc(x.reps) + '</td>' +
+        td + (x.pad ? esc(x.pad.padrao + (x.pad.core_tipo ? ' · ' + x.pad.core_tipo : '')) : '<span class="err">Falta</span>') + '</td>' +
+        td + (x.lat ? (x.lat === 'uni' ? 'unilateral' : 'bilateral') : '<span class="err">Falta</span>') + '</td>' +
+        td + (x.pede ? 'Sim' : 'Não') + '</td>' + td + (x.video ? 'Sim' : '–') + '</td></tr>';
+    }).join('');
+    $('#imp-live').hidden = !LIVE || (r.rows.length === 0 && r.days.length === 0);
+    $('#imp-msg').textContent = '';
+  });
+  $('#imp-go').addEventListener('click', function () {
+    if (!LIVE || !tAuthed) return;
+    var who = [];
+    document.querySelectorAll('#imp-list input').forEach(function (c) { if (c.checked) who.push(ATLETAS[+c.getAttribute('data-ia')]); });
+    var sem = $('#imp-sem').value;
+    if (!who.length) { $('#imp-msg').textContent = 'Escolhe pelo menos um atleta.'; return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(sem)) { $('#imp-msg').textContent = 'Escolhe a semana (uma data dessa semana).'; return; }
+    if (!imp.rows.length && !imp.days.length) { $('#imp-msg').textContent = 'Pré-visualiza o plano primeiro.'; return; }
+    var mon = isoAdd(sem, -isoDow(sem)), nomes = {};
+    imp.rows.forEach(function (x) { if (!nomes[x.d]) nomes[x.d] = x.nome || ''; });
+    var linhas = [];
+    imp.days.forEach(function (x) { linhas.push({ data: isoAdd(mon, x.d), treino_nome: x.nome, tipo: x.tipo }); });
+    imp.rows.forEach(function (x) {
+      var rt = /^(carga|vbt|tempo|cmj|bj)$/.test(x.regTipo) ? x.regTipo : (x.pad && x.pad.padrao === 'core' ? 'tempo' : '');
+      if (x.pede && !rt) rt = 'carga';
+      linhas.push({
+        data: isoAdd(mon, x.d), treino_nome: nomes[x.d] || 'Treino', tipo: 'gym', bloco: x.bloco, exercicio: x.ex, series: x.series, reps: x.reps, pede_registo: x.pede,
+        video_url: x.video, padrao: x.pad ? x.pad.padrao : '', core_tipo: x.pad && x.pad.core_tipo ? x.pad.core_tipo : '', lateralidade: x.lat || '', registo: rt
+      });
+    });
+    $('#imp-go').disabled = true;
+    $('#imp-msg').textContent = 'A importar…';
+    var tot = { dias: 0, ex: 0, ign: [] }, k = 0;
+    function next() {
+      if (k >= who.length) return Promise.resolve();
+      var a = who[k++];
+      return tReq('/rest/v1/rpc/importar_treinos', { method: 'POST', body: { p_atleta: a.id, p_linhas: linhas } }).then(function (r) {
+        tot.dias += r.dias; tot.ex += r.exercicios;
+        (r.ignorados || []).forEach(function (d) { tot.ign.push(a.n.split(' ')[0] + ' ' + d); });
+        return next();
+      });
+    }
+    next().then(function () {
+      $('#imp-go').disabled = false;
+      $('#imp-msg').textContent = 'Importado para ' + who.length + (who.length === 1 ? ' atleta' : ' atletas') + ' (semana de ' + mon + '): ' + tot.dias + ' dias e ' + tot.ex + ' exercícios.' +
+        (tot.ign.length ? ' Dias não alterados porque já têm registos: ' + tot.ign.join(', ') + '.' : '');
+    }).catch(function (e) {
+      $('#imp-go').disabled = false;
+      $('#imp-msg').textContent = 'Não foi possível importar. ' + netErr(e) + (e && e.body && e.body.message ? ' (' + e.body.message + ')' : '');
+    });
+  });
+
+  function liveInit() {
+    ATLETAS = []; COMP = [];
+    $('#demo-note').hidden = true;
+    $('#tabs').hidden = true;
+    $('#pin-note').textContent = 'O teu treinador deu-te um PIN de 4 dígitos. O telemóvel lembra-se de ti até carregares em Sair.';
+    $('#paste').value = '';
+    $('#paste').placeholder = 'Dia\tBloco\tExercício\tSéries\tRepetições\tRegistar carga\tVídeo\tPadrão\tLateralidade\nSeg\tMain\tBack squat\t4\t6\tsim\t\tsquat\tbilateral\nQui\tDescanso';
+    showTrainer(false);
+    renderEntrada(); renderDays(); renderHooper(); applyGate(); renderWork(); renderPse();
+    route();
+    window.addEventListener('hashchange', route);
+    liveLoadList();
+    var s = lsGet('alvo.sessao'), o = null;
+    try { o = s ? JSON.parse(s) : null; } catch (e) { o = null; }
+    if (o && o.id && o.pin) startSession(o.id, o.nome, o.pin).then(function (r) { if (!r.ok) lsSet('alvo.sessao', null); }).catch(function () { /* sem ligação: fica no ecrã de entrada */ });
+  }
+
+  if (LIVE) {
+    liveInit();
+  } else {
+    renderEntrada(); renderDays(); renderHooper(); applyGate(); renderWork(); renderPse();
+      renderFilters(); renderRows(); renderPresets(); renderPainel(); initCal(); initReport();
+  }
+})();
+</script>
+</body>
+</html>
