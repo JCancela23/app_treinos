@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0D120F">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Alvo</title>
+<meta name="robots" content="noindex">
+<title>App Treinos</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
 /* Layout: uma coluna estreita, pensada para telemóvel. Duas vistas (Atleta / Treinador) com a mesma identidade: verde, preto e branco, números grandes e condensados. Nos gráficos, a única cor de dados é o verde da marca; tudo o resto é tinta e linhas finas. */
@@ -79,6 +80,14 @@ button { cursor: pointer; }
 .day { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 0 14px; text-align: center; font-weight: 600; font-size: .85rem; position: relative; min-width: 0; }
 .day[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .day.today::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--accent); }
+.days.sess { grid-template-columns: 1fr; }
+.days.sess .day { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; padding: 12px 14px; font-weight: 500; }
+.days.sess .sl { display: grid; gap: 2px; min-width: 0; }
+.days.sess .sl b { font-weight: 600; font-size: 1rem; }
+.days.sess .sl small { font-size: .78rem; opacity: .75; font-weight: 400; }
+.days.sess .st { font-size: .78rem; font-weight: 600; white-space: nowrap; color: var(--muted); }
+.days.sess .day.done .st { color: var(--accent); }
+.days.sess .day[aria-pressed="true"] .st { color: inherit; }
 
 /* wellness */
 .hrow { display: grid; gap: 8px; }
@@ -252,14 +261,14 @@ table.rt { min-width: 0; font-size: .85rem; }
 <div class="wrap">
   <div class="top">
     <div class="brand">
-      <svg viewBox="0 0 40 40" role="img" aria-label="Logótipo Alvo">
+      <svg viewBox="0 0 40 40" role="img" aria-label="Logótipo App Treinos">
         <circle cx="20" cy="20" r="18" fill="var(--fg)"/>
         <circle cx="20" cy="20" r="14" fill="var(--bg)"/>
         <circle cx="20" cy="20" r="10" fill="var(--fg)"/>
         <circle cx="20" cy="20" r="6" fill="var(--bg)"/>
         <circle cx="20" cy="20" r="2.8" fill="var(--accent)"/>
       </svg>
-      <b>Alvo</b>
+      <b>App Treinos</b>
     </div>
     <p class="demo" id="demo-note">Protótipo com dados de exemplo. Nada é guardado.</p>
   </div>
@@ -310,7 +319,8 @@ table.rt { min-width: 0; font-size: .85rem; }
       </div>
 
       <div class="wrap" style="padding:0" id="after" hidden>
-        <div class="days" id="days" role="group" aria-label="Dia da semana"></div>
+        <p class="small" id="sess-help" hidden>Escolhe o treino que vais fazer. A data em que treinas fica registada automaticamente.</p>
+        <div class="days" id="days" role="group" aria-label="Escolhe o treino"></div>
 
         <div class="panel">
           <header>
@@ -602,10 +612,9 @@ table.rt { min-width: 0; font-size: .85rem; }
       </div>
     </div>
   </section>
-  <p style="text-align:center;margin:24px 0"><a id="t-link" href="#treinador" class="small">Área do treinador</a></p>
 </div>
 
-<script>window.ALVO_CONFIG = {url:'https://fkvuboinveyesapgikoi.supabase.co', key:'sb_publishable_xKvLi7tTXtDeXddFlxumSg_ZacV0p0a', epoca:'2026-09-01'};</script>
+<script>window.ALVO_CONFIG = {url:'https://fkvuboinveyesapgikoi.supabase.co', key:'sb_publishable_xKvLi7tTXtDeXddFlxumSg_ZacV0p0a', epoca:'2026-09-01', modo:'atleta'};</script>
 <script>
 (function () {
   var $ = function (s) { return document.querySelector(s); };
@@ -814,6 +823,7 @@ table.rt { min-width: 0; font-size: .85rem; }
 
   /* ---------- atleta: dias ---------- */
   function renderDays() {
+    if (LIVE) return liveRenderDays();
     $('#days').innerHTML = DAYS.map(function (d, i) {
       return '<button class="day' + (i === TODAY ? ' today' : '') + '" data-day="' + i + '" aria-pressed="' + (i === day) + '">' + d + '</button>';
     }).join('');
@@ -821,7 +831,9 @@ table.rt { min-width: 0; font-size: .85rem; }
   $('#days').addEventListener('click', function (e) {
     var b = e.target.closest('[data-day]');
     if (!b) return;
+    if (LIVE) liveFlush();
     day = +b.getAttribute('data-day');
+    if (LIVE) livePseFor();
     renderDays();
     renderWork();
   });
@@ -882,14 +894,14 @@ table.rt { min-width: 0; font-size: .85rem; }
   var MOTIVOS = ['Lesão ou dor', 'Sem tempo', 'Sem material', 'Outro'];
   function renderWork() {
     var p = PLAN[day];
-    $('#work-kicker').textContent = DAYS[day] + (day === TODAY ? ' · hoje' : '');
+    $('#work-kicker').textContent = LIVE ? liveKicker() : DAYS[day] + (day === TODAY ? ' · hoje' : '');
     $('#work-title').textContent = p.nome;
-    $('#pse-panel').hidden = p.tipo === 'rest' || (LIVE && day !== TODAY);
+    $('#pse-panel').hidden = p.tipo === 'rest' || (LIVE && !liveCanEdit());
     var el = $('#work');
     if (p.tipo === 'rest') {
       el.innerHTML = '<p class="note">Dia de descanso. Não há exercícios nem esforço para registar. Aproveita para recuperar.</p>';
     } else if (p.tipo === 'none') {
-      el.innerHTML = '<p class="note">Ainda não há treino definido para este dia.</p>';
+      el.innerHTML = '<p class="note">Ainda não há treinos definidos para esta semana. Fala com o teu treinador.</p>';
     } else if (p.tipo === 'agua') {
       el.innerHTML = '<p class="note">Sessão na água. Não há cargas para registar, só o esforço da sessão no fim.</p>';
     } else {
@@ -1649,7 +1661,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (exTxt.length) txt.push('Cargas: ' + exTxt.join('; '));
       txt.push('');
     });
-    out.innerHTML = '<article class="paper"><header><p class="kicker">Alvo · Relatório de acompanhamento</p><h2>' + periodo + '</h2><p class="small">' + idx.length + (idx.length === 1 ? ' atleta' : ' atletas') + (LIVE ? '' : ' · dados de exemplo') + '</p></header>' +
+    out.innerHTML = '<article class="paper"><header><p class="kicker">App Treinos · Relatório de acompanhamento</p><h2>' + periodo + '</h2><p class="small">' + idx.length + (idx.length === 1 ? ' atleta' : ' atletas') + (LIVE ? '' : ' · dados de exemplo') + '</p></header>' +
       '<div class="scroll"><table class="rt sum"><thead><tr><th>Atleta</th><th>Pres.</th><th>Hooper</th><th>PSE</th><th>UA</th><th>Ton.</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + secs + '</article>';
     lastText = txt.join('\n');
     $('#rep-actions').hidden = false;
@@ -1682,8 +1694,9 @@ table.rt { min-width: 0; font-size: .85rem; }
   ].join('\n');
   /* ====================== MODO REAL (Supabase) ====================== */
   var LISTA = [], listErr = '';
-  var sess = null, HOJE = null, WK = [], saveT = null, savePromise = Promise.resolve(), autoMsg = '';
-  var savedRows = {}, savedNotes = {};
+  var MODO = SUPA && SUPA.modo === 'treinador' ? 'treinador' : 'atleta';
+  var sess = null, HOJE = null, saveT = null, savePromise = Promise.resolve(), autoMsg = '';
+  var savedRows = {}, savedNotes = {}, WK0 = '', TSESS = null;
   var BL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
   var DIASN = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
@@ -1720,10 +1733,10 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
   function loadWeek(id, pin) {
     var dev = localISO(), mon = isoAdd(dev, -isoDow(dev));
-    return rpc('atleta_semana', { p_atleta: id, p_pin: pin, p_de: mon, p_ate: isoAdd(mon, 6) }).then(function (r) {
+    return rpc('atleta_semana', { p_atleta: id, p_pin: pin, p_de: isoAdd(mon, -7), p_ate: isoAdd(mon, 6) }).then(function (r) {
       if (r && r.ok && (r.hoje < mon || r.hoje > isoAdd(mon, 6))) {
         var m2 = isoAdd(r.hoje, -isoDow(r.hoje));
-        return rpc('atleta_semana', { p_atleta: id, p_pin: pin, p_de: m2, p_ate: isoAdd(m2, 6) });
+        return rpc('atleta_semana', { p_atleta: id, p_pin: pin, p_de: isoAdd(m2, -7), p_ate: isoAdd(m2, 6) });
       }
       return r;
     });
@@ -1755,32 +1768,75 @@ table.rt { min-width: 0; font-size: .85rem; }
       last: lastTxt(it, T)
     };
   }
-  function buildDay(t, iso) {
-    if (!t) return { nome: 'Sem treino definido', tipo: 'none', iso: iso };
-    if (t.tipo !== 'gym') return { nome: t.nome, tipo: t.tipo, iso: iso };
+  function buildDay(t) {
+    var p = { id: t.id, iso: t.data, feito: t.feito_em || null, nome: t.nome, tipo: t.tipo };
+    if (t.tipo !== 'gym') return p;
     var blocos = [];
     BL.forEach(function (b) {
       var its = (t.itens || []).filter(function (i) { return i.bloco === b[0]; }).sort(function (x, y) { return x.ordem - y.ordem; });
       if (its.length) blocos.push({ b: b[1], code: b[0], ex: its.map(mkEx) });
     });
-    return { nome: t.nome, tipo: 'gym', blocos: blocos, iso: iso };
+    p.blocos = blocos;
+    return p;
+  }
+  function fmtD(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
+  function liveCanEdit() {
+    var p = PLAN[day];
+    return !!(p && p.id && p.tipo !== 'none' && (!p.feito || p.feito === HOJE));
+  }
+  function liveKicker() {
+    var p = PLAN[day];
+    if (!p || !p.id) return 'Treino';
+    return p.feito ? (p.feito === HOJE ? 'Hoje' : 'Feito a ' + fmtD(p.feito)) : 'Por fazer';
+  }
+  function liveRenderDays() {
+    var el = $('#days');
+    el.className = 'days sess';
+    $('#sess-help').hidden = !PLAN[0] || !PLAN[0].id;
+    el.innerHTML = PLAN.map(function (p, i) {
+      if (!p.id) return '';
+      var st = p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito a ' + fmtD(p.feito)) : 'Por fazer';
+      var prev = p.iso < WK0 ? 'Semana passada · ' : '';
+      return '<button class="day' + (p.feito ? ' done' : '') + '" data-day="' + i + '" aria-pressed="' + (i === day) + '">' +
+        '<span class="sl"><b>' + esc(p.nome) + '</b><small>' + prev + 'Previsto: ' + DAYS[isoDow(p.iso)] + ' · ' + (p.tipo === 'agua' ? 'Água' : 'Ginásio') + '</small></span>' +
+        '<span class="st">' + st + '</span></button>';
+    }).join('');
+  }
+  function livePseFor() {
+    var p = PLAN[day];
+    if (TSESS && p && p.id && TSESS.treino_id === p.id) {
+      pse = TSESS.pse; $('#dur').value = TSESS.minutos;
+      $('#status').textContent = 'Já registaste a sessão deste treino. Podes alterar e guardar outra vez.';
+    } else {
+      pse = null; $('#dur').value = '60'; $('#status').textContent = '';
+    }
+    renderPse();
+  }
+  function liveFlush() {
+    if (!sess || !liveCanEdit()) return;
+    clearTimeout(saveT);
+    doSave();
   }
   function hydrate(r) {
     HOJE = r.hoje;
     var mon = isoAdd(HOJE, -isoDow(HOJE));
-    WK = [];
-    for (var k = 0; k < 7; k++) WK.push(isoAdd(mon, k));
-    TODAY = isoDow(HOJE); day = TODAY;
-    reg = {}; savedRows = {}; savedNotes = {}; autoMsg = '';
-    var byDate = {};
-    (r.treinos || []).forEach(function (t) { byDate[t.data] = t; });
-    PLAN = WK.map(function (iso) { return buildDay(byDate[iso], iso); });
+    WK0 = mon;
+    reg = {}; savedRows = {}; savedNotes = {}; autoMsg = ''; TSESS = null;
+    var list = (r.treinos || []).filter(function (t) {
+      return (t.tipo === 'gym' || t.tipo === 'agua') && t.data <= isoAdd(mon, 6) && (t.data >= mon || !t.feito_em || t.feito_em >= mon);
+    });
+    PLAN = list.map(buildDay);
+    if (!PLAN.length) PLAN = [{ nome: 'Sem treino definido', tipo: 'none', iso: null, feito: null }];
+    day = 0;
+    var hi = -1, ni = -1, oi = -1;
+    PLAN.forEach(function (p, i) { if (p.id && p.feito === HOJE && hi < 0) hi = i; if (p.id && !p.feito && p.iso >= mon && ni < 0) ni = i; if (p.id && !p.feito && p.iso < mon && oi < 0) oi = i; });
+    if (hi >= 0) day = hi; else if (ni >= 0) day = ni; else if (oi >= 0) day = oi;
     var pos = {};
     PLAN.forEach(function (p, d) {
       if (p.tipo !== 'gym') return;
       p.blocos.forEach(function (bl, bi) { bl.ex.forEach(function (e, i) { pos[e.id] = { d: d, bi: bi, i: i, e: e }; }); });
     });
-    (r.registos || []).forEach(function (x) {
+    (r.registos || []).slice().sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; }).forEach(function (x) {
       var q = pos[x.item_id];
       if (!q) return;
       var base = q.d + '_' + q.bi + '_' + q.i, T = q.e.t || 'feito', s = x.serie - 1, a = null, b = null;
@@ -1795,8 +1851,9 @@ table.rt { min-width: 0; font-size: .85rem; }
       savedRows[x.item_id + '_' + s] = true;
     });
     (r.notas || []).forEach(function (n) {
-      var d = WK.indexOf(n.data);
-      if (d < 0 || PLAN[d].tipo !== 'gym') return;
+      var d = -1;
+      PLAN.forEach(function (p, i) { if (d < 0 && p.tipo === 'gym' && p.feito === n.data) d = i; });
+      if (d < 0) return;
       PLAN[d].blocos.forEach(function (bl, bi) {
         if (bl.code !== n.bloco) return;
         reg['m_' + d + '_' + bi] = n.motivo || '';
@@ -1806,9 +1863,8 @@ table.rt { min-width: 0; font-size: .85rem; }
     });
     var w = (r.wellness || []).filter(function (x) { return x.data === HOJE; })[0];
     if (w) { well = [w.sono, w.stress, w.fadiga, w.dor]; wellDone = true; } else { well = [null, null, null, null]; wellDone = false; }
-    var s = (r.sessoes || []).filter(function (x) { return x.data === HOJE; })[0];
-    if (s) { pse = s.pse; $('#dur').value = s.minutos; $('#status').textContent = 'Já registaste a sessão de hoje. Podes alterar e guardar outra vez.'; }
-    else { pse = null; $('#dur').value = '60'; $('#status').textContent = ''; }
+    TSESS = (r.sessoes || []).filter(function (x) { return x.data === HOJE; })[0] || null;
+    livePseFor();
     $('#ola').textContent = 'Olá, ' + sess.nome.split(' ')[0];
     $('#entrada').hidden = true;
     $('#atleta-app').hidden = false;
@@ -1855,11 +1911,11 @@ table.rt { min-width: 0; font-size: .85rem; }
     }).catch(function (e) { renderHooper(); $('#h-err').textContent = netErr(e); });
   }
   function collect() {
-    var series = [], notas = [], p = PLAN[TODAY];
+    var series = [], notas = [], p = PLAN[day];
     if (!p || p.tipo !== 'gym') return { series: series, notas: notas };
     p.blocos.forEach(function (bl, bi) {
       bl.ex.forEach(function (e, i) {
-        var base = TODAY + '_' + bi + '_' + i, T = e.t || 'feito';
+        var base = day + '_' + bi + '_' + i, T = e.t || 'feito';
         if (T === 'feito') {
           if (reg[base + '_f'] !== undefined) series.push({ item_id: e.id, serie: 1, feito: !!reg[base + '_f'] });
           return;
@@ -1875,64 +1931,73 @@ table.rt { min-width: 0; font-size: .85rem; }
           if (a !== '' || b !== '' || savedRows[e.id + '_' + s]) series.push(row);
         }
       });
-      var nk = TODAY + '_' + bi, m = reg['m_' + nk] || '', n = (reg['n_' + nk] || '').trim();
+      var nk = day + '_' + bi, m = reg['m_' + nk] || '', n = (reg['n_' + nk] || '').trim();
       if (m || n || savedNotes[HOJE + '|' + bl.code]) notas.push({ bloco: bl.code, motivo: m, nota: n });
     });
     return { series: series, notas: notas };
   }
-  function setAuto(t) { autoMsg = t; if (day === TODAY) $('#autosave').textContent = t; }
+  function setAuto(t, di) { autoMsg = t; if (di === undefined || di === day) $('#autosave').textContent = t; }
   function doSave() {
+    if (!sess || !liveCanEdit()) return savePromise;
+    var p = PLAN[day], di = day, tid = p.id, pl = collect();
     savePromise = savePromise.then(function () {
-      if (!sess) return false;
-      var pl = collect();
-      if (!pl.series.length && !pl.notas.length) { setAuto(''); return true; }
-      setAuto('A guardar…');
-      return rpc('atleta_registos', { p_atleta: sess.id, p_pin: sess.pin, p_data: HOJE, p_series: pl.series, p_notas: pl.notas }).then(function (r) {
-        if (!r || !r.ok) { setAuto(r && r.erro === 'pin' ? 'O PIN deixou de ser válido. Sai e entra outra vez.' : 'Não foi possível guardar. Tenta outra vez.'); return false; }
+      if (!pl.series.length && !pl.notas.length) { setAuto('', di); return true; }
+      setAuto('A guardar…', di);
+      return rpc('atleta_registos', { p_atleta: sess.id, p_pin: sess.pin, p_treino: tid, p_series: pl.series, p_notas: pl.notas }).then(function (r) {
+        if (!r || !r.ok) {
+          setAuto(r && r.erro === 'pin' ? 'O PIN deixou de ser válido. Sai e entra outra vez.' :
+            r && r.erro === 'feito' ? 'Este treino já foi feito noutro dia. Só podes ver o que ficou guardado.' : 'Não foi possível guardar. Tenta outra vez.', di);
+          return false;
+        }
         pl.series.forEach(function (x) { savedRows[x.item_id + '_' + (x.serie - 1)] = true; });
         pl.notas.forEach(function (x) { savedNotes[HOJE + '|' + x.bloco] = true; });
+        if (pl.series.length && !p.feito) { p.feito = HOJE; liveRenderDays(); }
         var d = new Date();
-        setAuto('Guardado às ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + '.');
+        setAuto('Guardado às ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + '.', di);
         return true;
-      }).catch(function (e) { setAuto(netErr(e) + ' As alterações seguem na próxima vez que guardares.'); return false; });
+      }).catch(function (e) { setAuto(netErr(e) + ' As alterações seguem na próxima vez que guardares.', di); return false; });
     });
     return savePromise;
   }
   function schedSave() {
-    if (!LIVE || !sess || day !== TODAY) return;
+    if (!LIVE || !sess || !liveCanEdit()) return;
     clearTimeout(saveT);
     setAuto('A guardar…');
     saveT = setTimeout(doSave, 1200);
   }
   function liveSaveSessao() {
-    if (!sess) return;
+    if (!sess || !liveCanEdit()) return;
     if (pse == null) { $('#status').textContent = 'Escolhe primeiro o esforço da sessão.'; return; }
     var m = parseInt($('#dur').value, 10);
     if (!(m > 0)) { $('#status').textContent = 'Indica a duração em minutos.'; return; }
+    var p = PLAN[day], tid = p.id;
     $('#save').disabled = true;
     $('#status').textContent = 'A guardar…';
     clearTimeout(saveT);
     doSave().then(function () {
-      return rpc('atleta_sessao', { p_atleta: sess.id, p_pin: sess.pin, p_data: HOJE, p_pse: pse, p_minutos: m });
+      return rpc('atleta_sessao', { p_atleta: sess.id, p_pin: sess.pin, p_treino: tid, p_pse: pse, p_minutos: m });
     }).then(function (r) {
       $('#save').disabled = false;
-      if (r && r.ok) $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.';
-      else if (r && r.erro === 'descanso') $('#status').textContent = 'Hoje é dia de descanso. Não há sessão para registar.';
+      if (r && r.ok) {
+        $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.';
+        p.feito = HOJE; TSESS = { data: HOJE, pse: pse, minutos: m, treino_id: tid }; liveRenderDays();
+      }
+      else if (r && r.erro === 'descanso') $('#status').textContent = 'Este treino é um dia de descanso. Não há sessão para registar.';
       else if (r && r.erro === 'wellness') $('#status').textContent = 'Preenche primeiro o wellness de hoje.';
+      else if (r && r.erro === 'feito') $('#status').textContent = 'Este treino já foi registado noutro dia.';
       else if (r && r.erro === 'pin') $('#status').textContent = 'O PIN deixou de ser válido. Sai e entra outra vez.';
       else $('#status').textContent = 'Não foi possível guardar. Tenta outra vez.';
     }).catch(function (e) { $('#save').disabled = false; $('#status').textContent = netErr(e); });
   }
   function liveAfterRender() {
-    var edit = day === TODAY;
+    var edit = liveCanEdit(), p = PLAN[day], msg = '';
     $('#work').querySelectorAll('input,textarea,button').forEach(function (el) { el.disabled = !edit; });
-    var msg = '';
-    if (!edit && PLAN[day] && PLAN[day].tipo === 'gym') msg = day > TODAY ? 'Este dia ainda não chegou. Só podes registar no próprio dia.' : 'Só podes registar no próprio dia. Aqui vês o que ficou guardado.';
+    if (!edit && p && p.tipo === 'gym' && p.feito) msg = 'Este treino foi feito a ' + fmtD(p.feito) + '. Aqui vês o que ficou guardado.';
     $('#autosave').textContent = edit ? autoMsg : msg;
   }
   $('#work').addEventListener('input', function () { if (LIVE) schedSave(); });
   $('#work').addEventListener('click', function (e) { if (LIVE && e.target.closest('[data-m]')) schedSave(); });
-  window.addEventListener('pagehide', function () { if (LIVE && sess && day === TODAY) doSave(); });
+  window.addEventListener('pagehide', function () { if (LIVE && sess && liveCanEdit()) doSave(); });
 
   /* ---------- treinador ---------- */
   var TOK = null, tAuthed = false;
@@ -1972,10 +2037,10 @@ table.rt { min-width: 0; font-size: .85rem; }
     document.querySelectorAll('#view-treinador > .panel').forEach(function (p) { if (p.id !== 't-login') p.hidden = !authed; });
   }
   function route() {
-    var t = location.hash === '#treinador';
+    var t = MODO === 'treinador';
     $('#view-atleta').hidden = t;
     $('#view-treinador').hidden = !t;
-    $('#t-link').hidden = t;
+    var tl = $('#t-link'); if (tl) tl.hidden = true;
     if (t && !tAuthed) tryResume();
   }
   function tryResume() {
@@ -2149,8 +2214,8 @@ table.rt { min-width: 0; font-size: .85rem; }
       var c = l.split(/\t|;/).map(function (x) { return x.trim(); });
       if (i === 0 && /^dia$/i.test(c[0])) return;
       var d = normDia(c[0]);
-      if (c.length <= 3 && d != null && /^(descanso|rest|[áa]gua|water)$/i.test(c[1] || '')) {
-        days.push({ d: d, tipo: /^(descanso|rest)$/i.test(c[1]) ? 'rest' : 'agua', nome: c[2] || (/^(descanso|rest)$/i.test(c[1]) ? 'Descanso' : 'Treino na água') });
+      if (d != null && /^(descanso|rest|[áa]gua|water)$/i.test(c[1] || '') && !c[2]) {
+        days.push({ d: d, tipo: /^(descanso|rest)$/i.test(c[1]) ? 'rest' : 'agua', nome: c[10] || (/^(descanso|rest)$/i.test(c[1]) ? 'Descanso' : 'Treino na água') });
         return;
       }
       if (c.length < 5 || d == null || !BLOCOS_MAP[(c[1] || '').toLowerCase()] || !c[2]) { bad++; return; }
@@ -2231,7 +2296,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     showTrainer(false);
     renderEntrada(); renderDays(); renderHooper(); applyGate(); renderWork(); renderPse();
     route();
-    window.addEventListener('hashchange', route);
+    if (MODO === 'treinador') return;
     liveLoadList();
     var s = lsGet('alvo.sessao'), o = null;
     try { o = s ? JSON.parse(s) : null; } catch (e) { o = null; }
