@@ -309,7 +309,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       <div class="pickl" id="pick" role="group" aria-label="Escolhe o teu nome"></div>
       <div class="field">
         <label for="pin">PIN de 4 dígitos</label>
-        <div class="f"><input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="····"></div>
+        <div class="f"><input id="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="····"></div>
       </div>
       <button class="primary" id="entrar">Entrar</button>
       <p class="err" id="entrar-err" role="alert"></p>
@@ -317,7 +317,17 @@ table.rt { min-width: 0; font-size: .85rem; }
     </div>
 
     <div class="wrap" style="padding:0" id="atleta-app" hidden>
-      <div class="bar"><b id="ola"></b><button class="chip" id="sair">Sair</button></div>
+      <div class="bar"><b id="ola"></b><span class="chips"><button class="chip" id="pin-alt">Alterar PIN</button><button class="chip" id="sair">Sair</button></span></div>
+
+      <div class="panel" id="pin-panel" hidden>
+        <header><h2 id="pinp-t">Escolhe o teu PIN</h2><span class="kicker">PIN</span></header>
+        <p class="small" id="pinp-help"></p>
+        <div class="field"><label for="pin-n1">Novo PIN (4 a 6 dígitos)</label><div class="f"><input id="pin-n1" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="····"></div></div>
+        <div class="field"><label for="pin-n2">Repete o novo PIN</label><div class="f"><input id="pin-n2" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="····"></div></div>
+        <button class="primary" id="pin-save">Guardar PIN</button>
+        <button class="chip" id="pin-skip" type="button">Agora não</button>
+        <p class="err" id="pin-err" role="alert"></p>
+      </div>
 
       <div class="panel" id="gate">
         <header>
@@ -396,6 +406,25 @@ table.rt { min-width: 0; font-size: .85rem; }
       </div>
       <button class="primary" id="t-go">Entrar</button>
       <p class="err" id="t-err" role="alert"></p>
+      <p class="small" id="t-info" role="status"></p>
+      <button class="chip" id="t-forgot" type="button">Esqueci-me da palavra-passe</button>
+    </div>
+    <div class="panel" id="t-reset" hidden>
+      <header>
+        <h2>Nova palavra-passe</h2>
+        <span class="kicker">Treinador</span>
+      </header>
+      <p class="small">Escolhe uma palavra-passe nova, com pelo menos 10 caracteres, e guarda-a no gestor de palavras-passe.</p>
+      <div class="field">
+        <label for="t-new1">Nova palavra-passe</label>
+        <div class="f"><input id="t-new1" type="password" autocomplete="new-password"></div>
+      </div>
+      <div class="field">
+        <label for="t-new2">Repete a nova palavra-passe</label>
+        <div class="f"><input id="t-new2" type="password" autocomplete="new-password"></div>
+      </div>
+      <button class="primary" id="t-newgo">Guardar palavra-passe</button>
+      <p class="err" id="t-newerr" role="alert"></p>
     </div>
     <div class="panel" id="g-panel" hidden>
       <header>
@@ -1795,7 +1824,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var ver = escolhido != null && LISTA[escolhido] && LISTA[escolhido].modalidade === modSel;
     pinF.hidden = !ver; $('#entrar').hidden = !ver;
     var lb = document.querySelector('label[for="pin"]');
-    if (lb) lb.textContent = (mods.length > 1 ? '3. ' : '') + 'PIN de 4 dígitos';
+    if (lb) lb.textContent = (mods.length > 1 ? '3. ' : '') + 'PIN (4 a 6 dígitos)';
   }
   function liveLoadList() {
     rpc('listar_atletas', {}).then(function (r) { LISTA = r || []; listErr = LISTA.length ? '' : 'Ainda não há atletas registados.'; renderEntrada(); })
@@ -1963,13 +1992,14 @@ table.rt { min-width: 0; font-size: .85rem; }
       sess = { id: id, nome: nome, pin: pin };
       hydrate(r);
       lsSet('alvo.sessao', JSON.stringify(sess));
+      livePinPanel(!!r.pin_provisorio && !lsGet('alvo.skip.' + id), !!r.pin_provisorio);
       return { ok: true };
     });
   }
   function liveEntrar() {
     var a = LISTA[escolhido], pin = $('#pin').value;
     if (!a) { $('#entrar-err').textContent = 'Escolhe primeiro o teu nome.'; return; }
-    if (!/^\d{4}$/.test(pin)) { $('#entrar-err').textContent = 'O PIN tem 4 dígitos.'; return; }
+    if (!/^\d{4,6}$/.test(pin)) { $('#entrar-err').textContent = 'O PIN tem 4 a 6 dígitos.'; return; }
     $('#entrar').disabled = true;
     $('#entrar-err').textContent = '';
     startSession(a.id, a.nome, pin).then(function (r) {
@@ -1978,7 +2008,50 @@ table.rt { min-width: 0; font-size: .85rem; }
       $('#entrar-err').textContent = r.erro === 'pin' ? 'PIN incorreto ou bloqueado. Depois de 5 tentativas falhadas, a entrada fica bloqueada 15 minutos. Fala com o teu treinador se precisares.' : 'Não foi possível entrar. Tenta outra vez.';
     }).catch(function (e) { $('#entrar').disabled = false; $('#entrar-err').textContent = netErr(e); });
   }
+  var PINPROV = false;
+  function livePinPanel(show, prov) {
+    PINPROV = prov;
+    var p = $('#pin-panel');
+    if (!p) return;
+    p.hidden = !show;
+    if (!show) return;
+    $('#pinp-t').textContent = prov ? 'Escolhe o teu PIN' : 'Alterar PIN';
+    $('#pinp-help').textContent = prov ? 'Este PIN foi-te dado pelo teu treinador. Escolhe um que só tu saibas, com 4 a 6 dígitos, e que seja fácil de lembrar.' : 'Escolhe um PIN novo, com 4 a 6 dígitos.';
+    $('#pin-skip').textContent = prov ? 'Agora não' : 'Cancelar';
+    $('#pin-err').textContent = '';
+    $('#pin-n1').value = ''; $('#pin-n2').value = '';
+  }
+  function liveSavePin() {
+    if (!sess) return;
+    var n1 = $('#pin-n1').value.trim(), n2 = $('#pin-n2').value.trim(), er = $('#pin-err');
+    if (!/^\d{4,6}$/.test(n1)) { er.textContent = 'O PIN tem de ter 4 a 6 dígitos (só números).'; return; }
+    if (n1 !== n2) { er.textContent = 'Os dois PINs são diferentes.'; return; }
+    if (n1 === sess.pin) { er.textContent = 'Escolhe um PIN diferente do atual.'; return; }
+    $('#pin-save').disabled = true; er.textContent = '';
+    rpc('atleta_alterar_pin', { p_atleta: sess.id, p_pin: sess.pin, p_novo: n1 }).then(function (r) {
+      $('#pin-save').disabled = false;
+      if (r && r.ok) {
+        sess.pin = n1;
+        lsSet('alvo.sessao', JSON.stringify(sess)); lsSet('alvo.skip.' + sess.id, null);
+        livePinPanel(false, false);
+        $('#status').textContent = 'PIN guardado. A partir de agora entras com o teu PIN novo.';
+        return;
+      }
+      er.textContent = r && r.erro === 'fraco' ? 'Esse PIN é fácil de adivinhar (por exemplo 1234 ou 1111). Escolhe outro.' :
+        r && r.erro === 'igual' ? 'Escolhe um PIN diferente do atual.' :
+        r && r.erro === 'formato' ? 'O PIN tem de ter 4 a 6 dígitos (só números).' :
+        'Não foi possível guardar. Sai e entra outra vez.';
+    }).catch(function (e) { $('#pin-save').disabled = false; er.textContent = netErr(e); });
+  }
+  $('#pin-alt').addEventListener('click', function () { livePinPanel($('#pin-panel').hidden, false); if (!$('#pin-panel').hidden) $('#pin-n1').focus(); });
+  $('#pin-save').addEventListener('click', liveSavePin);
+  $('#pin-n2').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveSavePin(); });
+  $('#pin-skip').addEventListener('click', function () {
+    if (PINPROV && sess) lsSet('alvo.skip.' + sess.id, '1');
+    livePinPanel(false, PINPROV);
+  });
   function liveSair() {
+    livePinPanel(false, false);
     lsSet('alvo.sessao', null);
     sess = null; escolhido = null;
     $('#status').textContent = '';
@@ -2118,12 +2191,69 @@ table.rt { min-width: 0; font-size: .85rem; }
     }
     return page(0);
   }
+  var REC = null, recOn = false;
+  (function () {
+    var h = (location.hash || '').replace(/^#/, ''), p = {};
+    if (!h) return;
+    h.split('&').forEach(function (kv) {
+      var i = kv.indexOf('=');
+      if (i > 0) { try { p[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' ')); } catch (e) { /* ignora */ } }
+    });
+    if (p.type === 'recovery' && p.access_token) REC = { tok: p.access_token };
+    else if (p.error) REC = { erro: p.error_description || p.error };
+    if (REC) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignora */ } }
+  })();
   function showTrainer(authed) {
     tAuthed = authed;
-    $('#t-login').hidden = authed;
+    $('#t-login').hidden = authed || recOn;
+    $('#t-reset').hidden = authed || !recOn;
     $('#t-sair').hidden = !authed;
-    document.querySelectorAll('#view-treinador > .panel').forEach(function (p) { if (p.id !== 't-login') p.hidden = !authed; });
+    document.querySelectorAll('#view-treinador > .panel').forEach(function (p) { if (p.id !== 't-login' && p.id !== 't-reset') p.hidden = !authed; });
   }
+  function recFail(r, e) {
+    var m = e && e.body && (e.body.msg || e.body.message || e.body.error_description) || '';
+    return e && (e.status === 401 || e.status === 403) ? 'O link expirou ou já foi usado. Volta ao início e pede um novo.' :
+      /same|different|igual/i.test(m) ? 'Escolhe uma palavra-passe diferente da anterior.' :
+      e && e.status === 422 ? 'A palavra-passe não foi aceite (muito fraca ou fácil de adivinhar). Escolhe outra mais comprida.' : netErr(e);
+  }
+  $('#t-forgot').addEventListener('click', function () {
+    var em = $('#t-email').value.trim(), inf = $('#t-info'), er = $('#t-err');
+    er.textContent = ''; inf.textContent = '';
+    if (!em) { er.textContent = 'Escreve primeiro o teu email, no campo acima.'; return; }
+    $('#t-forgot').disabled = true;
+    fetch(SUPA.url + '/auth/v1/recover?redirect_to=' + encodeURIComponent(location.origin + location.pathname), { method: 'POST', headers: { apikey: SUPA.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: em }) })
+      .then(function (r) {
+        if (r.status === 429) { er.textContent = 'Espera um minuto e tenta outra vez.'; return; }
+        if (!r.ok) { er.textContent = 'Não foi possível enviar o email. Tenta outra vez daqui a pouco.'; return; }
+        inf.textContent = 'Se esse email tiver acesso, enviámos-lhe um link. Abre-o no Safari ou no Chrome (não no navegador interno de outra app).';
+      })
+      .catch(function (e) { er.textContent = netErr(e); })
+      .then(function () { $('#t-forgot').disabled = false; });
+  });
+  $('#t-newgo').addEventListener('click', function () {
+    var a = $('#t-new1').value, b = $('#t-new2').value, er = $('#t-newerr');
+    er.textContent = '';
+    if (a.length < 10) { er.textContent = 'A palavra-passe tem de ter pelo menos 10 caracteres.'; return; }
+    if (a !== b) { er.textContent = 'As duas palavras-passe são diferentes.'; return; }
+    if (!REC || !REC.tok) { er.textContent = 'O link expirou. Volta ao início e pede um novo.'; return; }
+    $('#t-newgo').disabled = true;
+    fetch(SUPA.url + '/auth/v1/user', { method: 'PUT', headers: { apikey: SUPA.key, Authorization: 'Bearer ' + REC.tok, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: a }) })
+      .then(function (r) {
+        return r.text().then(function (t) {
+          var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { j = null; }
+          if (!r.ok) throw { status: r.status, body: j };
+          return j;
+        });
+      })
+      .then(function () {
+        REC = null; recOn = false; $('#t-new1').value = ''; $('#t-new2').value = '';
+        showTrainer(false);
+        $('#t-info').textContent = 'Palavra-passe guardada. Entra com o teu email e a nova palavra-passe.';
+      })
+      .catch(function (e) { er.textContent = recFail(REC, e); })
+      .then(function () { $('#t-newgo').disabled = false; });
+  });
+  $('#t-new2').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#t-newgo').click(); });
   function route() {
     var t = MODO === 'treinador';
     $('#view-atleta').hidden = t;
@@ -2134,7 +2264,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   function tryResume() {
     var s = lsGet('alvo.t'), r = null;
     try { r = s ? JSON.parse(s).r : null; } catch (e) { r = null; }
-    if (!r || TOK) return;
+    if (!r || TOK || recOn) return;
     authReq({ refresh_token: r }, 'refresh_token').then(function (j) { setTok(j); return carregar(); }).catch(function () { lsSet('alvo.t', null); showTrainer(false); });
   }
   $('#t-go').addEventListener('click', function () {
@@ -2386,10 +2516,12 @@ table.rt { min-width: 0; font-size: .85rem; }
     ATLETAS = []; COMP = [];
     $('#demo-note').hidden = true;
     $('#tabs').hidden = true;
-    $('#pin-note').textContent = 'O teu treinador deu-te um PIN de 4 dígitos. O telemóvel lembra-se de ti até carregares em Sair.';
+    $('#pin-note').textContent = 'O teu treinador deu-te um PIN. Na primeira entrada podes escolher o teu. O telemóvel lembra-se de ti até carregares em Sair.';
     $('#paste').value = '';
     $('#paste').placeholder = 'Dia\tBloco\tExercício\tSéries\tRepetições\tRegistar carga\tVídeo\tPadrão\tLateralidade\nSeg\tMain\tBack squat\t4\t6\tsim\t\tsquat\tbilateral\nQui\tDescanso';
+    recOn = !!(REC && REC.tok);
     showTrainer(false);
+    if (REC && REC.erro) $('#t-err').textContent = 'O link expirou ou já foi usado. Escreve o teu email e carrega em "Esqueci-me da palavra-passe" para pedir um novo.';
     renderEntrada(); renderDays(); renderHooper(); applyGate(); renderWork(); renderPse();
     route();
     if (MODO === 'treinador') return;
@@ -2524,7 +2656,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     tReq('/rest/v1/rpc/criar_atleta', { method: 'POST', body: { p_nome: nome, p_modalidade: mod, p_grupo: grp, p_pin: pin } }).then(function (r) {
       if (!r || !r.ok) { gMsg('g-msg-atl', ERRS_ATL[r && r.erro] || 'Não foi possível criar.', true); return; }
       var esp = gEspLer('ga');
-      return Promise.resolve(esp && (esp.d.length || esp.e.length) ? tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', body: { distancias: esp.d, estilos: esp.e } }) : null).then(function () { return carregar(); }).then(function () { gMsg('g-msg-atl', nome + ' criado. PIN: ' + pin + '. Guarda-o e entrega-o ao atleta.'); });
+      return Promise.resolve(esp && (esp.d.length || esp.e.length) ? tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', body: { distancias: esp.d, estilos: esp.e } }) : null).then(function () { return carregar(); }).then(function () { gMsg('g-msg-atl', nome + ' criado. PIN provisório: ' + pin + '. Entrega-o ao atleta: na primeira entrada ele escolhe o seu próprio PIN.'); });
     }).catch(function (e) { gMsg('g-msg-atl', gFail(e), true); });
   }
   function gAtlSave(id) {
@@ -2537,7 +2669,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     }).then(function (r) {
       if (r && r.ok === false) { gMsg('g-msg-edit', ERRS_ATL[r.erro] || 'Não foi possível mudar o PIN.', true); return; }
       G.edit = null;
-      return carregar().then(function () { gMsg('g-msg-atl', 'Guardado' + (pin ? '. Novo PIN de ' + nome + ': ' + pin : '') + '.'); });
+      return carregar().then(function () { gMsg('g-msg-atl', 'Guardado' + (pin ? '. PIN provisório de ' + nome + ': ' + pin + ' (ele escolhe o seu na próxima entrada)' : '') + '.'); });
     }).catch(function (e) { gMsg('g-msg-edit', gFail(e), true); });
   }
   function gAtlAtivo(id) {
