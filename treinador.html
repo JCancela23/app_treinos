@@ -364,6 +364,7 @@ table.rt { min-width: 0; font-size: .85rem; }
           </header>
           <div id="work" style="display:grid;gap:12px"></div>
           <p class="small" id="autosave" role="status"></p>
+          <div id="skip-box" hidden><button class="chip" id="skip-go">Não vou fazer este treino</button></div>
         </div>
 
         <div class="panel" id="pse-panel">
@@ -964,7 +965,10 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#work-title').textContent = p.nome;
     $('#pse-panel').hidden = p.tipo === 'rest' || (LIVE && !liveCanEdit());
     var el = $('#work');
-    if (p.tipo === 'rest') {
+    if (typeof liveSkipBox === 'function') liveSkipBox();
+    if (p.bloq || p.saltado) {
+      el.innerHTML = '<p class="note">' + (p.saltado ? 'Marcaste que não vais fazer este treino. Já podes fazer o seguinte.' : esc(p.bloq)) + '</p>';
+    } else if (p.tipo === 'rest') {
       el.innerHTML = '<p class="note">Dia de descanso. Não há exercícios nem esforço para registar. Aproveita para recuperar.</p>';
     } else if (p.tipo === 'none') {
       el.innerHTML = '<p class="note">Ainda não há treinos definidos para esta semana. Fala com o teu treinador.</p>';
@@ -1835,10 +1839,10 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
   function loadWeek(id, pin) {
     var dev = localISO(), mon = isoAdd(dev, -isoDow(dev));
-    return rpc('atleta_semana', { p_atleta: id, p_pin: pin, p_de: isoAdd(mon, -7), p_ate: isoAdd(mon, 6) }).then(function (r) {
+    return rpc('atleta_semana', { p_atleta: id, p_pin: pin, p_de: isoAdd(mon, -7), p_ate: isoAdd(mon, 34) }).then(function (r) {
       if (r && r.ok && (r.hoje < mon || r.hoje > isoAdd(mon, 6))) {
         var m2 = isoAdd(r.hoje, -isoDow(r.hoje));
-        return rpc('atleta_semana', { p_atleta: id, p_pin: pin, p_de: isoAdd(m2, -7), p_ate: isoAdd(m2, 6) });
+        return rpc('atleta_semana', { p_atleta: id, p_pin: pin, p_de: isoAdd(m2, -7), p_ate: isoAdd(m2, 34) });
       }
       return r;
     });
@@ -1901,14 +1905,42 @@ table.rt { min-width: 0; font-size: .85rem; }
     return p;
   }
   function fmtD(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
+  function skipKey(p) { return 'alvo.saltou.' + (sess ? sess.id : '') + '.' + p.id; }
+  function liveLocks() {
+    var open = null;
+    PLAN.forEach(function (p) {
+      p.bloq = null; p.saltado = false;
+      if (!p.id || p.tipo !== 'gym') return;
+      if (p.feito) return;
+      if (lsGet(skipKey(p))) { p.saltado = true; return; }
+      if (!open) { open = p; return; }
+      p.bloq = 'Este treino ainda não está disponível. Faz primeiro "' + open.nome + '" (ou diz que não o vais fazer), porque os treinos fazem-se pela ordem do plano.';
+    });
+  }
+  function liveSkipBox() {
+    var b = $('#skip-box'); if (!b) return;
+    var p = PLAN[day], later = false;
+    PLAN.forEach(function (x, i) { if (i > day && x.id && x.tipo === 'gym' && !x.feito && !x.saltado) later = true; });
+    b.hidden = !(LIVE && p && p.id && p.tipo === 'gym' && !p.feito && !p.bloq && !p.saltado && later);
+  }
+  if ($('#skip-go')) $('#skip-go').addEventListener('click', function () {
+    var p = PLAN[day];
+    if (!p || !p.id || !window.confirm('Não vais fazer "' + p.nome + '" esta semana? Fica marcado como não feito e passas ao treino seguinte.')) return;
+    lsSet(skipKey(p), '1');
+    liveLocks();
+    var ni = -1;
+    PLAN.forEach(function (x, i) { if (ni < 0 && x.id && !x.feito && !x.bloq && !x.saltado) ni = i; });
+    if (ni >= 0) day = ni;
+    renderDays(); renderWork(); renderPse();
+  });
   function liveCanEdit() {
     var p = PLAN[day];
-    return !!(p && p.id && p.tipo !== 'none' && (!p.feito || p.feito === HOJE));
+    return !!(p && p.id && p.tipo !== 'none' && !p.bloq && !p.saltado && (!p.feito || p.feito === HOJE));
   }
   function liveKicker() {
     var p = PLAN[day];
     if (!p || !p.id) return 'Treino';
-    return p.feito ? (p.feito === HOJE ? 'Hoje' : 'Feito a ' + fmtD(p.feito)) : 'Por fazer';
+    return p.feito ? (p.feito === HOJE ? 'Hoje' : 'Feito a ' + fmtD(p.feito)) : p.saltado ? 'Não feito' : p.bloq ? 'Por ordem' : 'Por fazer';
   }
   function liveRenderDays() {
     var el = $('#days');
@@ -1916,10 +1948,10 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#sess-help').hidden = !PLAN[0] || !PLAN[0].id;
     el.innerHTML = PLAN.map(function (p, i) {
       if (!p.id) return '';
-      var st = p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito a ' + fmtD(p.feito)) : 'Por fazer';
-      var prev = p.iso < WK0 ? 'Semana passada · ' : '';
+      var st = p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito a ' + fmtD(p.feito)) : p.saltado ? 'Não feito' : p.bloq ? 'Por ordem' : 'Por fazer';
+      var prev = '';
       return '<button class="day' + (p.feito ? ' done' : '') + '" data-day="' + i + '" aria-pressed="' + (i === day) + '">' +
-        '<span class="sl"><b>' + esc(p.nome) + '</b><small>' + prev + 'Previsto: ' + DAYS[isoDow(p.iso)] + ' · ' + (p.tipo === 'agua' ? 'Água' : 'Ginásio') + '</small></span>' +
+        '<span class="sl"><b>' + esc(p.nome) + '</b><small>' + (p.tipo === 'agua' ? 'Água' : 'Ginásio') + (p.feito ? '' : ' · ' + (p.iso > isoAdd(WK0, 6) ? 'Semana de ' + fmtD(isoAdd(p.iso, -isoDow(p.iso))) : 'Previsto: ' + DAYS[isoDow(p.iso)])) + '</small></span>' +
         '<span class="st">' + st + '</span></button>';
     }).join('');
   }
@@ -1944,13 +1976,14 @@ table.rt { min-width: 0; font-size: .85rem; }
     WK0 = mon;
     reg = {}; savedRows = {}; savedNotes = {}; autoMsg = ''; TSESS = null;
     var list = (r.treinos || []).filter(function (t) {
-      return (t.tipo === 'gym' || t.tipo === 'agua') && t.data <= isoAdd(mon, 6) && (t.data >= mon || !t.feito_em || t.feito_em >= mon);
+      return (t.tipo === 'gym' || t.tipo === 'agua') && t.data >= mon && t.data <= isoAdd(mon, 6 + 7 * (r.semanas_a_frente || 0));
     });
     PLAN = list.map(buildDay);
     if (!PLAN.length) PLAN = [{ nome: 'Sem treino definido', tipo: 'none', iso: null, feito: null }];
+    liveLocks();
     day = 0;
     var hi = -1, ni = -1, oi = -1;
-    PLAN.forEach(function (p, i) { if (p.id && p.feito === HOJE && hi < 0) hi = i; if (p.id && !p.feito && p.iso >= mon && ni < 0) ni = i; if (p.id && !p.feito && p.iso < mon && oi < 0) oi = i; });
+    PLAN.forEach(function (p, i) { if (p.id && p.feito === HOJE && hi < 0) hi = i; if (p.id && !p.feito && !p.bloq && !p.saltado && ni < 0) ni = i; });
     if (hi >= 0) day = hi; else if (ni >= 0) day = ni; else if (oi >= 0) day = oi;
     var pos = {};
     PLAN.forEach(function (p, d) {
@@ -2119,7 +2152,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         }
         pl.series.forEach(function (x) { savedRows[x.item_id + '_' + (x.serie - 1)] = true; });
         pl.notas.forEach(function (x) { savedNotes[HOJE + '|' + x.bloco] = true; });
-        if (pl.series.length && !p.feito) { p.feito = HOJE; liveRenderDays(); }
+        if (pl.series.length && !p.feito) { p.feito = HOJE; liveLocks(); liveRenderDays(); liveSkipBox(); }
         var d = new Date();
         setAuto('Guardado às ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + '.', di);
         return true;
@@ -2148,7 +2181,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       $('#save').disabled = false;
       if (r && r.ok) {
         $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.';
-        p.feito = HOJE; TSESS = { data: HOJE, pse: pse, minutos: m, treino_id: tid }; liveRenderDays();
+        p.feito = HOJE; TSESS = { data: HOJE, pse: pse, minutos: m, treino_id: tid }; liveLocks(); liveRenderDays(); liveSkipBox();
       }
       else if (r && r.erro === 'descanso') $('#status').textContent = 'Este treino é um dia de descanso. Não há sessão para registar.';
       else if (r && r.erro === 'wellness') $('#status').textContent = 'Preenche primeiro o wellness de hoje.';
@@ -2589,7 +2622,7 @@ table.rt { min-width: 0; font-size: .85rem; }
 
   function gLoad() {
     return Promise.all([
-      tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo&order=nome,id'),
+      tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente&order=nome,id'),
       tGet('exercicios', 'select=id,nome,video_url,padrao,lateralidade,core_tipo,registo,nota&order=nome,id')
     ]).then(function (r) {
       G.atl = r[0] || []; G.ex = r[1] || [];
@@ -2650,6 +2683,9 @@ table.rt { min-width: 0; font-size: .85rem; }
           '<div class="field"><label for="ge-nome">Nome</label><input class="dt" id="ge-nome" value="' + esc(a.nome) + '"></div>' +
           '<div class="field"><label for="ge-mod">Modalidade</label><input class="dt" id="ge-mod" list="ga-mods" value="' + esc(a.modalidade) + '"></div>' +
           gEspHtml('ge', a) +
+          '<div class="field"><label for="ge-sem">Semanas que o atleta vê</label><select class="sel" id="ge-sem">' +
+            [[0, 'Só a semana corrente'], [1, 'Semana corrente + a seguinte'], [2, 'Corrente + 2 seguintes'], [3, 'Corrente + 3 seguintes'], [4, 'Corrente + 4 seguintes']].map(function (o) { return '<option value="' + o[0] + '"' + ((a.semanas_a_frente || 0) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
+          '</select></div>' +
           '<div class="inline"><div class="field"><label for="ge-grp">Grupo</label><select class="sel" id="ge-grp"><option value="atleta"' + (a.grupo === 'atleta' ? ' selected' : '') + '>Atleta</option><option value="pt"' + (a.grupo === 'pt' ? ' selected' : '') + '>Cliente PT</option></select></div>' +
           '<div class="field"><label for="ge-pin">Novo PIN (opcional)</label><div class="f"><input id="ge-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar2" type="button">Gerar</button></div></div></div>' +
           '<div class="chips"><button class="primary" data-act="atl-save" data-id="' + a.id + '" style="padding:10px 18px">Guardar</button>' +
@@ -2679,7 +2715,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (!nome || !mod) { gMsg('g-msg-edit', 'Preenche o nome e a modalidade.', true); return; }
     if (pin && !/^\d{4}$/.test(pin)) { gMsg('g-msg-edit', 'O PIN tem de ter 4 dígitos.', true); return; }
     gMsg('g-msg-edit', 'A guardar…');
-    tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: (function () { var o = { nome: nome, modalidade: mod, grupo: grp }, esp = gEspLer('ge'); if (esp) { o.distancias = esp.d; o.estilos = esp.e; } return o; })() }).then(function () {
+    tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: (function () { var o = { nome: nome, modalidade: mod, grupo: grp, semanas_a_frente: parseInt($('#ge-sem').value, 10) || 0 }, esp = gEspLer('ge'); if (esp) { o.distancias = esp.d; o.estilos = esp.e; } return o; })() }).then(function () {
       return pin ? tReq('/rest/v1/rpc/definir_pin_treinador', { method: 'POST', body: { p_atleta: id, p_pin: pin } }) : { ok: true };
     }).then(function (r) {
       if (r && r.ok === false) { gMsg('g-msg-edit', ERRS_ATL[r.erro] || 'Não foi possível mudar o PIN.', true); return; }
@@ -2901,8 +2937,17 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (!xe) return;
       if (!window.confirm('Apagar "' + xe.nome + '" da biblioteca? Não se pode desfazer.')) return;
       gMsg('g-msg-ex', 'A verificar…');
-      tReq('/rest/v1/treino_itens?exercicio_id=eq.' + encodeURIComponent(xe.id) + '&select=id&limit=1').then(function (u) {
-        if (u && u.length) { gMsg('g-msg-ex', '"' + xe.nome + '" está em planos de treino já criados, por isso não pode ser apagado. Remove-o desses planos primeiro (ou edita o exercício em vez de o apagar).', true); return null; }
+      tReq('/rest/v1/treino_itens?exercicio_id=eq.' + encodeURIComponent(xe.id) + '&select=treinos(data,nome,atletas(nome))&limit=200').then(function (u) {
+        if (u && u.length) {
+          var L = u.map(function (r) { var t = Array.isArray(r.treinos) ? r.treinos[0] : r.treinos, at = t && (Array.isArray(t.atletas) ? t.atletas[0] : t.atletas); return t ? { d: t.data, n: t.nome || 'Treino', a: at ? at.nome : '?' } : null; }).filter(Boolean);
+          L.sort(function (x, y) { return x.d < y.d ? -1 : x.d > y.d ? 1 : x.a < y.a ? -1 : 1; });
+          var seen = {}, out = [];
+          L.forEach(function (x) { var k = x.d + x.a; if (!seen[k]) { seen[k] = 1; out.push(x); } });
+          var lista = out.slice(0, 40).map(function (x) { return gFmt(x.d) + ' · ' + x.a + ' · ' + x.n; }).join('\n') + (out.length > 40 ? '\n… e mais ' + (out.length - 40) : '');
+          gMsg('g-msg-ex', '"' + xe.nome + '" está em ' + out.length + ' treino(s) já planeados, por isso não pode ser apagado. Remove-o desses planos primeiro (Planear semana → carregar a semana → ✕ no exercício → guardar), ou edita o exercício em vez de o apagar:\n' + lista, true);
+          $('#g-msg-ex').style.whiteSpace = 'pre-line';
+          return null;
+        }
         return tReq('/rest/v1/exercicios?id=eq.' + encodeURIComponent(xe.id), { method: 'DELETE' }).then(function () {
           G.exEdit = null;
           return gLoad().then(function () { gMsg('g-msg-ex', '"' + xe.nome + '" apagado da biblioteca.'); });
