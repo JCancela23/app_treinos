@@ -1976,7 +1976,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     WK0 = mon;
     reg = {}; savedRows = {}; savedNotes = {}; autoMsg = ''; TSESS = null;
     var list = (r.treinos || []).filter(function (t) {
-      return (t.tipo === 'gym' || t.tipo === 'agua') && t.data >= mon && t.data <= isoAdd(mon, 6 + 7 * (r.semanas_a_frente || 0));
+      return t.tipo === 'gym' && t.data >= mon && t.data <= isoAdd(mon, 6 + 7 * (r.semanas_a_frente || 0));
     });
     PLAN = list.map(buildDay);
     if (!PLAN.length) PLAN = [{ nome: 'Sem treino definido', tipo: 'none', iso: null, feito: null }];
@@ -2797,7 +2797,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     h += '<p class="kicker">3 · Dias</p>';
     h += G.plan.map(function (d, i) {
       var date = isoAdd(mon, i);
-      var tipos = [['none', 'Vazio'], ['gym', 'Ginásio'], ['agua', 'Água'], ['rest', 'Descanso']];
+      var tipos = [['none', 'Vazio'], ['gym', 'Ginásio'], ['rest', 'Descanso']];
       var x = '<section class="gday"><header><b>' + DIASL[i] + ' · ' + gFmt(date) + '</b><div class="chips">' + tipos.map(function (t) {
         return '<button class="chip" data-act="tipo" data-d="' + i + '" data-v="' + t[0] + '" aria-pressed="' + (d.tipo === t[0]) + '">' + t[1] + '</button>';
       }).join('') + '</div></header>';
@@ -2852,7 +2852,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       var plan = gNewPlan(), n = 0;
       rows.forEach(function (t) {
         var i = isoDow(t.data);
-        plan[i].tipo = t.tipo; plan[i].nome = t.nome || '';
+        plan[i].tipo = t.tipo === 'agua' ? 'none' : t.tipo; plan[i].nome = t.tipo === 'agua' ? '' : (t.nome || '');
         (t.treino_itens || []).slice().sort(function (a, b) { return a.ordem - b.ordem; }).forEach(function (it) {
           var ex = Array.isArray(it.exercicios) ? it.exercicios[0] : it.exercicios;
           if (!ex) return;
