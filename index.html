@@ -2554,6 +2554,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (!m) { var ex = gExByName(it.ex); return !!(ex && ex.registo !== 'feito'); }
     return m !== 'nenhum' && m !== 'feito';
   }
+  function gExById(id) { for (var i = 0; i < G.ex.length; i++) if (G.ex[i].id === id) return G.ex[i]; return null; }
   function gExByName(n) {
     var k = String(n || '').trim().toLowerCase();
     for (var i = 0; i < G.ex.length; i++) if (G.ex[i].nome.toLowerCase() === k) return G.ex[i];
@@ -2705,7 +2706,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       '<div class="field"><label for="gx-video">Link do vídeo</label><input class="dt" id="gx-video" inputmode="url" autocomplete="off" placeholder="https://…" value="' + esc(e.video_url || '') + '"></div>' +
       '<div class="field"><label for="gx-nota">Nota para o atleta (opcional)</label><input class="dt" id="gx-nota" autocomplete="off" value="' + esc(e.nota || '') + '"></div>' +
       '<div class="chips"><button class="primary" data-act="ex-save" style="padding:10px 18px">' + (G.exEdit ? 'Guardar alterações' : 'Adicionar à biblioteca') + '</button>' +
-      (G.exEdit ? '<button class="chip" data-act="ex-cancel">Cancelar</button>' : '') + '</div><p class="small" id="g-msg-ex" role="status"></p></div>' +
+      (G.exEdit ? '<button class="chip" data-act="ex-cancel">Cancelar</button><button class="chip" data-act="ex-del" style="color:#b3261e">Apagar</button>' : '') + '</div><p class="small" id="g-msg-ex" role="status"></p></div>' +
       '<div class="field"><label for="gx-q">Procurar na biblioteca (' + G.ex.length + ')</label><input class="dt" id="gx-q" autocomplete="off" value="' + esc(G.exQ) + '"></div><div id="gx-list"></div>';
     $('#g-exercicios').innerHTML = h;
     gRenderExList();
@@ -2895,6 +2896,19 @@ table.rt { min-width: 0; font-size: .85rem; }
     else if (a === 'ex-save') gExSave();
     else if (a === 'ex-edit') { G.exEdit = id; gRenderEx(); $('#gx-nome').focus(); window.scrollTo(0, $('#g-panel').offsetTop); }
     else if (a === 'ex-cancel') { G.exEdit = null; gRenderEx(); }
+    else if (a === 'ex-del') {
+      var xe = gExById(G.exEdit);
+      if (!xe) return;
+      if (!window.confirm('Apagar "' + xe.nome + '" da biblioteca? Não se pode desfazer.')) return;
+      gMsg('g-msg-ex', 'A verificar…');
+      tReq('/rest/v1/treino_itens?exercicio_id=eq.' + encodeURIComponent(xe.id) + '&select=id&limit=1').then(function (u) {
+        if (u && u.length) { gMsg('g-msg-ex', '"' + xe.nome + '" está em planos de treino já criados, por isso não pode ser apagado. Remove-o desses planos primeiro (ou edita o exercício em vez de o apagar).', true); return null; }
+        return tReq('/rest/v1/exercicios?id=eq.' + encodeURIComponent(xe.id), { method: 'DELETE' }).then(function () {
+          G.exEdit = null;
+          return gLoad().then(function () { gMsg('g-msg-ex', '"' + xe.nome + '" apagado da biblioteca.'); });
+        });
+      }).catch(function (e) { gMsg('g-msg-ex', e && e.status === 409 ? 'Este exercício está a ser usado e não pode ser apagado.' : gFail(e), true); });
+    }
     else if (a === 'sel') { G.sel[id] = !G.sel[id]; gRenderPlano(); }
     else if (a === 'selmod') {
       var m = b.getAttribute('data-m'), ids = G.atl.filter(function (x) { return x.ativo !== false && x.modalidade === m; });
