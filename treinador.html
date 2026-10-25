@@ -269,6 +269,7 @@ table.rt { min-width: 0; font-size: .85rem; }
 .gctl { display: flex; gap: 6px; flex-wrap: wrap; align-items: end; }
 .gn { display: grid; gap: 2px; font-size: .7rem; color: var(--muted); font-weight: 600; }
 .gn input { width: 76px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px; font-weight: 600; }
+.gn select { max-width: 190px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px; font-weight: 600; font-size: .8rem; }
 .gadd { display: flex; gap: 6px; }
 .gadd .dt { flex: 1; }
 
@@ -976,7 +977,9 @@ table.rt { min-width: 0; font-size: .85rem; }
           var body = '';
           var T = e.t || 'feito';
           var uni = e.lat === 'uni';
-          if (T === 'feito') {
+          if (T === 'nenhum') {
+            body = '';
+          } else if (T === 'feito') {
             body = '<label class="check"><input type="checkbox" data-k="' + base + '_f"' + (reg[base + '_f'] ? ' checked' : '') + '>Feito</label>';
           } else {
             for (var s = 0; s < e.series; s++) {
@@ -1788,7 +1791,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       return r.text().then(function (t) {
         var j = null;
         try { j = t ? JSON.parse(t) : null; } catch (e) { j = null; }
-        if (!r.ok) throw { status: r.status, body: j };
+        if (!r.ok) throw { status: r.status, body: j, text: (typeof t === 'string' ? t : '').slice(0, 200) };
         return j;
       });
     });
@@ -1854,7 +1857,10 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
   function mkEx(it) {
     var uni = it.lateralidade === 'uni';
-    var T = it.pede_registo && it.registo && it.registo !== 'feito' ? it.registo : undefined;
+    var T, ri = it.registo_item;
+    if (ri === 'nenhum') T = 'nenhum';
+    else if (ri) T = ri === 'feito' ? undefined : ri;
+    else T = it.pede_registo && it.registo && it.registo !== 'feito' ? it.registo : undefined;
     var reps = it.reps || '', pres;
     if (!reps) pres = (T === 'cmj' || T === 'bj') ? it.series + ' tentativas' : it.series + ' séries';
     else pres = it.series + ' × ' + reps;
@@ -2076,6 +2082,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     p.blocos.forEach(function (bl, bi) {
       bl.ex.forEach(function (e, i) {
         var base = day + '_' + bi + '_' + i, T = e.t || 'feito';
+        if (T === 'nenhum') return;
         if (T === 'feito') {
           if (reg[base + '_f'] !== undefined) series.push({ item_id: e.id, serie: 1, feito: !!reg[base + '_f'] });
           return;
@@ -2167,7 +2174,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       return r.text().then(function (t) {
         var j = null;
         try { j = t ? JSON.parse(t) : null; } catch (e) { j = null; }
-        if (!r.ok) throw { status: r.status, body: j };
+        if (!r.ok) throw { status: r.status, body: j, text: (typeof t === 'string' ? t : '').slice(0, 200) };
         return j;
       });
     });
@@ -2241,7 +2248,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       .then(function (r) {
         return r.text().then(function (t) {
           var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { j = null; }
-          if (!r.ok) throw { status: r.status, body: j };
+          if (!r.ok) throw { status: r.status, body: j, text: (typeof t === 'string' ? t : '').slice(0, 200) };
           return j;
         });
       })
@@ -2330,7 +2337,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (row.vbt_ms != null) { g.vs.push(+row.vbt_ms); if (vbtNames.indexOf(ex.nome) < 0) vbtNames.push(ex.nome); }
       if (row.cmj_cm != null) g.cm = Math.max(g.cm == null ? 0 : g.cm, +row.cmj_cm);
       if (row.bj_cm != null && !uni) g.bj = Math.max(g.bj == null ? 0 : g.bj, +row.bj_cm);
-      if (row.reps != null && ex.registo === 'reps' && ex.core_tipo && x.a.core['r_' + ex.core_tipo]) {
+      if (row.reps != null && (row.item.registo || ex.registo) === 'reps' && ex.core_tipo && x.a.core['r_' + ex.core_tipo]) {
         g.rs.push(+row.reps);
         x.r.core['r_' + ex.core_tipo] = (x.r.core['r_' + ex.core_tipo] || 0) + (+row.reps) * (uni ? 2 : 1);
       }
@@ -2378,7 +2385,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       tGet('wellness', 'select=atleta_id,data,sono,fadiga,dor,stress&order=data,id'),
       tGet('sessoes', 'select=atleta_id,data,pse,minutos&order=data,id'),
       tGet('treinos', 'select=atleta_id,data,tipo&order=data,id'),
-      tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,item:treino_itens(reps,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id'),
+      tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id'),
       tGet('notas_bloco', 'select=atleta_id,data,bloco,motivo,nota&order=data,id'),
       tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id')
     ]).then(function (r) {
@@ -2535,12 +2542,18 @@ table.rt { min-width: 0; font-size: .85rem; }
   var G = { atl: [], ex: [], tab: 'plano', sel: {}, semana: '', plan: null, edit: null, exEdit: null, exQ: '', srcAtl: '', srcSem: '' };
   var GBL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
   var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['olympic', 'Olympic weightlifting'], ['core:ext', 'Core extension'], ['core:flex', 'Core flexion'], ['core:lat', 'Core lateral flexion'], ['core:rot', 'Core rotation']];
-  var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Broad jump (cm)'], ['feito', 'Só "feito"']];
+  var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'Carga + VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Broad jump (cm)'], ['feito', 'Só "feito"']];
   var DIASL = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
   function gNewPlan() { var d = []; for (var i = 0; i < 7; i++) d.push({ tipo: 'none', nome: '', itens: [] }); return d; }
   function gMon(iso) { return isoAdd(iso, -isoDow(iso)); }
   function gFmt(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
+  function gRegLabel(r) { for (var i = 0; i < GREG.length; i++) if (GREG[i][0] === r) return GREG[i][1]; return 'Só "feito"'; }
+  function gPede(it) {
+    var m = it.mreg || '';
+    if (!m) { var ex = gExByName(it.ex); return !!(ex && ex.registo !== 'feito'); }
+    return m !== 'nenhum' && m !== 'feito';
+  }
   function gExByName(n) {
     var k = String(n || '').trim().toLowerCase();
     for (var i = 0; i < G.ex.length; i++) if (G.ex[i].nome.toLowerCase() === k) return G.ex[i];
@@ -2568,7 +2581,8 @@ table.rt { min-width: 0; font-size: .85rem; }
   function gFail(e) {
     if (e && e.status === 401) return 'A sessão expirou. Entra outra vez.';
     if (e && e.status === 409) return 'Já existe um registo com esse nome.';
-    if (e && e.body && e.body.message) return 'Erro: ' + e.body.message;
+    if (e && e.body && (e.body.message || e.body.details || e.body.hint)) return 'Erro ' + e.status + ': ' + [e.body.message, e.body.details, e.body.hint].filter(Boolean).join(' · ') + (e.body.code ? ' (' + e.body.code + ')' : '');
+    if (e && e.status && e.text) return 'Erro ' + e.status + ': ' + e.text;
     return netErr(e);
   }
 
@@ -2764,7 +2778,9 @@ table.rt { min-width: 0; font-size: .85rem; }
               '<label class="gn">Reps / s<input data-f="reps" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.reps) + '"></label>' +
  (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
               (pos > 0 ? '<button class="chip" data-act="lig" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + lig + '">Com o anterior</button>' : '') +
-              (reg !== 'feito' ? '<button class="chip" data-act="tog" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + (!!o.it.pede) + '">Registar</button>' : '') +
+              '<label class="gn">O que o atleta regista<select data-f="mreg" data-d="' + i + '" data-k="' + o.k + '"><option value=""' + (!o.it.mreg ? ' selected' : '') + '>Por defeito (' + esc(gRegLabel(reg)) + ')</option>' +
+                GREG.map(function (r) { return '<option value="' + r[0] + '"' + (o.it.mreg === r[0] ? ' selected' : '') + '>' + esc(r[1]) + '</option>'; }).join('') +
+                '<option value="nenhum"' + (o.it.mreg === 'nenhum' ? ' selected' : '') + '>Nenhum (só para ver)</option></select></label>' +
               '<button class="chip" data-act="up" data-d="' + i + '" data-k="' + o.k + '" aria-label="Subir">↑</button>' +
               '<button class="chip" data-act="down" data-d="' + i + '" data-k="' + o.k + '" aria-label="Descer">↓</button>' +
               '<button class="chip" data-act="rm" data-d="' + i + '" data-k="' + o.k + '" aria-label="Remover">✕</button></div>' +
@@ -2785,7 +2801,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   function gAddItem(d, bloco, nome) {
     var ex = gExByName(nome);
     if (!ex) { gMsg('g-msg-plano', '"' + nome + '" não está na biblioteca. Cria-o primeiro no separador Exercícios.', true); return false; }
-    G.plan[d].itens.push({ bloco: bloco, ex: ex.nome, series: '3', reps: '', pede: ex.registo !== 'feito', lig: false, desc: '', nota: '' });
+    G.plan[d].itens.push({ bloco: bloco, ex: ex.nome, series: '3', reps: '', pede: ex.registo !== 'feito', mreg: '', lig: false, desc: '', nota: '' });
     return true;
   }
   function gLoadPlan() {
@@ -2795,7 +2811,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var mon = gMon(sem);
     gMsg('g-msg-src', 'A carregar…');
     tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(aid) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
-      '&select=data,nome,tipo,treino_itens(bloco,ordem,series,reps,pede_registo,grupo,descanso_s,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
+      '&select=data,nome,tipo,treino_itens(bloco,ordem,series,reps,pede_registo,registo,grupo,descanso_s,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
       var plan = gNewPlan(), n = 0;
       rows.forEach(function (t) {
         var i = isoDow(t.data);
@@ -2804,7 +2820,7 @@ table.rt { min-width: 0; font-size: .85rem; }
           var ex = Array.isArray(it.exercicios) ? it.exercicios[0] : it.exercicios;
           if (!ex) return;
           var arr = plan[i].itens, pv = arr.length ? arr[arr.length - 1] : null;
-          plan[i].itens.push({ bloco: it.bloco, ex: ex.nome, series: String(it.series), reps: it.reps || '', pede: !!it.pede_registo,
+          plan[i].itens.push({ bloco: it.bloco, ex: ex.nome, series: String(it.series), reps: it.reps || '', pede: !!it.pede_registo, mreg: it.registo || (it.pede_registo ? '' : 'feito'),
             lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', nota: it.nota || '' }); n++;
         });
       });
@@ -2830,7 +2846,7 @@ table.rt { min-width: 0; font-size: .85rem; }
           var lig = pos > 0 && !!it.lig, nxt = bi[pos + 1], ult = !(nxt && nxt.lig), grupo = null;
           if (lig) { grupo = cur; } else if (nxt && nxt.lig) { grupo = cur = ++gn; ser = String(parseInt(it.series, 10) || 3); } else { cur = null; ser = null; }
           var sr = lig ? ser : String(parseInt(it.series, 10) || 3), ds = parseInt(it.desc, 10);
-          linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: sr, reps: String(it.reps || '').trim(), pede_registo: !!it.pede,
+          linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: sr, reps: String(it.reps || '').trim(), pede_registo: gPede(it), registo_item: it.mreg || '',
             grupo: grupo, descanso_s: ult && ds > 0 ? ds : null, nota_item: String(it.nota || '').trim() });
         });
       });
