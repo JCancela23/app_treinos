@@ -1904,6 +1904,8 @@ table.rt { min-width: 0; font-size: .85rem; }
     p.blocos = blocos;
     return p;
   }
+  var MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  function fmtL(iso) { return DAYS[isoDow(iso)] + ' ' + parseInt(iso.slice(8, 10), 10) + ' ' + MESES[parseInt(iso.slice(5, 7), 10) - 1]; }
   function fmtD(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
   function skipKey(p) { return 'alvo.saltou.' + (sess ? sess.id : '') + '.' + p.id; }
   function liveLocks() {
@@ -1940,18 +1942,19 @@ table.rt { min-width: 0; font-size: .85rem; }
   function liveKicker() {
     var p = PLAN[day];
     if (!p || !p.id) return 'Treino';
-    return p.feito ? (p.feito === HOJE ? 'Hoje' : 'Feito a ' + fmtD(p.feito)) : p.saltado ? 'Não feito' : p.bloq ? 'Por ordem' : 'Por fazer';
+    return p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito ' + fmtL(p.feito)) : p.saltado ? 'Não feito' : (p.bloq ? 'Por ordem' : 'Por fazer') + ' · previsto ' + fmtL(p.iso);
   }
   function liveRenderDays() {
     var el = $('#days');
     el.className = 'days sess';
     $('#sess-help').hidden = !PLAN[0] || !PLAN[0].id;
+    if (PLAN[0] && PLAN[0].id) $('#sess-help').textContent = 'Semana de ' + fmtL(WK0) + ' a ' + fmtL(isoAdd(WK0, 6)) + '. Faz os treinos pela ordem. Podes treinar em qualquer dia da semana: fica registado o dia em que treinas.';
     el.innerHTML = PLAN.map(function (p, i) {
       if (!p.id) return '';
-      var st = p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito a ' + fmtD(p.feito)) : p.saltado ? 'Não feito' : p.bloq ? 'Por ordem' : 'Por fazer';
+      var st = p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito ' + fmtL(p.feito)) : p.saltado ? 'Não feito' : p.bloq ? 'Por ordem' : 'Por fazer';
       var prev = '';
       return '<button class="day' + (p.feito ? ' done' : '') + '" data-day="' + i + '" aria-pressed="' + (i === day) + '">' +
-        '<span class="sl"><b>' + esc(p.nome) + '</b><small>' + (p.tipo === 'agua' ? 'Água' : 'Ginásio') + (p.feito ? '' : ' · ' + (p.iso > isoAdd(WK0, 6) ? 'Semana de ' + fmtD(isoAdd(p.iso, -isoDow(p.iso))) : 'Previsto: ' + DAYS[isoDow(p.iso)])) + '</small></span>' +
+        '<span class="sl"><b>' + esc(p.nome) + '</b><small>' + (p.tipo === 'agua' ? 'Água' : 'Ginásio') + (p.feito ? '' : ' · Previsto: ' + fmtL(p.iso)) + '</small></span>' +
         '<span class="st">' + st + '</span></button>';
     }).join('');
   }
