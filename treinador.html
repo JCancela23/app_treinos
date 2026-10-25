@@ -733,7 +733,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     { n: 'Tiago R.', m: 'SUP', g: 'atleta', seed: 23, hb: 9.5, hd: 3, pse0: 6, dur0: 62, str: 1.1, miss: .06, water: true, cm0: 34, bj0: 232 },
     { n: 'Inês C.', m: 'Bodyboard', g: 'atleta', seed: 37, hb: 9, hd: 8, pse0: 6.8, dur0: 68, str: .85, miss: .05, water: true, cm0: 29, bj0: 192 },
     { n: 'Ana M.', m: 'Surf amador', g: 'atleta', seed: 41, hb: 7.5, hd: 0, pse0: 5.5, dur0: 50, str: .7, miss: .1, water: true, semHoje: true, cm0: 27, bj0: 184 },
-    { n: 'Rui P.', m: 'Cliente PT', g: 'pt', seed: 53, hb: 8, hd: 0, pse0: 5, dur0: 45, str: 1.15, miss: .08, water: false, cm0: 33, bj0: 228 }
+    { n: 'Rui P.', m: 'Online training', g: 'pt', seed: 53, hb: 8, hd: 0, pse0: 5, dur0: 45, str: 1.15, miss: .08, water: false, cm0: 33, bj0: 228 }
   ];
   /* competições de exemplo: a = índice do atleta, i = dia desde 1 de setembro */
   var COMP = [
@@ -1149,7 +1149,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     return t;
   }
   function renderFilters() {
-    var f = [['todos', 'Todos'], ['atleta', 'Atletas'], ['pt', 'Clientes PT']];
+    var f = [['todos', 'Todos'], ['atleta', 'Atletas'], ['pt', 'Online training']];
     $('#filters').innerHTML = f.map(function (x) {
       return '<button class="chip" data-f="' + x[0] + '" aria-pressed="' + (filtro === x[0]) + '">' + x[1] + '</button>';
     }).join('');
@@ -1904,6 +1904,8 @@ table.rt { min-width: 0; font-size: .85rem; }
     p.blocos = blocos;
     return p;
   }
+  var MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  function fmtL(iso) { return DAYS[isoDow(iso)] + ' ' + parseInt(iso.slice(8, 10), 10) + ' ' + MESES[parseInt(iso.slice(5, 7), 10) - 1]; }
   function fmtD(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
   function skipKey(p) { return 'alvo.saltou.' + (sess ? sess.id : '') + '.' + p.id; }
   function liveLocks() {
@@ -1940,18 +1942,19 @@ table.rt { min-width: 0; font-size: .85rem; }
   function liveKicker() {
     var p = PLAN[day];
     if (!p || !p.id) return 'Treino';
-    return p.feito ? (p.feito === HOJE ? 'Hoje' : 'Feito a ' + fmtD(p.feito)) : p.saltado ? 'Não feito' : p.bloq ? 'Por ordem' : 'Por fazer';
+    return p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito ' + fmtL(p.feito)) : p.saltado ? 'Não feito' : (p.bloq ? 'Por ordem' : 'Por fazer') + ' · previsto ' + fmtL(p.iso);
   }
   function liveRenderDays() {
     var el = $('#days');
     el.className = 'days sess';
     $('#sess-help').hidden = !PLAN[0] || !PLAN[0].id;
+    if (PLAN[0] && PLAN[0].id) $('#sess-help').textContent = 'Semana de ' + fmtL(WK0) + ' a ' + fmtL(isoAdd(WK0, 6)) + '. Faz os treinos pela ordem. Podes treinar em qualquer dia da semana: fica registado o dia em que treinas.';
     el.innerHTML = PLAN.map(function (p, i) {
       if (!p.id) return '';
-      var st = p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito a ' + fmtD(p.feito)) : p.saltado ? 'Não feito' : p.bloq ? 'Por ordem' : 'Por fazer';
+      var st = p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito ' + fmtL(p.feito)) : p.saltado ? 'Não feito' : p.bloq ? 'Por ordem' : 'Por fazer';
       var prev = '';
       return '<button class="day' + (p.feito ? ' done' : '') + '" data-day="' + i + '" aria-pressed="' + (i === day) + '">' +
-        '<span class="sl"><b>' + esc(p.nome) + '</b><small>' + (p.tipo === 'agua' ? 'Água' : 'Ginásio') + (p.feito ? '' : ' · ' + (p.iso > isoAdd(WK0, 6) ? 'Semana de ' + fmtD(isoAdd(p.iso, -isoDow(p.iso))) : 'Previsto: ' + DAYS[isoDow(p.iso)])) + '</small></span>' +
+        '<span class="sl"><b>' + esc(p.nome) + '</b><small>' + (p.tipo === 'agua' ? 'Água' : 'Ginásio') + (p.feito ? '' : ' · Previsto: ' + fmtL(p.iso)) + '</small></span>' +
         '<span class="st">' + st + '</span></button>';
     }).join('');
   }
@@ -2671,12 +2674,12 @@ table.rt { min-width: 0; font-size: .85rem; }
       '<div class="field"><label for="ga-mod">Modalidade</label><input class="dt" id="ga-mod" list="ga-mods" autocomplete="off" placeholder="Ex.: Surf"><datalist id="ga-mods">' +
       mods.map(function (m) { return '<option value="' + esc(m) + '">'; }).join('') + '</datalist></div>' +
       gEspHtml('ga', null) +
-      '<div class="inline"><div class="field"><label for="ga-grp">Grupo</label><select class="sel" id="ga-grp"><option value="atleta">Atleta</option><option value="pt">Cliente PT</option></select></div>' +
+      '<div class="inline"><div class="field"><label for="ga-grp">Grupo</label><select class="sel" id="ga-grp"><option value="atleta">Atleta</option><option value="pt">Online training</option></select></div>' +
       '<div class="field"><label for="ga-pin">PIN (4 dígitos)</label><div class="f"><input id="ga-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar" type="button">Gerar</button></div></div></div>' +
       '<button class="primary" data-act="atl-criar">Criar atleta</button><p class="small" id="g-msg-atl" role="status"></p></div>' +
       '<p class="kicker">' + G.atl.length + (G.atl.length === 1 ? ' atleta' : ' atletas') + '</p>';
     h += G.atl.map(function (a) {
-      var row = '<div class="grow"><div class="who"><b>' + esc(a.nome) + '</b><small>' + esc(a.modalidade) + (((a.distancias || []).concat(a.estilos || [])).length ? ' · ' + esc((a.distancias || []).concat(a.estilos || []).join(', ')) : '') + ' · ' + (a.grupo === 'pt' ? 'Cliente PT' : 'Atleta') + (a.ativo === false ? ' · inativo' : '') + '</small></div>' +
+      var row = '<div class="grow"><div class="who"><b>' + esc(a.nome) + '</b><small>' + esc(a.modalidade) + (((a.distancias || []).concat(a.estilos || [])).length ? ' · ' + esc((a.distancias || []).concat(a.estilos || []).join(', ')) : '') + ' · ' + (a.grupo === 'pt' ? 'Online training' : 'Atleta') + (a.ativo === false ? ' · inativo' : '') + '</small></div>' +
         '<button class="chip" data-act="atl-edit" data-id="' + a.id + '">' + (G.edit === a.id ? 'Fechar' : 'Editar') + '</button></div>';
       if (G.edit === a.id) {
         row += '<div class="gbox">' +
@@ -2686,7 +2689,7 @@ table.rt { min-width: 0; font-size: .85rem; }
           '<div class="field"><label for="ge-sem">Semanas que o atleta vê</label><select class="sel" id="ge-sem">' +
             [[0, 'Só a semana corrente'], [1, 'Semana corrente + a seguinte'], [2, 'Corrente + 2 seguintes'], [3, 'Corrente + 3 seguintes'], [4, 'Corrente + 4 seguintes']].map(function (o) { return '<option value="' + o[0] + '"' + ((a.semanas_a_frente || 0) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
           '</select></div>' +
-          '<div class="inline"><div class="field"><label for="ge-grp">Grupo</label><select class="sel" id="ge-grp"><option value="atleta"' + (a.grupo === 'atleta' ? ' selected' : '') + '>Atleta</option><option value="pt"' + (a.grupo === 'pt' ? ' selected' : '') + '>Cliente PT</option></select></div>' +
+          '<div class="inline"><div class="field"><label for="ge-grp">Grupo</label><select class="sel" id="ge-grp"><option value="atleta"' + (a.grupo === 'atleta' ? ' selected' : '') + '>Atleta</option><option value="pt"' + (a.grupo === 'pt' ? ' selected' : '') + '>Online training</option></select></div>' +
           '<div class="field"><label for="ge-pin">Novo PIN (opcional)</label><div class="f"><input id="ge-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar2" type="button">Gerar</button></div></div></div>' +
           '<div class="chips"><button class="primary" data-act="atl-save" data-id="' + a.id + '" style="padding:10px 18px">Guardar</button>' +
           '<button class="chip" data-act="atl-ativo" data-id="' + a.id + '">' + (a.ativo === false ? 'Reativar' : 'Desativar') + '</button></div>' +
