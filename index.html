@@ -2329,7 +2329,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       }
       if (row.vbt_ms != null) { g.vs.push(+row.vbt_ms); if (vbtNames.indexOf(ex.nome) < 0) vbtNames.push(ex.nome); }
       if (row.cmj_cm != null) g.cm = Math.max(g.cm == null ? 0 : g.cm, +row.cmj_cm);
-      if (row.bj_cm != null) g.bj = Math.max(g.bj == null ? 0 : g.bj, +row.bj_cm);
+      if (row.bj_cm != null && !uni) g.bj = Math.max(g.bj == null ? 0 : g.bj, +row.bj_cm);
       if (row.reps != null && ex.registo === 'reps' && ex.core_tipo && x.a.core['r_' + ex.core_tipo]) {
         g.rs.push(+row.reps);
         x.r.core['r_' + ex.core_tipo] = (x.r.core['r_' + ex.core_tipo] || 0) + (+row.reps) * (uni ? 2 : 1);
