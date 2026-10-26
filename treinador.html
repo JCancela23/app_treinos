@@ -2261,6 +2261,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#t-sair').hidden = !authed;
     if (!authed) OBS = null;
     document.querySelectorAll('#view-treinador > .panel').forEach(function (p) { if (p.id === 'p-obs-plano') p.hidden = true; else if (p.id !== 't-login' && p.id !== 't-reset') p.hidden = !authed; });
+    if (authed && !OBS && typeof applyTab === 'function') applyTab();
   }
   function recFail(r, e) {
     var m = e && e.body && (e.body.msg || e.body.message || e.body.error_description) || '';
@@ -2343,7 +2344,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       idx[a.id] = k;
       var rec = [];
       for (var i = 0; i <= TODAY_I; i++) rec.push({ w: null, ses: [], ton: 0, tu: 0, tp: {}, core: {}, falta: null });
-      return { id: a.id, n: a.nome, m: a.modalidade, g: a.grupo === 'pt' ? 'pt' : 'atleta', rec: rec, loads: {}, cmj: [], bj: [], vbt: [], core: { ext: [], flex: [], lat: [], rot: [], r_ext: [], r_flex: [], r_lat: [], r_rot: [] }, plan: {} };
+      return { id: a.id, n: a.nome, m: a.modalidade, g: a.grupo === 'pt' ? 'pt' : 'atleta', rec: rec, cdias: {}, loads: {}, cmj: [], bj: [], vbt: [], core: { ext: [], flex: [], lat: [], rot: [], r_ext: [], r_flex: [], r_lat: [], r_rot: [] }, plan: {} };
     });
     function at(id, iso) {
       var k = idx[id], i = fromISO(iso);
@@ -2365,6 +2366,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var agg = {};
     D.registos.forEach(function (row) {
       var x = at(row.atleta_id, row.data);
+      if (x && (row.carga_kg != null || row.vbt_ms != null)) x.a.cdias[x.i] = true;
       var ex = row.item && row.item.exercicios;
       if (!x || !ex) return;
       var uni = ex.lateralidade === 'uni', k = x.a.id + '|' + x.i + '|' + ex.nome;
@@ -2509,6 +2511,68 @@ table.rt { min-width: 0; font-size: .85rem; }
   $('#op-prev').addEventListener('click', function () { OP.sem = isoAdd(OP.sem || localISO(), -7); $('#op-sem').value = OP.sem; opRender(); });
   $('#op-next').addEventListener('click', function () { OP.sem = isoAdd(OP.sem || localISO(), 7); $('#op-sem').value = OP.sem; opRender(); });
   $('#f-atleta').addEventListener('change', function () { if (OBS) opRender(); });
+  /* ---------- separadores do treinador + quem preencheu esta semana ---------- */
+  var TAB = lsGet('alvo.tab') || 'semana';
+  if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados') TAB = 'semana';
+  (function criarNav() {
+    var v = $('#view-treinador'), ref = $('#g-panel');
+    if (!v || !ref) return;
+    var st = document.createElement('style');
+    st.textContent = '.sdots{display:inline-flex;gap:2px;margin-top:4px}.sd{width:9px;height:9px;border-radius:3px;border:1px solid var(--line);background:transparent}.sd.ok{background:var(--accent);border-color:var(--accent)}.sd.fut{opacity:.35}.sd.hoje{outline:2px solid var(--fg);outline-offset:1px}.scell b{display:block}#sem-out th{padding:6px 4px}#sem-out td{padding:6px 4px}.sleg{display:flex;gap:6px;flex-wrap:wrap;align-items:center}';
+    document.head.appendChild(st);
+    var nav = document.createElement('div'); nav.className = 'panel'; nav.id = 't-nav'; nav.hidden = true;
+    nav.innerHTML = '<div class="chips" id="t-tabs" role="group" aria-label="Secções">' +
+      [['semana', 'Esta semana'], ['gestao', 'Planear e gerir'], ['dados', 'Dados dos atletas']].map(function (t) { return '<button class="chip" data-t2="' + t[0] + '" aria-pressed="false">' + t[1] + '</button>'; }).join('') +
+      '<button class="chip" id="t-sair2">Sair</button></div>';
+    var sm = document.createElement('div'); sm.className = 'panel'; sm.id = 'p-semana'; sm.hidden = true;
+    sm.innerHTML = '<header><div><p class="kicker">Semana corrente</p><h2>Quem preencheu</h2></div></header><div id="sem-out"></div>';
+    v.insertBefore(nav, ref); v.insertBefore(sm, ref);
+    nav.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-t2]');
+      if (b) { TAB = b.getAttribute('data-t2'); lsSet('alvo.tab', TAB); applyTab(); window.scrollTo(0, 0); return; }
+      if (e.target.closest('#t-sair2')) $('#t-sair').click();
+    });
+  })();
+  function applyTab() {
+    var nav = $('#t-nav'); if (nav) nav.hidden = false;
+    document.querySelectorAll('#view-treinador > .panel').forEach(function (p) {
+      if (p.id === 't-login' || p.id === 't-reset' || p.id === 't-nav' || p.id === 'p-obs-plano') return;
+      var g = (p.id === 'g-panel' || p.querySelector('#paste')) ? 'gestao' : p.id === 'p-semana' ? 'semana' : 'dados';
+      p.hidden = g !== TAB;
+    });
+    $('#tiles').hidden = TAB !== 'dados';
+    document.querySelectorAll('#t-tabs [data-t2]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-t2') === TAB)); });
+    if (TAB === 'semana') renderSemana();
+  }
+  function renderSemana() {
+    var out = $('#sem-out'); if (!out) return;
+    var hj = localISO(), mon = isoAdd(hj, -isoDow(hj)), hI = fromISO(hj);
+    var idxs = [0, 1, 2, 3, 4, 5, 6].map(function (k) { return fromISO(isoAdd(mon, k)); });
+    var L = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+    if (!ATLETAS.length) { out.innerHTML = '<p class="note">Ainda não há atletas.</p>'; return; }
+    function dots(arr) {
+      return '<span class="sdots">' + arr.map(function (v, k) { return '<span class="sd' + (v ? ' ok' : '') + (idxs[k] > hI ? ' fut' : '') + (idxs[k] === hI ? ' hoje' : '') + '"></span>'; }).join('') + '</span>';
+    }
+    var lista = ATLETAS.slice().sort(function (x, y) { return (x.m + x.n).localeCompare(y.m + y.n, 'pt'); });
+    var faltaW = [];
+    var rows = lista.map(function (a) {
+      var w = idxs.map(function (i) { return a.rec[i] && a.rec[i].w ? 1 : 0; });
+      var c = idxs.map(function (i) { return a.cdias[i] ? 1 : 0; });
+      var p = idxs.map(function (i) { return a.rec[i] && a.rec[i].ses.length ? 1 : 0; });
+      var plan = idxs.filter(function (i) { return a.plan[i] === 'gym'; }).length;
+      var nw = w.reduce(function (x, y) { return x + y; }, 0), nc = c.reduce(function (x, y) { return x + y; }, 0), np = p.reduce(function (x, y) { return x + y; }, 0);
+      if (!(a.rec[hI] && a.rec[hI].w)) faltaW.push(a.n);
+      var pl = plan ? ' <span class="small">de ' + plan + ' planeados</span>' : '';
+      return '<tr><td><span class="who"><b>' + esc(a.n) + '</b><small>' + esc(a.m) + '</small></span></td>' +
+        '<td class="scell"><b>' + nw + ' / 7</b>' + dots(w) + '</td>' +
+        '<td class="scell"><b>' + nc + (plan ? ' / ' + plan : '') + '</b>' + dots(c) + '</td>' +
+        '<td class="scell"><b>' + np + '</b>' + dots(p) + '</td></tr>';
+    }).join('');
+    out.innerHTML = '<p class="small">Semana de ' + fmtD(mon) + ' a ' + fmtD(isoAdd(mon, 6)) + '. Cada quadrado é um dia (' + L.join(' ') + '); verde = preenchido, o contornado é hoje.</p>' +
+      '<p class="small"><b>Wellness de hoje em falta (' + faltaW.length + ' de ' + ATLETAS.length + '):</b> ' + (faltaW.length ? esc(faltaW.join(', ')) : 'ninguém, todos preencheram.') + '</p>' +
+      '<div class="scroll"><table class="rt"><thead><tr><th>Atleta</th><th>Wellness</th><th>Cargas</th><th>PSE</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="small">Wellness: dias preenchidos. Cargas: dias com carga registada / treinos de ginásio planeados. PSE: sessões com esforço registado. O wellness só é obrigatório nos dias em que o atleta treina.</p>';
+  }
   function carregarTodos() {
     var hojeISO = localISO();
     $('#t-err').textContent = '';
