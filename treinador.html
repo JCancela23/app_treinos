@@ -1790,7 +1790,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   function isoDow(iso) { return (new Date(iso + 'T00:00:00Z').getUTCDay() + 6) % 7; }
   function pt(n) { return String(n).replace('.', ','); }
   function toNum(x) { var v = parseFloat(String(x == null ? '' : x).replace(',', '.')); return isNaN(v) ? '' : v; }
-  function netErr(e) { return e && e.status ? 'Erro ' + e.status + '. Tenta outra vez.' : 'Sem ligação. Verifica a internet e tenta outra vez.'; }
+  function netErr(e) {  return e && e.status ? 'Erro ' + e.status + '. Tenta outra vez.' : 'Sem ligação. Verifica a internet e tenta outra vez.'; }
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* sem armazenamento */ } }
 
@@ -2411,12 +2411,35 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (k != null && !isNaN(i)) COMP.push({ id: c.id, a: k, i: i, n: c.nome, l: c.local || '' });
     });
   }
+  function tFiltroMod() {
+    var f = $('#f-atleta'), fld = f && f.parentNode, m = $('#f-mod');
+    if (!fld) return;
+    if (!m) {
+      var w = document.createElement('div'); w.className = 'field';
+      w.innerHTML = '<label for="f-mod">Modalidade</label><select id="f-mod" class="sel"></select>';
+      fld.parentNode.insertBefore(w, fld); m = w.querySelector('select');
+      m.addEventListener('change', function () {
+        var v = m.value, first = -1;
+        $('#f-atleta').innerHTML = ATLETAS.map(function (a, i) {
+          if (v && a.m !== v) return '';
+          if (first < 0) first = i;
+          return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>';
+        }).join('');
+        if (first >= 0) { $('#f-atleta').value = String(first); $('#f-atleta').dispatchEvent(new Event('change')); }
+      });
+    }
+    var ms = []; ATLETAS.forEach(function (a) { if (ms.indexOf(a.m) < 0) ms.push(a.m); });
+    ms.sort(function (x, y) { return x.localeCompare(y, 'pt'); });
+    m.innerHTML = '<option value="">Todas</option>' + ms.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
+    m.parentNode.hidden = ms.length < 2;
+  }
   function refreshTrainerUI() {
     range = { i0: 0, i1: TODAY_I, preset: 'epoca' };
     $('#d-de').min = $('#d-ate').min = toISO(0);
     $('#d-de').max = $('#d-ate').max = toISO(TODAY_I);
     var opts = ATLETAS.map(function (a, i) { return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>'; }).join('');
     $('#f-atleta').innerHTML = opts;
+    tFiltroMod();
     $('#imp-list').innerHTML = ATLETAS.map(function (a, i) { return '<label class="check"><input type="checkbox" data-ia="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</label>'; }).join('');
     sel = 0; filtro = 'todos';
     var h = localISO(), d = new Date(h + 'T00:00:00Z');
