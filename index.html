@@ -530,6 +530,14 @@ table.rt { min-width: 0; font-size: .85rem; }
 
     <div class="tiles" id="tiles"></div>
 
+    <div class="panel" id="p-obs-plano" hidden>
+      <header><div><p class="kicker">Só leitura</p><h2>Plano de treino</h2></div></header>
+      <p class="small" id="op-titulo"></p>
+      <div class="field"><label for="op-sem">Semana (qualquer dia dessa semana)</label><input class="dt" type="date" id="op-sem"></div>
+      <div class="chips"><button class="chip" id="op-prev">← Semana anterior</button><button class="chip" id="op-next">Semana seguinte →</button></div>
+      <div id="op-out"></div>
+    </div>
+
     <div class="panel" id="p-hooper">
       <header>
         <div>
@@ -2251,7 +2259,8 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#t-login').hidden = authed || recOn;
     $('#t-reset').hidden = authed || !recOn;
     $('#t-sair').hidden = !authed;
-    document.querySelectorAll('#view-treinador > .panel').forEach(function (p) { if (p.id !== 't-login' && p.id !== 't-reset') p.hidden = !authed; });
+    if (!authed) OBS = null;
+    document.querySelectorAll('#view-treinador > .panel').forEach(function (p) { if (p.id === 'p-obs-plano') p.hidden = true; else if (p.id !== 't-login' && p.id !== 't-reset') p.hidden = !authed; });
   }
   function recFail(r, e) {
     var m = e && e.body && (e.body.msg || e.body.message || e.body.error_description) || '';
@@ -2413,7 +2422,94 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#imp-sem').value = isoAdd(h, -isoDow(h) + 7);
     renderFilters(); renderRows(); renderPresets(); renderPainel(); initCal(); initReport();
   }
+  var OBS = null, OP = { sem: null };
   function carregar() {
+    $('#t-err').textContent = '';
+    return tReq('/rest/v1/rpc/e_treinador', { method: 'POST', body: {} }).then(function (ok) {
+      return ok === true ? carregarTodos() : carregarLeitura();
+    }).catch(function (e) {
+      showTrainer(false);
+      $('#t-err').textContent = e && e.status === 401 ? 'A sessão expirou. Entra outra vez.' : netErr(e);
+    });
+  }
+  function carregarLeitura() {
+    var hojeISO = localISO();
+    return tGet('acessos_leitura', 'select=nome,modalidades,ver_treinos,ver_wellness,ver_cargas,ativo').then(function (rows) {
+      var o = rows && rows[0];
+      if (!o || o.ativo === false) {
+        TOK = null; lsSet('alvo.t', null); showTrainer(false);
+        $('#t-err').textContent = 'Este login não tem acesso. Fala com o treinador.';
+        return;
+      }
+      OBS = o;
+      return Promise.all([
+        tGet('atletas_obs', 'select=id,nome,modalidade,grupo,ativo&order=nome,id'),
+        o.ver_wellness ? tGet('wellness', 'select=atleta_id,data,sono,fadiga,dor,stress&order=data,id') : Promise.resolve([]),
+        o.ver_cargas ? tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id') : Promise.resolve([])
+      ]).then(function (r) {
+        buildLive({ atletas: r[0], wellness: r[1], sessoes: [], treinos: [], registos: r[2], notas: [], competicoes: [] }, hojeISO);
+        showTrainer(true);
+        refreshTrainerUI();
+        obsApply();
+      });
+    });
+  }
+  function obsApply() {
+    var keep = { filtros: true, 'p-obs-plano': !!OBS.ver_treinos, 'p-hooper': !!OBS.ver_wellness, 'p-ex': !!OBS.ver_cargas };
+    document.querySelectorAll('#view-treinador > .panel').forEach(function (p) {
+      if (p.id === 't-login' || p.id === 't-reset') return;
+      var first = !!p.querySelector('#t-date');
+      p.hidden = !(first || keep[p.id]);
+      if (first) ['#filters', '.scroll', '.small'].forEach(function (sx) { var e = p.querySelector(sx); if (e) e.hidden = true; });
+    });
+    $('#tiles').hidden = true;
+    $('#t-date').textContent = 'Acesso só de leitura';
+    var kk = $('#t-date').parentNode.querySelector('.kicker'); if (kk) kk.textContent = OBS.nome;
+    var pp = $('#presets'); if (pp) pp.hidden = false;
+    OP.sem = isoAdd(localISO(), 0);
+    $('#op-sem').value = OP.sem;
+    opRender();
+  }
+  function opRender() {
+    var out = $('#op-out');
+    if (!OBS || !OBS.ver_treinos || !out) return;
+    var a = ATLETAS[sel];
+    if (!a) { out.innerHTML = '<p class="note">Sem atletas para mostrar.</p>'; return; }
+    var mon = isoAdd(OP.sem, -isoDow(OP.sem));
+    $('#op-titulo').textContent = a.n + ' · semana de ' + fmtD(mon) + ' a ' + fmtD(isoAdd(mon, 6));
+    out.innerHTML = '<p class="small">A carregar…</p>';
+    var tok = (OP.tok = (OP.tok || 0) + 1);
+    tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(a.id) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
+      '&select=data,nome,tipo,treino_itens(bloco,ordem,series,reps,grupo,descanso_s,nota,registo,pede_registo,exercicios(nome,registo,nota))&order=data').then(function (rows) {
+      if (tok !== OP.tok) return;
+      rows = (rows || []).filter(function (t) { return t.tipo === 'gym' || t.tipo === 'rest'; });
+      if (!rows.length) { out.innerHTML = '<p class="note">Sem treinos planeados nesta semana.</p>'; return; }
+      out.innerHTML = rows.map(function (t) {
+        var h = '<div class="gbox"><p class="kicker">' + esc(DAYS[isoDow(t.data)] + ' ' + parseInt(t.data.slice(8, 10), 10) + ' ' + MESES[parseInt(t.data.slice(5, 7), 10) - 1]) + '</p><b>' + esc(t.nome || (t.tipo === 'rest' ? 'Descanso' : 'Treino')) + '</b>';
+        if (t.tipo === 'rest') return h + '</div>';
+        var its = (t.treino_itens || []).slice().sort(function (x, y) { return x.ordem - y.ordem; });
+        GBL.forEach(function (b) {
+          var bi = its.filter(function (i) { return i.bloco === b[0]; });
+          if (!bi.length) return;
+          h += '<p class="kicker" style="margin-top:10px">' + b[1] + '</p>';
+          h += bi.map(function (i) {
+            var ex = Array.isArray(i.exercicios) ? i.exercicios[0] : i.exercicios; if (!ex) return '';
+            var m = i.registo === 'nenhum' ? 'Sem registo' : i.registo ? gRegLabel(i.registo) : (i.pede_registo ? gRegLabel(ex.registo) : 'Só "feito"');
+            var det = [i.series + (i.reps ? ' × ' + i.reps : ' séries'), m];
+            if (i.descanso_s) det.push('descanso ' + (i.descanso_s < 60 ? i.descanso_s + ' s' : Math.floor(i.descanso_s / 60) + ' min' + (i.descanso_s % 60 ? ' ' + (i.descanso_s % 60) + ' s' : '')));
+            var nota = i.nota || ex.nota;
+            return '<p style="margin:4px 0"><b>' + esc(ex.nome) + '</b><br><span class="small">' + esc(det.join(' · ')) + (i.grupo != null ? ' · em grupo' : '') + (nota ? ' · ' + esc(nota) : '') + '</span></p>';
+          }).join('');
+        });
+        return h + '</div>';
+      }).join('');
+    }).catch(function (e) { out.innerHTML = '<p class="err">' + esc(netErr(e)) + '</p>'; });
+  }
+  $('#op-sem').addEventListener('change', function () { if (/^\d{4}-\d{2}-\d{2}$/.test(this.value)) { OP.sem = this.value; opRender(); } });
+  $('#op-prev').addEventListener('click', function () { OP.sem = isoAdd(OP.sem || localISO(), -7); $('#op-sem').value = OP.sem; opRender(); });
+  $('#op-next').addEventListener('click', function () { OP.sem = isoAdd(OP.sem || localISO(), 7); $('#op-sem').value = OP.sem; opRender(); });
+  $('#f-atleta').addEventListener('change', function () { if (OBS) opRender(); });
+  function carregarTodos() {
     var hojeISO = localISO();
     $('#t-err').textContent = '';
     return Promise.all([
