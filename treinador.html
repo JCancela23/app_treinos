@@ -2250,7 +2250,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       var i = kv.indexOf('=');
       if (i > 0) { try { p[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' ')); } catch (e) { /* ignora */ } }
     });
-    if (p.type === 'recovery' && p.access_token) REC = { tok: p.access_token };
+    if ((p.type === 'recovery' || p.type === 'invite') && p.access_token) REC = { tok: p.access_token };
     else if (p.error) REC = { erro: p.error_description || p.error };
     if (REC) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignora */ } }
   })();
