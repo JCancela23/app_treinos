@@ -3500,10 +3500,16 @@ table.rt { min-width: 0; font-size: .85rem; }
   function gRenderTes() {
     var el = $('#g-testes'); if (!el) return;
     var elig = G.atl.filter(function (a) { return a.ativo !== false && (a.grupo === 'pt' || a.grupo === 'presencial' || a.grupo === 'atleta'); }).sort(function (x, y) { return x.nome.localeCompare(y.nome, 'pt'); });
-    var gl = function (a) { return a.grupo === 'pt' ? 'Online training' : a.grupo === 'presencial' ? 'Presencial' : esc(a.modalidade); };
+    var gl = function (a) { return a.grupo === 'pt' ? 'Online training' : a.grupo === 'presencial' ? 'Presencial' : a.modalidade; };
+    var gps = []; elig.forEach(function (a) { if (gps.indexOf(gl(a)) < 0) gps.push(gl(a)); });
+    var ord = ['Online training', 'Presencial']; gps.sort(function (x, y) { var ix = ord.indexOf(x), iy = ord.indexOf(y); return (ix < 0 ? 9 : ix) - (iy < 0 ? 9 : iy) || x.localeCompare(y, 'pt'); });
+    if (G.tesM && gps.indexOf(G.tesM) < 0) G.tesM = '';
+    var lista = elig.filter(function (a) { return G.tesM && gl(a) === G.tesM; });
+    if (G.tesA && !lista.some(function (a) { return a.id === G.tesA; })) G.tesA = '';
     var h = '<div class="gbox"><p class="kicker">Testes e benchmarks</p><p class="small">Online training e presencial: testes por categoria (RMs, saltos, tempos de prova, etc.). Atletas das modalidades: perfil carga-velocidade. Usa sempre o mesmo nome para o mesmo teste, é assim que se constrói a evolução.</p>' +
       (G.tesErr ? '<p class="err">' + esc(G.tesErr) + '</p>' : '') +
-      '<div class="field"><label for="gt-atl">Atleta</label><select class="sel" id="gt-atl"><option value="">Escolhe…</option>' + elig.map(function (a) { return '<option value="' + a.id + '"' + (a.id === G.tesA ? ' selected' : '') + '>' + esc(a.nome) + ' · ' + gl(a) + '</option>'; }).join('') + '</select></div>';
+      '<p class="small" style="margin-bottom:4px">1 · Escolhe a modalidade ou o grupo</p><div class="chips">' + gps.map(function (m) { return '<button class="chip" data-act="tes-grp" data-m="' + esc(m) + '" aria-pressed="' + (G.tesM === m) + '">' + esc(m) + '</button>'; }).join('') + '</div>' +
+      (G.tesM ? '<div class="field" style="margin-top:8px"><label for="gt-atl">2 · Escolhe o atleta (' + lista.length + ')</label><select class="sel" id="gt-atl"><option value="">Escolhe…</option>' + lista.map(function (a) { return '<option value="' + a.id + '"' + (a.id === G.tesA ? ' selected' : '') + '>' + esc(a.nome) + '</option>'; }).join('') + '</select></div>' : '');
     if (!elig.length) h += '<p class="note">Ainda não tens atletas.</p>';
     var at = G.tesA && gAtlById(G.tesA);
     if (at && at.grupo === 'atleta') h += gFvHtml();
@@ -3853,6 +3859,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     else if (a === 'pag-add') gPagAdd(id);
     else if (a === 'reg-save') gRegSave();
     else if (a === 'wod-save') gWodSave(b);
+    else if (a === 'tes-grp') { G.tesM = b.getAttribute('data-m'); G.tesA = ''; gRenderTes(); }
     else if (a === 'tes-add') gTesAdd();
     else if (a === 'fv-add') gFvAdd();
     else if (a === 'fv-row') { var nr = document.querySelectorAll('#gf-pts [data-fvr]').length; $('#gf-pts').insertAdjacentHTML('beforeend', gFvRow(nr)); }
