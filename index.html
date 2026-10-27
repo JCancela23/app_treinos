@@ -351,6 +351,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       </div>
 
       <div class="wrap" style="padding:0" id="after" hidden>
+        <p class="note" id="pend-box" role="alert" hidden></p>
         <p class="small" id="sess-help" hidden>Escolhe o treino que vais fazer. A data em que treinas fica registada automaticamente.</p>
         <div class="days" id="days" role="group" aria-label="Escolhe o treino"></div>
 
@@ -362,9 +363,10 @@ table.rt { min-width: 0; font-size: .85rem; }
             </div>
             <span class="prog" id="prog"></span>
           </header>
+          <div class="field" id="dia-box" hidden><label for="dia-sel">Dia em que treinaste</label><select id="dia-sel" class="sel"></select><p class="small">Se treinaste noutro dia, escolhe-o aqui antes de registares as cargas. Depois de guardares, o dia fica fixo.</p></div>
           <div id="work" style="display:grid;gap:12px"></div>
           <p class="small" id="autosave" role="status"></p>
-          <div id="skip-box" hidden><button class="chip" id="skip-go">Não vou fazer este treino</button></div>
+          <div id="skip-box" hidden><button class="chip" id="skip-go">Não vou fazer este treino</button><div id="skip-opts" hidden><p class="small">Porque não vais treinar?</p><div class="chips"><button class="chip" data-falta="doente">Doente</button><button class="chip" data-falta="lesao">Lesão</button><button class="chip" data-falta="outro">Outro</button><button class="chip" id="skip-x">Cancelar</button></div></div><button class="chip" id="skip-undo" hidden>Anular "não treinou"</button><p class="small" id="skip-msg" role="alert"></p></div>
         </div>
 
         <div class="panel" id="pse-panel">
@@ -971,11 +973,11 @@ table.rt { min-width: 0; font-size: .85rem; }
     var p = PLAN[day];
     $('#work-kicker').textContent = LIVE ? liveKicker() : DAYS[day] + (day === TODAY ? ' · hoje' : '');
     $('#work-title').textContent = p.nome;
-    $('#pse-panel').hidden = p.tipo === 'rest' || (LIVE && !liveCanEdit());
+    $('#pse-panel').hidden = p.tipo === 'rest' || (LIVE && !liveCanEdit() && !livePsePend(p));
     var el = $('#work');
     if (typeof liveSkipBox === 'function') liveSkipBox();
     if (p.bloq || p.saltado) {
-      el.innerHTML = '<p class="note">' + (p.saltado ? 'Marcaste que não vais fazer este treino. Já podes fazer o seguinte.' : esc(p.bloq)) + '</p>';
+      el.innerHTML = '<p class="note">' + (typeof liveSkipNote === 'function' ? esc(liveSkipNote(p)) : esc(p.bloq || '')) + '</p>';
     } else if (p.tipo === 'rest') {
       el.innerHTML = '<p class="note">Dia de descanso. Não há exercícios nem esforço para registar. Aproveita para recuperar.</p>';
     } else if (p.tipo === 'none') {
@@ -997,7 +999,7 @@ table.rt { min-width: 0; font-size: .85rem; }
             for (var s = 0; s < e.series; s++) {
               var k = base + '_' + s;
               if (T === 'carga') {
-                body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + field(k + '_b', uni ? 'reps/side' : 'reps', 'numeric', '0') + '</div>';
+                body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + (e.pr ? '<span class="small">' + e.pr + (uni ? ' reps/side' : ' reps') + ' (prescrito)</span>' : field(k + '_b', uni ? 'reps/side' : 'reps', 'numeric', '0')) + '</div>';
               } else if (T === 'vbt') {
                 body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + field(k + '_b', 'm/s', 'decimal', '0,00') + '</div>';
               } else if (T === 'reps') {
@@ -1780,7 +1782,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   var LISTA = [], listErr = '', modSel = null;
   var MODO = SUPA && SUPA.modo === 'treinador' ? 'treinador' : 'atleta';
   var sess = null, HOJE = null, saveT = null, savePromise = Promise.resolve(), autoMsg = '';
-  var savedRows = {}, savedNotes = {}, WK0 = '', TSESS = null;
+  var savedRows = {}, savedNotes = {}, WK0 = '', TSESS = null, SESMAP = {}, TDIA = {}, SESDIAS = {};
   var BL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
   var DIASN = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
@@ -1790,7 +1792,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   function isoDow(iso) { return (new Date(iso + 'T00:00:00Z').getUTCDay() + 6) % 7; }
   function pt(n) { return String(n).replace('.', ','); }
   function toNum(x) { var v = parseFloat(String(x == null ? '' : x).replace(',', '.')); return isNaN(v) ? '' : v; }
-  function netErr(e) { return e && e.status ? 'Erro ' + e.status + '. Tenta outra vez.' : 'Sem ligação. Verifica a internet e tenta outra vez.'; }
+  function netErr(e) {  return e && e.status ? 'Erro ' + e.status + '. Tenta outra vez.' : 'Sem ligação. Verifica a internet e tenta outra vez.'; }
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* sem armazenamento */ } }
 
@@ -1877,7 +1879,9 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (!reps) pres = (T === 'cmj' || T === 'bj') ? it.series + ' tentativas' : it.series + ' séries';
     else pres = it.series + ' × ' + reps;
     if (uni && reps && !/lado|perna|side|leg/i.test(reps)) pres += ' / side';
+    var mr = /^\s*(\d{1,3})\s*(\/?\s*(lado|perna|side|leg)\w*)?\s*$/i.exec(reps);
     return {
+      pr: mr ? +mr[1] : undefined,
       id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, hn: it.nota_item || undefined,
       pad: it.padrao && it.padrao !== 'core' ? it.padrao : undefined,
       core: it.core_tipo || undefined,
@@ -1915,42 +1919,100 @@ table.rt { min-width: 0; font-size: .85rem; }
   var MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   function fmtL(iso) { return DAYS[isoDow(iso)] + ' ' + parseInt(iso.slice(8, 10), 10) + ' ' + MESES[parseInt(iso.slice(5, 7), 10) - 1]; }
   function fmtD(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
-  function skipKey(p) { return 'alvo.saltou.' + (sess ? sess.id : '') + '.' + p.id; }
+  var FALT = {}, PSEOK = {};
+  var MOTIVO_TXT = { doente: 'doente', lesao: 'lesão', outro: 'outro motivo' };
+  function liveNeedsPse(p) { return !!(p && p.id && p.tipo === 'gym' && p.feito && p.feito < HOJE && !PSEOK[p.id] && !p.saltado); }
+  function liveFirstPend() { var k = -1; PLAN.forEach(function (p, i) { if (k < 0 && liveNeedsPse(p)) k = i; }); return k; }
   function liveLocks() {
     var open = null;
     PLAN.forEach(function (p) {
-      p.bloq = null; p.saltado = false;
+      p.bloq = null; p.saltado = false; p.falta = null;
       if (!p.id || p.tipo !== 'gym') return;
-      if (p.feito) return;
-      if (lsGet(skipKey(p))) { p.saltado = true; return; }
+      if (FALT[p.id]) { p.saltado = true; p.falta = FALT[p.id]; return; }
+      if (p.feito && PSEOK[p.id]) return;
       if (!open) { open = p; return; }
-      p.bloq = 'Este treino ainda não está disponível. Faz primeiro "' + open.nome + '" (ou diz que não o vais fazer), porque os treinos fazem-se pela ordem do plano.';
+      p.bloq = open.feito
+        ? 'Este treino ainda não está disponível. Falta registar o esforço (PSE) de "' + open.nome + '". Depois fica livre.'
+        : 'Este treino ainda não está disponível. Faz primeiro "' + open.nome + '" (ou diz que não o vais fazer), porque os treinos fazem-se pela ordem do plano.';
     });
+  }
+  function liveDiaBox() {
+    var b = $('#dia-box'); if (!b) return;
+    var p = PLAN[day], show = !!(LIVE && p && p.id && p.tipo === 'gym' && !p.feito && !p.bloq && !p.saltado);
+    b.hidden = !show;
+    if (!show) return;
+    var lo = isoAdd(HOJE, -7), prev = '';
+    PLAN.forEach(function (x, i) { if (i < day && x.id && x.tipo === 'gym' && x.feito && x.feito > prev) prev = x.feito; });
+    if (WK0 > lo) lo = WK0;
+    if (prev > lo) lo = prev;
+    var cur = TDIA[p.id] || HOJE, h = '', d;
+    for (d = lo; d <= HOJE; d = isoAdd(d, 1)) if (!SESDIAS[d]) h += '<option value="' + d + '"' + (d === cur ? ' selected' : '') + '>' + fmtL(d) + (d === HOJE ? ' (hoje)' : '') + '</option>';
+    if (!h) h = '<option value="">Sem dias livres</option>';
+    $('#dia-sel').innerHTML = h;
+    if ($('#dia-sel').value) TDIA[p.id] = $('#dia-sel').value;
+  }
+  if ($('#dia-sel')) $('#dia-sel').addEventListener('change', function () { var p = PLAN[day]; if (p && p.id) TDIA[p.id] = this.value; });
+  function liveSkipNote(p) {
+    if (p.saltado) return 'Marcaste que não treinaste (' + (MOTIVO_TXT[p.falta && p.falta.motivo] || 'outro motivo') + '). Já podes fazer o seguinte. Se foi engano, anula aqui em baixo.';
+    return p.bloq || '';
   }
   function liveSkipBox() {
     var b = $('#skip-box'); if (!b) return;
-    var p = PLAN[day], later = false;
-    PLAN.forEach(function (x, i) { if (i > day && x.id && x.tipo === 'gym' && !x.feito && !x.saltado) later = true; });
-    b.hidden = !(LIVE && p && p.id && p.tipo === 'gym' && !p.feito && !p.bloq && !p.saltado && later);
+    var p = PLAN[day], ok = !!(LIVE && p && p.id && p.tipo === 'gym');
+    var can = ok && !p.feito && !p.bloq && !p.saltado;
+    b.hidden = !(can || (ok && p.saltado));
+    liveDiaBox();
+    $('#skip-go').hidden = !can;
+    $('#skip-undo').hidden = !(ok && p.saltado);
+    $('#skip-opts').hidden = true;
+    $('#skip-msg').textContent = '';
   }
-  if ($('#skip-go')) $('#skip-go').addEventListener('click', function () {
-    var p = PLAN[day];
-    if (!p || !p.id || !window.confirm('Não vais fazer "' + p.nome + '" esta semana? Fica marcado como não feito e passas ao treino seguinte.')) return;
-    lsSet(skipKey(p), '1');
-    liveLocks();
+  function liveNextOpen() {
     var ni = -1;
     PLAN.forEach(function (x, i) { if (ni < 0 && x.id && !x.feito && !x.bloq && !x.saltado) ni = i; });
     if (ni >= 0) day = ni;
-    renderDays(); renderWork(); renderPse();
-  });
+  }
+  function liveAfterFalta() { liveLocks(); liveNextOpen(); liveRenderDays(); renderWork(); livePseFor(); }
+  if ($('#skip-go')) {
+    $('#skip-go').addEventListener('click', function () { $('#skip-opts').hidden = false; $('#skip-go').hidden = true; });
+    $('#skip-x').addEventListener('click', function () { liveSkipBox(); });
+    $('#skip-opts').addEventListener('click', function (e) {
+      var m = e.target.closest('[data-falta]'), p = PLAN[day];
+      if (!m || !p || !sess) return;
+      $('#skip-msg').textContent = 'A guardar…';
+      rpc('atleta_nao_treinou', { p_atleta: sess.id, p_pin: sess.pin, p_treino: p.id, p_motivo: m.getAttribute('data-falta'), p_nota: null }).then(function (r) {
+        if (r && r.ok) { FALT[p.id] = { treino_id: p.id, motivo: m.getAttribute('data-falta') }; liveAfterFalta(); return; }
+        $('#skip-msg').textContent = r && r.erro === 'feito' ? 'Este treino já tem registos. Não dá para o marcar como não feito.' : r && r.erro === 'pin' ? 'O PIN deixou de ser válido. Sai e entra outra vez.' : 'Não foi possível guardar. Tenta outra vez.';
+      }).catch(function (e2) { $('#skip-msg').textContent = netErr(e2); });
+    });
+    $('#skip-undo').addEventListener('click', function () {
+      var p = PLAN[day]; if (!p || !sess) return;
+      rpc('atleta_anular_falta', { p_atleta: sess.id, p_pin: sess.pin, p_treino: p.id }).then(function (r) {
+        if (r && r.ok) { delete FALT[p.id]; liveLocks(); liveRenderDays(); renderWork(); livePseFor(); return; }
+        $('#skip-msg').textContent = 'Não foi possível anular. Tenta outra vez.';
+      }).catch(function (e2) { $('#skip-msg').textContent = netErr(e2); });
+    });
+  }
+  function liveRecordable(p) { return !!(p && p.blocos && p.blocos.some(function (bl) { return bl.ex.some(function (e) { return e.t !== 'nenhum'; }); })); }
+  function livePsePend(p) { return LIVE && liveNeedsPse(p); }
+  var _applyGate = applyGate;
+  applyGate = function () {
+    var pend = LIVE && !wellDone ? liveFirstPend() : -1, bx = $('#pend-box');
+    if (pend < 0) { if (bx) bx.hidden = true; return _applyGate(); }
+    var p = PLAN[pend];
+    $('#gate').hidden = true; $('#wsum').hidden = true; $('#after').hidden = false;
+    day = pend;
+    if (bx) { bx.hidden = false; bx.innerHTML = '<b>Antes do wellness de hoje:</b> falta registar o esforço (PSE) do treino "' + esc(p.nome) + '" de ' + fmtL(p.feito) + '. Escolhe o esforço e a duração em baixo e guarda. Depois já podes preencher o wellness.'; }
+    liveRenderDays(); livePseFor();
+  };
   function liveCanEdit() {
     var p = PLAN[day];
-    return !!(p && p.id && p.tipo !== 'none' && !p.bloq && !p.saltado && (!p.feito || p.feito === HOJE));
+    return !!(p && p.id && p.tipo !== 'none' && !p.bloq && !p.saltado && (!p.feito || p.feito >= isoAdd(HOJE, -7)));
   }
   function liveKicker() {
     var p = PLAN[day];
     if (!p || !p.id) return 'Treino';
-    return p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito ' + fmtL(p.feito)) : p.saltado ? 'Não feito' : (p.bloq ? 'Por ordem' : 'Por fazer') + ' · previsto ' + fmtL(p.iso);
+    return p.saltado ? 'Não treinou' : p.feito ? (liveNeedsPse(p) ? 'Falta o PSE · treino de ' + fmtL(p.feito) : p.feito === HOJE ? 'Feito hoje' : 'Feito ' + fmtL(p.feito)) : (p.bloq ? 'Por ordem' : 'Por fazer') + ' · previsto ' + fmtL(p.iso);
   }
   function liveRenderDays() {
     var el = $('#days');
@@ -1959,17 +2021,18 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (PLAN[0] && PLAN[0].id) $('#sess-help').textContent = 'Semana de ' + fmtL(WK0) + ' a ' + fmtL(isoAdd(WK0, 6)) + '. Faz os treinos pela ordem. Podes treinar em qualquer dia da semana: fica registado o dia em que treinas.';
     el.innerHTML = PLAN.map(function (p, i) {
       if (!p.id) return '';
-      var st = p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito ' + fmtL(p.feito)) : p.saltado ? 'Não feito' : p.bloq ? 'Por ordem' : 'Por fazer';
+      var st = p.saltado ? 'Não treinou' : liveNeedsPse(p) ? 'Falta o PSE' : p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito ' + fmtL(p.feito)) : p.bloq ? 'Por ordem' : 'Por fazer';
       var prev = '';
-      return '<button class="day' + (p.feito ? ' done' : '') + '" data-day="' + i + '" aria-pressed="' + (i === day) + '">' +
+      return '<button class="day' + (p.feito && !liveNeedsPse(p) ? ' done' : '') + '" data-day="' + i + '" aria-pressed="' + (i === day) + '">' +
         '<span class="sl"><b>' + esc(p.nome) + '</b><small>' + (p.tipo === 'agua' ? 'Água' : 'Ginásio') + (p.feito ? '' : ' · Previsto: ' + fmtL(p.iso)) + '</small></span>' +
         '<span class="st">' + st + '</span></button>';
     }).join('');
   }
   function livePseFor() {
     var p = PLAN[day];
-    if (TSESS && p && p.id && TSESS.treino_id === p.id) {
-      pse = TSESS.pse; $('#dur').value = TSESS.minutos;
+    var ts = p && p.id && SESMAP[p.id];
+    if (ts) {
+      pse = ts.pse; $('#dur').value = ts.minutos;
       $('#status').textContent = 'Já registaste a sessão deste treino. Podes alterar e guardar outra vez.';
     } else {
       pse = null; $('#dur').value = '60'; $('#status').textContent = '';
@@ -1985,12 +2048,14 @@ table.rt { min-width: 0; font-size: .85rem; }
     HOJE = r.hoje;
     var mon = isoAdd(HOJE, -isoDow(HOJE));
     WK0 = mon;
-    reg = {}; savedRows = {}; savedNotes = {}; autoMsg = ''; TSESS = null;
+    reg = {}; savedRows = {}; savedNotes = {}; autoMsg = ''; TSESS = null; SESMAP = {}; TDIA = {}; SESDIAS = {};
     var list = (r.treinos || []).filter(function (t) {
       return t.tipo === 'gym' && t.data >= mon && t.data <= isoAdd(mon, 6 + 7 * (r.semanas_a_frente || 0));
     });
     PLAN = list.map(buildDay);
     if (!PLAN.length) PLAN = [{ nome: 'Sem treino definido', tipo: 'none', iso: null, feito: null }];
+    FALT = {}; (r.faltas || []).forEach(function (f) { FALT[f.treino_id] = f; });
+    PSEOK = {}; (r.sessoes || []).forEach(function (x) { if (x.treino_id) PSEOK[x.treino_id] = true; });
     liveLocks();
     day = 0;
     var hi = -1, ni = -1, oi = -1;
@@ -2030,6 +2095,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var w = (r.wellness || []).filter(function (x) { return x.data === HOJE; })[0];
     if (w) { well = [w.sono, w.stress, w.fadiga, w.dor]; wellDone = true; } else { well = [null, null, null, null]; wellDone = false; }
     TSESS = (r.sessoes || []).filter(function (x) { return x.data === HOJE; })[0] || null;
+    (r.sessoes || []).forEach(function (x) { if (x.treino_id) SESMAP[x.treino_id] = { pse: x.pse, minutos: x.minutos }; SESDIAS[x.data] = x.treino_id || true; });
     livePseFor();
     $('#ola').textContent = 'Olá, ' + sess.nome.split(' ')[0];
     $('#entrada').hidden = true;
@@ -2134,7 +2200,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         for (var s = 0; s < e.series; s++) {
           var a = toNum(reg[base + '_' + s + '_a']), b = toNum(reg[base + '_' + s + '_b']);
           var row = { item_id: e.id, serie: s + 1 };
-          if (T === 'carga') { row.carga_kg = a; row.reps = b === '' ? '' : Math.round(b); }
+          if (T === 'carga') { row.carga_kg = a; row.reps = e.pr ? (a === '' ? '' : e.pr) : (b === '' ? '' : Math.round(b)); }
           else if (T === 'vbt') { row.carga_kg = a; row.vbt_ms = b; }
           else if (T === 'reps') row.reps = a === '' ? '' : Math.round(a);
           else if (T === 'tempo') row.tempo_s = a === '' ? '' : Math.round(a);
@@ -2144,7 +2210,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         }
       });
       var nk = day + '_' + bi, m = reg['m_' + nk] || '', n = (reg['n_' + nk] || '').trim();
-      if (m || n || savedNotes[HOJE + '|' + bl.code]) notas.push({ bloco: bl.code, motivo: m, nota: n });
+      if (m || n || savedNotes[(p.feito || HOJE) + '|' + bl.code]) notas.push({ bloco: bl.code, motivo: m, nota: n });
     });
     return { series: series, notas: notas };
   }
@@ -2155,15 +2221,15 @@ table.rt { min-width: 0; font-size: .85rem; }
     savePromise = savePromise.then(function () {
       if (!pl.series.length && !pl.notas.length) { setAuto('', di); return true; }
       setAuto('A guardar…', di);
-      return rpc('atleta_registos', { p_atleta: sess.id, p_pin: sess.pin, p_treino: tid, p_series: pl.series, p_notas: pl.notas }).then(function (r) {
+      return rpc('atleta_registos', { p_atleta: sess.id, p_pin: sess.pin, p_treino: tid, p_series: pl.series, p_notas: pl.notas, p_data: TDIA[tid] || null }).then(function (r) {
         if (!r || !r.ok) {
           setAuto(r && r.erro === 'pin' ? 'O PIN deixou de ser válido. Sai e entra outra vez.' :
-            r && r.erro === 'feito' ? 'Este treino já foi feito noutro dia. Só podes ver o que ficou guardado.' : 'Não foi possível guardar. Tenta outra vez.', di);
+            r && r.erro === 'feito' ? 'Este treino já foi feito há mais de 7 dias. Só podes ver o que ficou guardado.' : r && r.erro === 'data' ? 'Esse dia não é válido.' : r && r.erro === 'ocupado' ? 'Já registaste outro treino nesse dia. Escolhe outro dia.' : 'Não foi possível guardar. Tenta outra vez.', di);
           return false;
         }
         pl.series.forEach(function (x) { savedRows[x.item_id + '_' + (x.serie - 1)] = true; });
-        pl.notas.forEach(function (x) { savedNotes[HOJE + '|' + x.bloco] = true; });
-        if (pl.series.length && !p.feito) { p.feito = HOJE; liveLocks(); liveRenderDays(); liveSkipBox(); }
+        pl.notas.forEach(function (x) { savedNotes[(r.data || HOJE) + '|' + x.bloco] = true; });
+        if (pl.series.length && !p.feito) { p.feito = r.data || HOJE; liveLocks(); liveRenderDays(); liveSkipBox(); if (/^Primeiro regista/.test($('#status').textContent)) $('#status').textContent = ''; }
         var d = new Date();
         setAuto('Guardado às ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + '.', di);
         return true;
@@ -2178,7 +2244,8 @@ table.rt { min-width: 0; font-size: .85rem; }
     saveT = setTimeout(doSave, 1200);
   }
   function liveSaveSessao() {
-    if (!sess || !liveCanEdit()) return;
+    var late = livePsePend(PLAN[day]);
+    if (!sess || !(liveCanEdit() || late)) return;
     if (pse == null) { $('#status').textContent = 'Escolhe primeiro o esforço da sessão.'; return; }
     var m = parseInt($('#dur').value, 10);
     if (!(m > 0)) { $('#status').textContent = 'Indica a duração em minutos.'; return; }
@@ -2187,16 +2254,25 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#status').textContent = 'A guardar…';
     clearTimeout(saveT);
     doSave().then(function () {
-      return rpc('atleta_sessao', { p_atleta: sess.id, p_pin: sess.pin, p_treino: tid, p_pse: pse, p_minutos: m });
+      if (!late && !p.feito && liveRecordable(p)) return { ok: false, erro: 'cargas' };
+      return rpc('atleta_sessao', { p_atleta: sess.id, p_pin: sess.pin, p_treino: tid, p_pse: pse, p_minutos: m, p_data: TDIA[tid] || null });
     }).then(function (r) {
       $('#save').disabled = false;
       if (r && r.ok) {
         $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.';
-        p.feito = HOJE; TSESS = { data: HOJE, pse: pse, minutos: m, treino_id: tid }; liveLocks(); liveRenderDays(); liveSkipBox();
+        PSEOK[tid] = true;
+        SESMAP[tid] = { pse: pse, minutos: m }; SESDIAS[r.data || HOJE] = tid; if (!p.feito) p.feito = r.data || HOJE;
+        if (!late) { liveLocks(); liveRenderDays(); liveSkipBox(); }
+        else { liveLocks(); liveNextOpen(); applyGate(); liveRenderDays(); renderWork(); livePseFor(); $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.'; }
       }
       else if (r && r.erro === 'descanso') $('#status').textContent = 'Este treino é um dia de descanso. Não há sessão para registar.';
       else if (r && r.erro === 'wellness') $('#status').textContent = 'Preenche primeiro o wellness de hoje.';
       else if (r && r.erro === 'feito') $('#status').textContent = 'Este treino já foi registado noutro dia.';
+      else if (r && r.erro === 'cargas') $('#status').textContent = 'Primeiro regista as cargas do treino (ou marca os exercícios como feitos). Só depois podes guardar o PSE.';
+      else if (r && r.erro === 'falta') $('#status').textContent = 'Este treino está marcado como não feito.';
+      else if (r && r.erro === 'ocupado') $('#status').textContent = 'Já registaste outro treino nesse dia. O dia do treino tem de ser outro.';
+      else if (r && r.erro === 'data') $('#status').textContent = 'Esse dia não é válido (só podes escolher até 7 dias atrás).';
+      
       else if (r && r.erro === 'pin') $('#status').textContent = 'O PIN deixou de ser válido. Sai e entra outra vez.';
       else $('#status').textContent = 'Não foi possível guardar. Tenta outra vez.';
     }).catch(function (e) { $('#save').disabled = false; $('#status').textContent = netErr(e); });
@@ -2206,6 +2282,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#work').querySelectorAll('input,textarea,button').forEach(function (el) { el.disabled = !edit; });
     if (!edit && p && p.tipo === 'gym' && p.feito) msg = 'Este treino foi feito a ' + fmtD(p.feito) + '. Aqui vês o que ficou guardado.';
     $('#autosave').textContent = edit ? autoMsg : msg;
+    if (edit && p && p.tipo === 'gym' && !p.feito && liveRecordable(p) && !$('#status').textContent) $('#status').textContent = 'Primeiro regista as cargas do treino. Só depois podes guardar o PSE.';
   }
   $('#work').addEventListener('input', function () { if (LIVE) schedSave(); });
   $('#work').addEventListener('click', function (e) { if (LIVE && e.target.closest('[data-m]')) schedSave(); });
@@ -2344,7 +2421,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       idx[a.id] = k;
       var rec = [];
       for (var i = 0; i <= TODAY_I; i++) rec.push({ w: null, ses: [], ton: 0, tu: 0, tp: {}, core: {}, falta: null });
-      return { id: a.id, n: a.nome, m: a.modalidade, g: a.grupo === 'pt' ? 'pt' : 'atleta', rec: rec, cdias: {}, loads: {}, cmj: [], bj: [], vbt: [], core: { ext: [], flex: [], lat: [], rot: [], r_ext: [], r_flex: [], r_lat: [], r_rot: [] }, plan: {} };
+      return { id: a.id, n: a.nome, m: a.modalidade, g: a.grupo === 'pt' ? 'pt' : 'atleta', rec: rec, cdias: {}, faltas: [], loads: {}, cmj: [], bj: [], vbt: [], core: { ext: [], flex: [], lat: [], rot: [], r_ext: [], r_flex: [], r_lat: [], r_rot: [] }, plan: {} };
     });
     function at(id, iso) {
       var k = idx[id], i = fromISO(iso);
@@ -2405,11 +2482,37 @@ table.rt { min-width: 0; font-size: .85rem; }
     EXS = Object.keys(exNames).sort().map(function (n) { return exNames[n]; });
     ATLETAS.forEach(function (a) { EXS.forEach(function (e) { a.loads[e.n] = a.loads[e.n] || []; }); });
     VBTN = vbtNames[0] || 'Back squat';
+    (D.faltas || []).forEach(function (f) {
+      var k = idx[f.atleta_id];
+      if (k != null) ATLETAS[k].faltas.push({ iso: (f.treino && f.treino.data) || f.data, m: f.motivo, nome: f.treino && f.treino.nome });
+    });
     COMP = [];
     D.competicoes.forEach(function (c) {
       var k = idx[c.atleta_id], i = fromISO(c.data);
       if (k != null && !isNaN(i)) COMP.push({ id: c.id, a: k, i: i, n: c.nome, l: c.local || '' });
     });
+  }
+  function tFiltroMod() {
+    var f = $('#f-atleta'), fld = f && f.parentNode, m = $('#f-mod');
+    if (!fld) return;
+    if (!m) {
+      var w = document.createElement('div'); w.className = 'field';
+      w.innerHTML = '<label for="f-mod">Modalidade</label><select id="f-mod" class="sel"></select>';
+      fld.parentNode.insertBefore(w, fld); m = w.querySelector('select');
+      m.addEventListener('change', function () {
+        var v = m.value, first = -1;
+        $('#f-atleta').innerHTML = ATLETAS.map(function (a, i) {
+          if (v && a.m !== v) return '';
+          if (first < 0) first = i;
+          return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>';
+        }).join('');
+        if (first >= 0) { $('#f-atleta').value = String(first); $('#f-atleta').dispatchEvent(new Event('change')); }
+      });
+    }
+    var ms = []; ATLETAS.forEach(function (a) { if (ms.indexOf(a.m) < 0) ms.push(a.m); });
+    ms.sort(function (x, y) { return x.localeCompare(y, 'pt'); });
+    m.innerHTML = '<option value="">Todas</option>' + ms.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
+    m.parentNode.hidden = ms.length < 2;
   }
   function refreshTrainerUI() {
     range = { i0: 0, i1: TODAY_I, preset: 'epoca' };
@@ -2417,6 +2520,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#d-de').max = $('#d-ate').max = toISO(TODAY_I);
     var opts = ATLETAS.map(function (a, i) { return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>'; }).join('');
     $('#f-atleta').innerHTML = opts;
+    tFiltroMod();
     $('#imp-list').innerHTML = ATLETAS.map(function (a, i) { return '<label class="check"><input type="checkbox" data-ia="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</label>'; }).join('');
     sel = 0; filtro = 'todos';
     var h = localISO(), d = new Date(h + 'T00:00:00Z');
@@ -2562,16 +2666,17 @@ table.rt { min-width: 0; font-size: .85rem; }
       var plan = idxs.filter(function (i) { return a.plan[i] === 'gym'; }).length;
       var nw = w.reduce(function (x, y) { return x + y; }, 0), nc = c.reduce(function (x, y) { return x + y; }, 0), np = p.reduce(function (x, y) { return x + y; }, 0);
       if (!(a.rec[hI] && a.rec[hI].w)) faltaW.push(a.n);
-      var pl = plan ? ' <span class="small">de ' + plan + ' planeados</span>' : '';
+      var nf = a.faltas.filter(function (f) { return f.iso >= mon && f.iso <= isoAdd(mon, 6); });
+      var ftxt = nf.length ? '<small class="err">' + nf.length + (nf.length === 1 ? ' falta' : ' faltas') + ': ' + esc(nf.map(function (f) { return f.m === 'lesao' ? 'lesão' : f.m; }).join(', ')) + '</small>' : '';
       return '<tr><td><span class="who"><b>' + esc(a.n) + '</b><small>' + esc(a.m) + '</small></span></td>' +
         '<td class="scell"><b>' + nw + ' / 7</b>' + dots(w) + '</td>' +
-        '<td class="scell"><b>' + nc + (plan ? ' / ' + plan : '') + '</b>' + dots(c) + '</td>' +
+        '<td class="scell"><b>' + nc + (plan ? ' / ' + plan : '') + '</b>' + dots(c) + ftxt + '</td>' +
         '<td class="scell"><b>' + np + '</b>' + dots(p) + '</td></tr>';
     }).join('');
     out.innerHTML = '<p class="small">Semana de ' + fmtD(mon) + ' a ' + fmtD(isoAdd(mon, 6)) + '. Cada quadrado é um dia (' + L.join(' ') + '); verde = preenchido, o contornado é hoje.</p>' +
       '<p class="small"><b>Wellness de hoje em falta (' + faltaW.length + ' de ' + ATLETAS.length + '):</b> ' + (faltaW.length ? esc(faltaW.join(', ')) : 'ninguém, todos preencheram.') + '</p>' +
       '<div class="scroll"><table class="rt"><thead><tr><th>Atleta</th><th>Wellness</th><th>Cargas</th><th>PSE</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      '<p class="small">Wellness: dias preenchidos. Cargas: dias com carga registada / treinos de ginásio planeados. PSE: sessões com esforço registado. O wellness só é obrigatório nos dias em que o atleta treina.</p>';
+      '<p class="small">Wellness: dias preenchidos. Cargas: dias com carga registada / treinos de ginásio planeados; a vermelho, treinos que o atleta marcou como não feitos. PSE: sessões com esforço registado. O wellness só é obrigatório nos dias em que o atleta treina.</p>';
   }
   function carregarTodos() {
     var hojeISO = localISO();
@@ -2583,9 +2688,10 @@ table.rt { min-width: 0; font-size: .85rem; }
       tGet('treinos', 'select=atleta_id,data,tipo&order=data,id'),
       tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id'),
       tGet('notas_bloco', 'select=atleta_id,data,bloco,motivo,nota&order=data,id'),
-      tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id')
+      tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id'),
+      tGet('faltas', 'select=atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id').catch(function () { return []; })
     ]).then(function (r) {
-      buildLive({ atletas: r[0], wellness: r[1], sessoes: r[2], treinos: r[3], registos: r[4], notas: r[5], competicoes: r[6] }, hojeISO);
+      buildLive({ atletas: r[0], wellness: r[1], sessoes: r[2], treinos: r[3], registos: r[4], notas: r[5], competicoes: r[6], faltas: r[7] }, hojeISO);
       showTrainer(true);
       refreshTrainerUI();
       return gLoad();
