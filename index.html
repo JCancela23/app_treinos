@@ -279,6 +279,15 @@ table.rt { min-width: 0; font-size: .85rem; }
 
 #save.bad { background: var(--crit); color: #fff; }
 #status.bad { color: var(--crit); background: var(--crit-soft); border: 1px solid var(--crit); border-radius: 10px; padding: 10px 12px; font-weight: 700; }
+
+.gfmt{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:6px 0}
+.gfmt textarea{width:100%;font:inherit}
+
+.wodhead{border-left:3px solid var(--accent);padding:4px 10px;margin:4px 0 8px;display:grid;gap:2px}
+.wodname{font-weight:700;color:var(--accent)}
+.wodres{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;margin-top:8px}
+.wodrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.wodrow[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -1034,7 +1043,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         var chips = MOTIVOS.map(function (m) {
           return '<button class="chip" data-m="' + nk + '" data-v="' + esc(m) + '" aria-pressed="' + (reg['m_' + nk] === m) + '">' + m + '</button>';
         }).join('');
-        return '<section class="block"><p class="kicker">' + bl.b + '</p>' + exs +
+        return '<section class="block"><p class="kicker">' + bl.b + '</p>' + (typeof liveWodHead === 'function' ? liveWodHead(p, bl) : '') + exs + (typeof liveWodBox === 'function' ? liveWodBox(p, bl) : '') +
           '<div class="bnotas"><p class="small" style="font-weight:600">Não fizeste tudo?</p><div class="chips">' + chips + '</div>' +
           '<label class="small" for="n-' + nk + '">Notas do bloco (opcional)</label>' +
           '<textarea class="bnota" id="n-' + nk + '" data-k="n_' + nk + '" placeholder="Ex.: dor no joelho direito no afundo">' + esc(reg['n_' + nk] || '') + '</textarea></div></section>';
@@ -1787,7 +1796,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   var LISTA = [], listErr = '', modSel = null;
   var MODO = SUPA && SUPA.modo === 'treinador' ? 'treinador' : 'atleta';
   var sess = null, HOJE = null, saveT = null, savePromise = Promise.resolve(), autoMsg = '';
-  var savedRows = {}, savedNotes = {}, WK0 = '', TSESS = null, SESMAP = {}, TDIA = {}, SESDIAS = {}, LOCAL0 = '';
+  var savedRows = {}, savedNotes = {}, WK0 = '', TSESS = null, SESMAP = {}, TDIA = {}, SESDIAS = {}, LOCAL0 = '', WODR = {};
   var BL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
   var DIASN = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
@@ -1919,6 +1928,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (its.length) blocos.push({ b: b[1], code: b[0], ex: its.map(mkEx) });
     });
     p.blocos = blocos;
+    p.cfg = {}; (t.blocos || []).forEach(function (c) { p.cfg[c.bloco] = c; });
     return p;
   }
   var MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -1998,7 +2008,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       }).catch(function (e2) { $('#skip-msg').textContent = netErr(e2); });
     });
   }
-  function liveRecordable(p) { return !!(p && p.blocos && p.blocos.some(function (bl) { return bl.ex.some(function (e) { return e.t !== 'nenhum'; }); })); }
+  function liveRecordable(p) { return !!(p && p.blocos && p.blocos.some(function (bl) { return (p.cfg && p.cfg[bl.code]) || bl.ex.some(function (e) { return e.t !== 'nenhum'; }); })); }
   function livePsePend(p) { return LIVE && liveNeedsPse(p); }
   var _applyGate = applyGate;
   applyGate = function () {
@@ -2053,7 +2063,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     HOJE = r.hoje; LOCAL0 = localISO();
     var mon = isoAdd(HOJE, -isoDow(HOJE));
     WK0 = mon;
-    reg = {}; savedRows = {}; savedNotes = {}; autoMsg = ''; TSESS = null; SESMAP = {}; TDIA = {}; SESDIAS = {};
+    reg = {}; savedRows = {}; savedNotes = {}; autoMsg = ''; TSESS = null; SESMAP = {}; TDIA = {}; SESDIAS = {}; WODR = {};
     var list = (r.treinos || []).filter(function (t) {
       return t.tipo === 'gym' && t.data >= mon && t.data <= isoAdd(mon, 6 + 7 * (r.semanas_a_frente || 0));
     });
@@ -2086,6 +2096,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (b != null) reg[base + '_' + s + '_b'] = pt(b);
       savedRows[x.item_id + '_' + s] = true;
     });
+    (r.resultados || []).forEach(function (x) { WODR[x.treino_id + '|' + x.bloco] = x; });
     (r.notas || []).forEach(function (n) {
       var d = -1;
       PLAN.forEach(function (p, i) { if (d < 0 && p.tipo === 'gym' && p.feito === n.data) d = i; });
@@ -2306,9 +2317,77 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#autosave').textContent = edit ? autoMsg : msg;
     if (edit && p && p.tipo === 'gym' && !p.feito && liveRecordable(p) && !$('#status').textContent) $('#status').textContent = 'Primeiro regista as cargas do treino. Só depois podes guardar o PSE.';
   }
-  $('#work').addEventListener('input', function () { if (LIVE) schedSave(); });
+  $('#work').addEventListener('input', function (e) { if (LIVE && !(e.target.closest && e.target.closest('[data-wf]'))) schedSave(); });
   $('#work').addEventListener('click', function (e) { if (LIVE && e.target.closest('[data-m]')) schedSave(); });
   window.addEventListener('pagehide', function () { if (LIVE && sess && liveCanEdit()) doSave(); });
+
+
+  /* ---------- blocos com formato (For time / AMRAP / EMOM) ---------- */
+  var WFN = { fortime: 'For time', amrap: 'AMRAP', emom: 'EMOM' };
+  function wodTitle(c) {
+    var t = WFN[c.formato] || c.formato, x = [];
+    if (c.formato === 'fortime') { if (c.rondas) x.push(c.rondas + (c.rondas === 1 ? ' ronda' : ' rondas')); if (c.tc_min) x.push('time cap ' + c.tc_min + ' min'); }
+    else if (c.formato === 'amrap') { if (c.duracao_min) x.push(c.duracao_min + ' min'); }
+    else if (c.formato === 'emom') { x.push(c.intervalo_min > 1 ? 'a cada ' + c.intervalo_min + ' min' : 'todos os minutos'); if (c.duracao_min) x.push('durante ' + c.duracao_min + ' min'); }
+    return t + (x.length ? ' · ' + x.join(' · ') : '');
+  }
+  function liveWodHead(p, bl) {
+    var c = p && p.cfg && p.cfg[bl.code];
+    if (!c) return '';
+    return '<div class="wodhead"><b>' + esc(wodTitle(c)) + '</b>' + (c.nome ? '<span class="wodname">' + esc(c.nome) + '</span>' : '') + (c.descricao ? '<p class="small" style="white-space:pre-line">' + esc(c.descricao) + '</p>' : '') + '</div>';
+  }
+  function wIn(code, f, unit, v, mode) {
+    return '<label class="f"><input data-wf="' + f + '" data-wb="' + code + '" inputmode="' + (mode || 'numeric') + '" placeholder="0" value="' + (v == null ? '' : esc(String(v))) + '" aria-label="' + unit + '"><span>' + unit + '</span></label>';
+  }
+  function liveWodBox(p, bl) {
+    var c = p && p.cfg && p.cfg[bl.code];
+    if (!c || !p.id) return '';
+    var r = WODR[p.id + '|' + bl.code] || {}, code = bl.code, f = c.formato, h = '<div class="wodres"><p class="small" style="font-weight:600">Resultado do bloco' + (c.nome ? ' · ' + esc(c.nome) : '') + '</p>';
+    if (f === 'fortime') {
+      var fin = r.completo !== false, m = r.tempo_s != null ? Math.floor(r.tempo_s / 60) : '', sg = r.tempo_s != null ? r.tempo_s % 60 : '';
+      h += '<label class="check"><input type="checkbox" data-wf="cap" data-wb="' + code + '"' + (r.completo === false ? ' checked' : '') + '>Não terminei (time cap)</label>' +
+        '<div class="wodrow" data-wg="fin"' + (r.completo === false ? ' hidden' : '') + '>' + wIn(code, 'min', 'min', m) + wIn(code, 'seg', 'seg', sg) + '</div>' +
+        '<div class="wodrow" data-wg="inc"' + (r.completo === false ? '' : ' hidden') + '>' + wIn(code, 'rondas', 'rondas completas', r.rondas) + wIn(code, 'reps', 'reps da ronda seguinte', r.reps) + '</div>';
+    } else if (f === 'amrap') {
+      h += '<div class="wodrow">' + wIn(code, 'rondas', 'rondas completas', r.rondas) + wIn(code, 'reps', 'reps extra', r.reps) + '</div>';
+    } else {
+      h += '<label class="check"><input type="checkbox" data-wf="comp" data-wb="' + code + '"' + (r.completo ? ' checked' : '') + '>Completei todos os minutos</label>' +
+        '<div class="wodrow">' + wIn(code, 'rondas', 'rondas / minutos feitos', r.rondas) + '</div>';
+    }
+    h += '<label class="small" for="wn-' + code + '">Nota (carga usada, adaptações…)</label><textarea class="bnota" id="wn-' + code + '" data-wf="nota" data-wb="' + code + '" placeholder="Ex.: RX com 20 kg, remo 500 m">' + esc(r.nota || '') + '</textarea>' +
+      '<button class="chip" data-wsave="' + code + '">Guardar resultado</button> <span class="small" role="status" id="wst-' + code + '">' + (r.data ? 'Guardado.' : '') + '</span></div>';
+    return h;
+  }
+  function wVal(code, f) { var e = document.querySelector('#work [data-wf="' + f + '"][data-wb="' + code + '"]'); return e ? (e.type === 'checkbox' ? e.checked : e.value) : ''; }
+  function wInt(code, f) { var v = parseInt(String(wVal(code, f)).trim(), 10); return v >= 0 ? v : null; }
+  function liveWodSave(code) {
+    var p = PLAN[day], c = p.cfg && p.cfg[code], st = $('#wst-' + code);
+    if (!c || !sess) return;
+    var tm = null, ro = null, re = null, co = null, nota = String(wVal(code, 'nota')).trim();
+    if (c.formato === 'fortime') {
+      if (wVal(code, 'cap')) { co = false; ro = wInt(code, 'rondas'); re = wInt(code, 'reps'); }
+      else { var mi = wInt(code, 'min'), sg = wInt(code, 'seg'); if (mi != null || sg != null) { tm = (mi || 0) * 60 + (sg || 0); co = true; if (sg != null && sg > 59) { st.textContent = 'Os segundos têm de ser menos de 60.'; return; } } }
+    } else if (c.formato === 'amrap') { ro = wInt(code, 'rondas'); re = wInt(code, 'reps'); }
+    else { co = wVal(code, 'comp') ? true : null; ro = wInt(code, 'rondas'); }
+    var tid = p.id;
+    st.textContent = 'A guardar…';
+    rpc('atleta_resultado_bloco', { p_atleta: sess.id, p_pin: sess.pin, p_treino: tid, p_bloco: code, p_tempo_s: tm, p_rondas: ro, p_reps: re, p_completo: co, p_nota: nota || null, p_data: TDIA[tid] || null }).then(function (r) {
+      if (r && r.ok) {
+        var k = tid + '|' + code;
+        if (r.apagado) { delete WODR[k]; st.textContent = 'Resultado apagado.'; }
+        else { WODR[k] = { treino_id: tid, bloco: code, data: r.data, tempo_s: tm, rondas: ro, reps: re, completo: co, nota: nota }; st.textContent = 'Guardado.'; }
+        if (!p.feito) { p.feito = r.data || HOJE; liveLocks(); liveRenderDays(); liveSkipBox(); if (/^Primeiro regista|^Não podes guardar/.test($('#status').textContent)) { liveWarn(false); $('#status').textContent = ''; } }
+      }
+      else st.textContent = r && r.erro === 'feito' ? 'Este treino já foi feito há mais de 7 dias.' : r && r.erro === 'ocupado' ? 'Já registaste outro treino nesse dia. Escolhe outro dia.' :
+        r && r.erro === 'data' ? 'Esse dia não é válido.' : r && r.erro === 'falta' ? 'Este treino está marcado como não feito.' : r && r.erro === 'pin' ? 'O PIN deixou de ser válido. Sai e entra outra vez.' : 'Não foi possível guardar. Tenta outra vez.';
+    }).catch(function (e) { st.textContent = netErr(e); });
+  }
+  $('#work').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-wsave]');
+    if (b) { liveWodSave(b.getAttribute('data-wsave')); return; }
+    var c = e.target.closest('[data-wf="cap"]');
+    if (c) { var sec = c.closest('.wodres'); sec.querySelector('[data-wg="fin"]').hidden = c.checked; sec.querySelector('[data-wg="inc"]').hidden = !c.checked; }
+  });
 
   /* ---------- treinador ---------- */
   var TOK = null, tAuthed = false;
@@ -2659,11 +2738,60 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (e.target.closest('#t-sair2')) $('#t-sair').click();
     });
   })();
+
+  /* ---------- painel: resultados dos WODs e evolução ---------- */
+  var WODD = { res: [], cfg: [] }, WODSEL = '';
+  (function () {
+    var v = $('#view-treinador'), ref = $('#g-panel');
+    if (!v || !ref) return;
+    var pn = document.createElement('div'); pn.className = 'panel'; pn.id = 'p-wod'; pn.hidden = true;
+    pn.innerHTML = '<header><div><p class="kicker">Blocos com formato</p><h2>Resultados dos WODs</h2></div></header><div id="wod-out"></div>';
+    v.insertBefore(pn, ref);
+    pn.addEventListener('change', function (e) { if (e.target.id === 'wod-sel') { WODSEL = e.target.value; renderWod(); } });
+  })();
+  function wodFmtRes(x) {
+    if (x.formato === 'fortime') return x.completo === false ? 'time cap · ' + (x.rondas || 0) + ' r + ' + (x.reps || 0) + ' reps' : (x.tempo_s != null ? Math.floor(x.tempo_s / 60) + ':' + ('0' + (x.tempo_s % 60)).slice(-2) : '—');
+    if (x.formato === 'amrap') return (x.rondas || 0) + ' r + ' + (x.reps || 0) + ' reps';
+    return (x.completo ? 'completo' : 'incompleto') + (x.rondas != null ? ' · ' + x.rondas : '');
+  }
+  function wodScore(x) {
+    if (x.formato === 'fortime') return x.completo === false ? -((x.rondas || 0) * 1000 + (x.reps || 0)) - 1e6 : -(x.tempo_s == null ? 1e9 : x.tempo_s);
+    if (x.formato === 'amrap') return (x.rondas || 0) * 1000 + (x.reps || 0);
+    return (x.completo ? 1e6 : 0) + (x.rondas || 0);
+  }
+  function renderWod() {
+    var out = $('#wod-out'); if (!out) return;
+    var cfg = {}; WODD.cfg.forEach(function (c) { cfg[c.treino_id + '|' + c.bloco] = c; });
+    var nm = {}; ATLETAS.forEach(function (a) { nm[a.id] = a; });
+    var grupos = {};
+    WODD.res.forEach(function (x) {
+      var c = cfg[x.treino_id + '|' + x.bloco] || {}, nome = (c.nome || '').trim(), k = nome ? nome.toLowerCase() + '|' + x.formato : '(sem nome)|' + x.formato;
+      (grupos[k] = grupos[k] || { nome: nome || '(sem nome)', formato: x.formato, rows: [], desc: c }).rows.push(x);
+    });
+    var keys = Object.keys(grupos).sort(function (a, b) { return grupos[a].nome.localeCompare(grupos[b].nome, 'pt'); });
+    if (!keys.length) { out.innerHTML = '<p class="note">Ainda não há resultados de blocos. Define o formato (For time, AMRAP, EMOM) no planeamento, ou regista um WOD em "Registar sessão".</p>'; return; }
+    if (WODSEL && keys.indexOf(WODSEL) < 0) WODSEL = '';
+    var h = '<div class="field"><label for="wod-sel">WOD</label><select class="sel" id="wod-sel"><option value="">Todos (' + keys.length + ')</option>' + keys.map(function (k) { return '<option value="' + esc(k) + '"' + (k === WODSEL ? ' selected' : '') + '>' + esc(grupos[k].nome + ' · ' + (WFN[grupos[k].formato] || grupos[k].formato)) + '</option>'; }).join('') + '</select></div>';
+    keys.filter(function (k) { return !WODSEL || k === WODSEL; }).forEach(function (k) {
+      var g = grupos[k], por = {};
+      g.rows.forEach(function (x) { (por[x.atleta_id] = por[x.atleta_id] || []).push(x); });
+      h += '<p class="kicker" style="margin-top:10px">' + esc(g.nome) + ' · ' + esc(WFN[g.formato] || g.formato) + '</p><div class="scroll"><table class="rt"><thead><tr><th>Atleta</th><th>Resultados (por data)</th><th>Evolução</th></tr></thead><tbody>';
+      Object.keys(por).sort(function (a, b) { return (nm[a] ? nm[a].n : '').localeCompare(nm[b] ? nm[b].n : '', 'pt'); }).forEach(function (aid) {
+        var L = por[aid].slice().sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; }), ev = '—';
+        if (L.length > 1) { var d = wodScore(L[L.length - 1]) - wodScore(L[0]); ev = d > 0 ? '<span style="color:var(--accent)">melhorou</span>' : d < 0 ? '<span class="err">piorou</span>' : 'igual'; }
+        h += '<tr><td><span class="who"><b>' + esc(nm[aid] ? nm[aid].n : '?') + '</b><small>' + esc(nm[aid] ? nm[aid].m : '') + '</small></span></td><td>' +
+          L.map(function (x) { return '<div><small>' + fmtD(x.data) + '</small> <b>' + esc(wodFmtRes(x)) + '</b>' + (x.nota ? ' <small>· ' + esc(x.nota) + '</small>' : '') + '</div>'; }).join('') + '</td><td>' + ev + '</td></tr>';
+      });
+      h += '</tbody></table></div>';
+    });
+    out.innerHTML = h + '<p class="small">Os resultados com o mesmo nome de WOD e formato são comparados. A evolução compara o primeiro com o último resultado de cada atleta (tempo menor, mais rondas/reps, EMOM completo = melhor).</p>';
+  }
   function applyTab() {
     var nav = $('#t-nav'); if (nav) nav.hidden = false;
     document.querySelectorAll('#view-treinador > .panel').forEach(function (p) {
       if (p.id === 't-login' || p.id === 't-reset' || p.id === 't-nav' || p.id === 'p-obs-plano') return;
       var g = (p.id === 'g-panel' || p.querySelector('#paste')) ? 'gestao' : p.id === 'p-semana' ? 'semana' : 'dados';
+      if (p.id === 'p-wod' && WODD.res.length === 0) { p.hidden = true; return; }
       p.hidden = g !== TAB;
     });
     $('#tiles').hidden = TAB !== 'dados';
@@ -2711,9 +2839,12 @@ table.rt { min-width: 0; font-size: .85rem; }
       tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id'),
       tGet('notas_bloco', 'select=atleta_id,data,bloco,motivo,nota&order=data,id'),
       tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id'),
-      tGet('faltas', 'select=atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id').catch(function () { return []; })
+      tGet('faltas', 'select=atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id').catch(function () { return []; }),
+      tGet('resultados_bloco', 'select=atleta_id,treino_id,data,bloco,formato,tempo_s,rondas,reps,completo,nota&order=data,id').catch(function () { return []; }),
+      tGet('treino_blocos', 'select=treino_id,bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min').catch(function () { return []; })
     ]).then(function (r) {
       buildLive({ atletas: r[0], wellness: r[1], sessoes: r[2], treinos: r[3], registos: r[4], notas: r[5], competicoes: r[6], faltas: r[7] }, hojeISO);
+      WODD = { res: r[8] || [], cfg: r[9] || [] }; renderWod();
       showTrainer(true);
       refreshTrainerUI();
       return gLoad();
@@ -2869,7 +3000,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'Carga + VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Broad jump (cm)'], ['feito', 'Só "feito"']];
   var DIASL = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
-  function gNewPlan() { var d = []; for (var i = 0; i < 7; i++) d.push({ tipo: 'none', nome: '', itens: [] }); return d; }
+  function gNewPlan() { var d = []; for (var i = 0; i < 7; i++) d.push({ tipo: 'none', nome: '', itens: [], fmt: {} }); return d; }
   function gMon(iso) { return isoAdd(iso, -isoDow(iso)); }
   function gFmt(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
   function gRegLabel(r) { for (var i = 0; i < GREG.length; i++) if (GREG[i][0] === r) return GREG[i][1]; return 'Só "feito"'; }
@@ -3090,13 +3221,15 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (!GR.aid || !GR.data) { GR.t = null; GR.loaded = false; return gRenderReg(); }
     var a = encodeURIComponent(GR.aid), d = encodeURIComponent(GR.data);
     return Promise.all([
-      tGet('treinos', 'select=id,data,nome,tipo,treino_itens(id,bloco,ordem,series,reps,pede_registo,registo,grupo,exercicios(nome,registo,lateralidade))&atleta_id=eq.' + a + '&data=eq.' + d + '&treino_itens.order=ordem'),
+      tGet('treinos', 'select=id,data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min),treino_itens(id,bloco,ordem,series,reps,pede_registo,registo,grupo,exercicios(nome,registo,lateralidade))&atleta_id=eq.' + a + '&data=eq.' + d + '&treino_itens.order=ordem'),
       tGet('registos_serie', 'select=item_id,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,feito&atleta_id=eq.' + a + '&data=eq.' + d),
       tGet('sessoes', 'select=pse,minutos,treino_id&atleta_id=eq.' + a + '&data=eq.' + d),
-      tGet('wellness', 'select=sono,stress,fadiga,dor&atleta_id=eq.' + a + '&data=eq.' + d)
+      tGet('wellness', 'select=sono,stress,fadiga,dor&atleta_id=eq.' + a + '&data=eq.' + d),
+      tGet('resultados_bloco', 'select=bloco,formato,tempo_s,rondas,reps,completo,nota&atleta_id=eq.' + a + '&data=eq.' + d).catch(function () { return []; })
     ]).then(function (r) {
+      GR.wres = {}; (r[4] || []).forEach(function (x) { GR.wres[x.bloco] = x; });
       var ts = (r[0] || []).filter(function (t) { return t.tipo === 'gym'; });
-      GR.t = ts[0] || null;
+      GR.t = ts[0] || null; if (GR.t && !GR.t.treino_blocos) GR.t.treino_blocos = [];
       if (GR.t) GR.t.treino_itens = (GR.t.treino_itens || []).slice().sort(function (x, y) { return x.ordem - y.ordem; });
       GR.regs = {}; (r[1] || []).forEach(function (x) { GR.regs[x.item_id + '_' + x.serie] = x; });
       GR.ses = (r[2] || [])[0] || null; GR.well = (r[3] || [])[0] || null; GR.loaded = true;
@@ -3104,6 +3237,56 @@ table.rt { min-width: 0; font-size: .85rem; }
     }).catch(function (e) { GR.loaded = false; gRenderReg(); gMsg('g-msg-reg', gFail(e), true); });
   }
   function gRegVal(v) { return v == null ? '' : String(v).replace('.', ','); }
+  function gWodForm(key, f, r) {
+    r = r || {};
+    var id = function (x) { return 'gw-' + key + '-' + x; };
+    var inp = function (x, lab, v) { return '<label class="f"><input id="' + id(x) + '" inputmode="numeric" value="' + esc(v == null ? '' : v) + '" aria-label="' + lab + '"><span>' + lab + '</span></label>'; };
+    var h = '<div class="wf" data-wf-k="' + key + '" data-wf-f="' + f + '"' + '>';
+    if (f === 'fortime') h += '<label class="check"><input type="checkbox" id="' + id('cap') + '"' + (r.completo === false ? ' checked' : '') + '>Não terminou (time cap)</label><div class="inline">' +
+      inp('min', 'min', r.tempo_s != null ? Math.floor(r.tempo_s / 60) : '') + inp('seg', 'seg', r.tempo_s != null ? r.tempo_s % 60 : '') + inp('rondas', 'rondas (se time cap)', r.rondas) + inp('reps', 'reps extra (se time cap)', r.reps) + '</div>';
+    else if (f === 'amrap') h += '<div class="inline">' + inp('rondas', 'rondas completas', r.rondas) + inp('reps', 'reps extra', r.reps) + '</div>';
+    else h += '<label class="check"><input type="checkbox" id="' + id('comp') + '"' + (r.completo ? ' checked' : '') + '>Completou todos os minutos</label><div class="inline">' + inp('rondas', 'rondas / minutos feitos', r.rondas) + '</div>';
+    return h + '<div class="field"><label for="' + id('nota') + '">Nota (carga, adaptações…)</label><input class="dt" id="' + id('nota') + '" value="' + esc(r.nota || '') + '"></div></div>';
+  }
+  function gWodRead(key, f) {
+    var n = function (x) { var e = document.getElementById('gw-' + key + '-' + x), v = e ? parseInt(String(e.value).trim(), 10) : NaN; return v >= 0 ? v : null; };
+    var chk = function (x) { var e = document.getElementById('gw-' + key + '-' + x); return !!(e && e.checked); };
+    var o = { tempo_s: null, rondas: null, reps: null, completo: null, nota: (document.getElementById('gw-' + key + '-nota') || { value: '' }).value.trim() || null };
+    if (f === 'fortime') {
+      if (chk('cap')) { o.completo = false; o.rondas = n('rondas'); o.reps = n('reps'); }
+      else { var mi = n('min'), sg = n('seg'); if (sg != null && sg > 59) return { erro: 'Os segundos têm de ser menos de 60.' }; if (mi != null || sg != null) { o.tempo_s = (mi || 0) * 60 + (sg || 0); o.completo = true; } }
+    } else if (f === 'amrap') { o.rondas = n('rondas'); o.reps = n('reps'); }
+    else { o.completo = chk('comp') ? true : null; o.rondas = n('rondas'); }
+    return o;
+  }
+  var GFN = { fortime: 'For time', amrap: 'AMRAP', emom: 'EMOM' };
+  function gWodHtml() {
+    var h = '<div class="gbox"><p class="kicker">Resultados de WOD / blocos com formato</p>';
+    var cfg = (GR.t && GR.t.treino_blocos) || [];
+    cfg.forEach(function (c) {
+      var lab = (GFN[c.formato] || c.formato) + (c.nome ? ' · ' + c.nome : '') + (/^wod:/.test(c.bloco) ? '' : ' (bloco ' + c.bloco + ')');
+      h += '<div class="gbox"><b>' + esc(lab) + '</b>' + gWodForm(c.bloco, c.formato, GR.wres[c.bloco]) +
+        '<div class="chips"><button class="chip" data-act="wod-save" data-id="' + esc(c.bloco) + '" data-f="' + c.formato + '" data-n="' + esc(c.nome || '') + '">Guardar resultado</button></div></div>';
+    });
+    var nf = GR.nf || 'fortime';
+    h += '<details class="gbox"' + (cfg.length ? '' : ' open') + '><summary>Registar um WOD avulso (sem estar no plano)</summary>' +
+      '<div class="inline"><div class="field"><label for="gw-nome">Nome do WOD (igual = comparável)</label><input class="dt" id="gw-nome" placeholder="ex.: Fran"></div>' +
+      '<div class="field"><label for="gw-fmt">Formato</label><select class="sel" id="gw-fmt">' + ['fortime', 'amrap', 'emom'].map(function (f) { return '<option value="' + f + '"' + (nf === f ? ' selected' : '') + '>' + GFN[f] + '</option>'; }).join('') + '</select></div></div>' +
+      '<div id="gw-new">' + gWodForm('new', nf, {}) + '</div>' +
+      '<div class="chips"><button class="chip" data-act="wod-save" data-id="" data-f="">Guardar WOD</button></div></details><p class="small" id="g-msg-wod" role="status"></p></div>';
+    return h;
+  }
+  function gWodSave(b) {
+    var key = b.getAttribute('data-id'), f = b.getAttribute('data-f'), nome = b.getAttribute('data-n') || '', bloco = key || null;
+    if (!key) { key = 'new'; f = $('#gw-fmt').value; nome = $('#gw-nome').value.trim(); if (!nome) { gMsg('g-msg-wod', 'Dá um nome ao WOD (é por ele que comparas a evolução).', true); return; } }
+    var o = gWodRead(key, f);
+    if (o.erro) { gMsg('g-msg-wod', o.erro, true); return; }
+    if (o.tempo_s == null && o.rondas == null && o.reps == null && o.completo == null) { gMsg('g-msg-wod', 'Não há resultado para guardar.', true); return; }
+    gMsg('g-msg-wod', 'A guardar…');
+    tReq('/rest/v1/rpc/treinador_resultado_bloco', { method: 'POST', body: { p_atleta: GR.aid, p_data: GR.data, p_nome: nome, p_formato: f, p_tempo_s: o.tempo_s, p_rondas: o.rondas, p_reps: o.reps, p_completo: o.completo, p_nota: o.nota, p_bloco: bloco } })
+      .then(function () { return carregar(); }).then(function () { return gRegLoad(); }).then(function () { gMsg('g-msg-wod', 'Resultado guardado (' + gFmtD(GR.data) + ').'); })
+      .catch(function (e) { gMsg('g-msg-wod', gFail(e), true); });
+  }
   function gRenderReg() {
     var el = $('#g-registar'); if (!el) return;
     var ativos = G.atl.filter(function (a) { return a.ativo !== false; }).sort(function (x, y) { return ((y.grupo === 'presencial') - (x.grupo === 'presencial')) || x.nome.localeCompare(y.nome, 'pt'); });
@@ -3147,7 +3330,9 @@ table.rt { min-width: 0; font-size: .85rem; }
         h += '<div class="chips"><button class="primary" data-act="reg-save" style="padding:10px 18px">Guardar sessão</button></div>';
       }
     } else if (GR.aid) h += '<p class="small">A carregar…</p>';
-    el.innerHTML = h + '<p class="small" id="g-msg-reg" role="status"></p></div>';
+    h += '<p class="small" id="g-msg-reg" role="status"></p></div>';
+    if (GR.aid && GR.loaded) h += gWodHtml();
+    el.innerHTML = h;
   }
   function gRegSave() {
     var atl = gAtlById(GR.aid); if (!atl || !GR.t) return;
@@ -3187,6 +3372,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
   $('#g-panel').addEventListener('change', function (e) { if (e.target.id === 'gp-ren' || e.target.id === 'gp-data') gPagPrev(); });
   $('#g-registar').addEventListener('change', function (e) {
+    if (e.target.id === 'gw-fmt') { GR.nf = e.target.value; $('#gw-new').innerHTML = gWodForm('new', GR.nf, {}); return; }
     if (e.target.id === 'gr-atl') { GR.aid = e.target.value; GR.loaded = false; gRegLoad(); }
     else if (e.target.id === 'gr-data') { GR.data = e.target.value; GR.loaded = false; gRegLoad(); }
   });
@@ -3240,17 +3426,37 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
 
   /* ---------- planear semana ---------- */
+  var GFMT = [['', 'Bloco normal'], ['fortime', 'For time'], ['amrap', 'AMRAP'], ['emom', 'EMOM']];
+  function gFmtHtml(i, b, d) {
+    var f = (d.fmt && d.fmt[b]) || {}, fo = f.formato || '';
+    var x = '<div class="gfmt"><label class="gn">Formato do bloco<select data-bf="formato" data-d="' + i + '" data-b="' + b + '">' +
+      GFMT.map(function (o) { return '<option value="' + o[0] + '"' + (fo === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>';
+    if (fo) {
+      var inp = function (k, lab, ph, num) { return '<label class="gn">' + lab + '<input' + (num ? ' inputmode="numeric"' : '') + ' data-bf="' + k + '" data-d="' + i + '" data-b="' + b + '" placeholder="' + (ph || '') + '" value="' + esc(f[k] || '') + '"></label>'; };
+      x += inp('nome', 'Nome do WOD (igual = comparável)', 'ex.: Fran', false);
+      if (fo === 'fortime') x += inp('rondas', 'Rondas', '4', true) + inp('tc_min', 'Time cap (min)', '20', true);
+      if (fo === 'amrap') x += inp('duracao_min', 'Duração (min)', '12', true);
+      if (fo === 'emom') x += inp('intervalo_min', 'A cada (min)', '1', true) + inp('duracao_min', 'Duração total (min)', '12', true);
+      x += '<label class="gn" style="flex:1 1 100%">Descrição / como é o bloco<textarea class="dt" rows="2" data-bf="descricao" data-d="' + i + '" data-b="' + b + '" placeholder="ex.: 4 rondas, 5 exercícios por ronda…">' + esc(f.descricao || '') + '</textarea></label>';
+    }
+    return x + '</div>';
+  }
   function gRenderPlano() {
     var mods = gMods(), ativos = G.atl.filter(function (a) { return a.ativo !== false; });
     var mon = gMon(G.semana);
-    var h = '<div class="gbox"><p class="kicker">1 · Para quem</p>';
-    h += '<div class="chips">' + mods.map(function (m) {
-      var ids = ativos.filter(function (a) { return a.modalidade === m; }), all = ids.length && ids.every(function (a) { return G.sel[a.id]; });
-      return ids.length ? '<button class="chip" data-act="selmod" data-m="' + esc(m) + '" aria-pressed="' + (!!all) + '">Todos · ' + esc(m) + '</button>' : '';
-    }).join('') + '</div>';
-    h += '<div class="chips">' + (ativos.length ? ativos.map(function (a) {
-      return '<button class="chip" data-act="sel" data-id="' + a.id + '" aria-pressed="' + (!!G.sel[a.id]) + '">' + esc(a.nome) + '</button>';
-    }).join('') : '<span class="small">Ainda não há atletas. Cria-os no separador Atletas.</span>') + '</div></div>';
+    var h = '<div class="gbox"><p class="kicker">1 · Modalidade e atletas</p>';
+    var mods2 = mods.filter(function (m) { return ativos.some(function (a) { return a.modalidade === m; }); });
+    if (G.planMod && mods2.indexOf(G.planMod) < 0) G.planMod = '';
+    h += ativos.length ? '<p class="small">Escolhe primeiro a modalidade.</p><div class="chips">' + mods2.map(function (m) {
+      return '<button class="chip" data-act="pmod" data-m="' + esc(m) + '" aria-pressed="' + (G.planMod === m) + '">' + esc(m) + '</button>';
+    }).join('') + '</div>' : '<span class="small">Ainda não há atletas. Cria-os no separador Atletas.</span>';
+    if (G.planMod) {
+      var da = ativos.filter(function (a) { return a.modalidade === G.planMod; }), nsel0 = da.filter(function (a) { return G.sel[a.id]; }).length;
+      h += '<p class="small" style="margin-top:8px">Atletas de ' + esc(G.planMod) + ' (' + nsel0 + ' de ' + da.length + ' escolhidos). Tira os que não queres incluir.</p><div class="chips">' +
+        '<button class="chip" data-act="selmod" data-m="' + esc(G.planMod) + '" aria-pressed="' + (nsel0 === da.length) + '">Todos</button>' +
+        da.map(function (a) { return '<button class="chip" data-act="sel" data-id="' + a.id + '" aria-pressed="' + (!!G.sel[a.id]) + '">' + esc(a.nome) + '</button>'; }).join('') + '</div>';
+    }
+    h += '</div>';
 
     h += '<div class="gbox"><p class="kicker">2 · Semana</p><div class="field"><label for="g-sem">Escolhe qualquer dia dessa semana</label><input class="dt" type="date" id="g-sem" value="' + G.semana + '"></div>' +
       '<p class="small">Semana de ' + gFmt(mon) + ' a ' + gFmt(isoAdd(mon, 6)) + '</p></div>';
@@ -3273,7 +3479,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (d.tipo === 'gym') {
         GBL.forEach(function (b) {
           var its = d.itens.map(function (it, k) { return { it: it, k: k }; }).filter(function (o) { return o.it.bloco === b[0]; });
-          x += '<div class="gblock"><p class="kicker">' + b[1] + '</p>';
+          x += '<div class="gblock"><p class="kicker">' + b[1] + '</p>' + gFmtHtml(i, b[0], d);
           x += its.map(function (o, pos) {
             var ex = gExByName(o.it.ex), reg = ex ? ex.registo : 'feito';
             var lig = pos > 0 && !!o.it.lig, nxt = its[pos + 1], ult = !(nxt && nxt.it.lig);
@@ -3315,10 +3521,15 @@ table.rt { min-width: 0; font-size: .85rem; }
     var mon = gMon(sem);
     gMsg('g-msg-src', 'A carregar…');
     tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(aid) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
-      '&select=data,nome,tipo,treino_itens(bloco,ordem,series,reps,pede_registo,registo,grupo,descanso_s,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
+      '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(bloco,ordem,series,reps,pede_registo,registo,grupo,descanso_s,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
       var plan = gNewPlan(), n = 0;
       rows.forEach(function (t) {
         var i = isoDow(t.data);
+        (t.treino_blocos || []).forEach(function (b) {
+          if (!/^(principal|aquecimento|preparacao|acessorio)$/.test(b.bloco)) return;
+          plan[i].fmt[b.bloco] = { formato: b.formato, nome: b.nome || '', rondas: b.rondas == null ? '' : String(b.rondas), tc_min: b.tc_min == null ? '' : String(b.tc_min),
+            duracao_min: b.duracao_min == null ? '' : String(b.duracao_min), intervalo_min: b.intervalo_min == null ? '' : String(b.intervalo_min), descricao: b.descricao || '' };
+        });
         plan[i].tipo = t.tipo === 'agua' ? 'none' : t.tipo; plan[i].nome = t.tipo === 'agua' ? '' : (t.nome || '');
         (t.treino_itens || []).slice().sort(function (a, b) { return a.ordem - b.ordem; }).forEach(function (it) {
           var ex = Array.isArray(it.exercicios) ? it.exercicios[0] : it.exercicios;
@@ -3336,14 +3547,21 @@ table.rt { min-width: 0; font-size: .85rem; }
   function gSavePlan() {
     var ids = Object.keys(G.sel).filter(function (k) { return G.sel[k]; });
     if (!ids.length) { gMsg('g-msg-plano', 'Escolhe pelo menos um atleta (passo 1).', true); return; }
-    var mon = gMon(G.semana), linhas = [], avisos = [];
+    var mon = gMon(G.semana), linhas = [], avisos = [], blk = [], gdias = [];
     G.plan.forEach(function (d, i) {
       var data = isoAdd(mon, i);
       if (d.tipo === 'none') return;
       if (d.tipo === 'rest') { linhas.push({ data: data, treino_nome: d.nome || 'Descanso', tipo: 'rest' }); return; }
       if (d.tipo === 'agua') { linhas.push({ data: data, treino_nome: d.nome || 'Treino na água', tipo: 'agua' }); return; }
       var n = 0, gn = 0;
+      gdias.push(data);
       GBL.forEach(function (b) {
+        var fm = d.fmt && d.fmt[b[0]];
+        if (fm && fm.formato && d.itens.some(function (it) { return it.bloco === b[0] && it.ex; })) {
+          var pi = function (v) { var q = parseInt(v, 10); return q > 0 ? q : null; };
+          blk.push({ data: data, bloco: b[0], formato: fm.formato, nome: String(fm.nome || '').trim(), rondas: fm.formato === 'fortime' ? pi(fm.rondas) : null, tc_min: fm.formato === 'fortime' ? pi(fm.tc_min) : null,
+            duracao_min: fm.formato === 'fortime' ? null : pi(fm.duracao_min), intervalo_min: fm.formato === 'emom' ? (pi(fm.intervalo_min) || 1) : null, descricao: String(fm.descricao || '').trim() });
+        }
         var bi = d.itens.filter(function (it) { return it.bloco === b[0] && it.ex; }), cur = null, ser = null;
         bi.forEach(function (it, pos) {
           n++;
@@ -3366,6 +3584,9 @@ table.rt { min-width: 0; font-size: .85rem; }
         return tReq('/rest/v1/rpc/importar_treinos', { method: 'POST', body: { p_atleta: id, p_linhas: linhas } }).then(function (r) {
           var a = gAtlById(id); feitos.push(a ? a.nome : id);
           if (r && r.ignorados && r.ignorados.length) ign[a ? a.nome : id] = r.ignorados;
+          if (!gdias.length) return null;
+          var skip = (r && r.ignorados) || [];
+          return tReq('/rest/v1/rpc/definir_blocos', { method: 'POST', body: { p_atleta: id, p_datas: gdias.filter(function (x) { return skip.indexOf(x) < 0; }), p_blocos: blk } });
         });
       });
     }, Promise.resolve()).then(function () {
@@ -3396,6 +3617,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     else if (a === 'atl-edit') { G.edit = G.edit === id ? null : id; G.pagErr = ''; gRenderAtl(); var ed = gAtlById(G.edit); if (ed && ed.grupo === 'pt') gLoadPag(ed.id); }
     else if (a === 'pag-add') gPagAdd(id);
     else if (a === 'reg-save') gRegSave();
+    else if (a === 'wod-save') gWodSave(b);
     else if (a === 'pag-del') gPagDel(id, b.getAttribute('data-a'));
     else if (a === 'atl-save') gAtlSave(id);
     else if (a === 'fim-add') gFimAdd(parseInt(b.getAttribute('data-n'), 10));
@@ -3428,6 +3650,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       }).catch(function (e) { gMsg('g-msg-ex', e && e.status === 409 ? 'Este exercício está a ser usado e não pode ser apagado.' : gFail(e), true); });
     }
     else if (a === 'sel') { G.sel[id] = !G.sel[id]; gRenderPlano(); }
+    else if (a === 'pmod') { G.planMod = b.getAttribute('data-m'); G.sel = {}; G.atl.forEach(function (x) { if (x.ativo !== false && x.modalidade === G.planMod) G.sel[x.id] = true; }); gRenderPlano(); }
     else if (a === 'selmod') {
       var m = b.getAttribute('data-m'), ids = G.atl.filter(function (x) { return x.ativo !== false && x.modalidade === m; });
       var all = ids.every(function (x) { return G.sel[x.id]; });
@@ -3461,6 +3684,15 @@ table.rt { min-width: 0; font-size: .85rem; }
     var t = e.target;
     if (t.id === 'ga-mod' || t.id === 'ge-mod') { var bx = $('#' + t.id.slice(0, 2) + '-esp'); if (bx) bx.hidden = !gEhNat(t.value) && !bx.querySelector('[aria-pressed="true"]'); return; }
     if (t.id === 'gx-q') { G.exQ = t.value; gRenderExList(); return; }
+    var bf = t.getAttribute('data-bf');
+    if (bf) {
+      var bd = G.plan[+t.getAttribute('data-d')], bb = t.getAttribute('data-b');
+      if (!bd.fmt) bd.fmt = {};
+      if (!bd.fmt[bb]) bd.fmt[bb] = {};
+      bd.fmt[bb][bf] = t.value;
+      if (bf === 'formato') gRenderPlano();
+      return;
+    }
     var f = t.getAttribute('data-f');
     if (!f) return;
     var d = +t.getAttribute('data-d');
