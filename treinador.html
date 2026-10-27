@@ -276,6 +276,9 @@ table.rt { min-width: 0; font-size: .85rem; }
 .gitem.gin { border-left: 4px solid var(--accent); margin-left: 10px; }
 .gname small { font-weight: 400; color: var(--muted); }
 .gnota { margin-top: 6px; font-size: .85rem; }
+
+#save.bad { background: var(--crit); color: #fff; }
+#status.bad { color: var(--crit); background: var(--crit-soft); border: 1px solid var(--crit); border-radius: 10px; padding: 10px 12px; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -1782,7 +1785,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   var LISTA = [], listErr = '', modSel = null;
   var MODO = SUPA && SUPA.modo === 'treinador' ? 'treinador' : 'atleta';
   var sess = null, HOJE = null, saveT = null, savePromise = Promise.resolve(), autoMsg = '';
-  var savedRows = {}, savedNotes = {}, WK0 = '', TSESS = null, SESMAP = {}, TDIA = {}, SESDIAS = {};
+  var savedRows = {}, savedNotes = {}, WK0 = '', TSESS = null, SESMAP = {}, TDIA = {}, SESDIAS = {}, LOCAL0 = '';
   var BL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
   var DIASN = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
@@ -2045,7 +2048,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     doSave();
   }
   function hydrate(r) {
-    HOJE = r.hoje;
+    HOJE = r.hoje; LOCAL0 = localISO();
     var mon = isoAdd(HOJE, -isoDow(HOJE));
     WK0 = mon;
     reg = {}; savedRows = {}; savedNotes = {}; autoMsg = ''; TSESS = null; SESMAP = {}; TDIA = {}; SESDIAS = {};
@@ -2229,7 +2232,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         }
         pl.series.forEach(function (x) { savedRows[x.item_id + '_' + (x.serie - 1)] = true; });
         pl.notas.forEach(function (x) { savedNotes[(r.data || HOJE) + '|' + x.bloco] = true; });
-        if (pl.series.length && !p.feito) { p.feito = r.data || HOJE; liveLocks(); liveRenderDays(); liveSkipBox(); if (/^Primeiro regista/.test($('#status').textContent)) $('#status').textContent = ''; }
+        if (pl.series.length && !p.feito) { p.feito = r.data || HOJE; liveLocks(); liveRenderDays(); liveSkipBox(); if (/^Primeiro regista|^Não podes guardar/.test($('#status').textContent)) { liveWarn(false); $('#status').textContent = ''; } }
         var d = new Date();
         setAuto('Guardado às ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + '.', di);
         return true;
@@ -2243,7 +2246,23 @@ table.rt { min-width: 0; font-size: .85rem; }
     setAuto('A guardar…');
     saveT = setTimeout(doSave, 1200);
   }
+  function liveWarn(on, msg) {
+    var b = $('#save'), st = $('#status');
+    if (!b || !st) return;
+    b.classList.toggle('bad', !!on); st.classList.toggle('bad', !!on);
+    b.textContent = on ? 'Faltam as cargas' : 'Guardar sessão';
+    if (msg) st.textContent = msg;
+  }
+  /* se a app ficou aberta de um dia para o outro, volta a carregar (wellness do dia novo) */
+  function liveStale() {
+    if (!LIVE || !sess || !HOJE || localISO() === LOCAL0) return;
+    liveFlush();
+    startSession(sess.id, sess.nome, sess.pin).catch(function () {});
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) liveStale(); });
+  setInterval(liveStale, 5 * 60 * 1000);
   function liveSaveSessao() {
+    liveWarn(false);
     var late = livePsePend(PLAN[day]);
     if (!sess || !(liveCanEdit() || late)) return;
     if (pse == null) { $('#status').textContent = 'Escolhe primeiro o esforço da sessão.'; return; }
@@ -2268,7 +2287,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       else if (r && r.erro === 'descanso') $('#status').textContent = 'Este treino é um dia de descanso. Não há sessão para registar.';
       else if (r && r.erro === 'wellness') $('#status').textContent = 'Preenche primeiro o wellness de hoje.';
       else if (r && r.erro === 'feito') $('#status').textContent = 'Este treino já foi registado noutro dia.';
-      else if (r && r.erro === 'cargas') $('#status').textContent = 'Primeiro regista as cargas do treino (ou marca os exercícios como feitos). Só depois podes guardar o PSE.';
+      else if (r && r.erro === 'cargas') liveWarn(true, 'Não podes guardar o PSE ainda. Primeiro regista as cargas do treino (ou marca os exercícios como feitos).');
       else if (r && r.erro === 'falta') $('#status').textContent = 'Este treino está marcado como não feito.';
       else if (r && r.erro === 'ocupado') $('#status').textContent = 'Já registaste outro treino nesse dia. O dia do treino tem de ser outro.';
       else if (r && r.erro === 'data') $('#status').textContent = 'Esse dia não é válido (só podes escolher até 7 dias atrás).';
@@ -2279,6 +2298,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
   function liveAfterRender() {
     var edit = liveCanEdit(), p = PLAN[day], msg = '';
+    liveWarn(false);
     $('#work').querySelectorAll('input,textarea,button').forEach(function (el) { el.disabled = !edit; });
     if (!edit && p && p.tipo === 'gym' && p.feito) msg = 'Este treino foi feito a ' + fmtD(p.feito) + '. Aqui vês o que ficou guardado.';
     $('#autosave').textContent = edit ? autoMsg : msg;
@@ -2943,9 +2963,12 @@ table.rt { min-width: 0; font-size: .85rem; }
       '<div class="inline"><div class="field"><label for="ga-grp">Grupo</label><select class="sel" id="ga-grp"><option value="atleta">Atleta</option><option value="pt">Online training</option></select></div>' +
       '<div class="field"><label for="ga-pin">PIN (4 dígitos)</label><div class="f"><input id="ga-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar" type="button">Gerar</button></div></div></div>' +
       '<button class="primary" data-act="atl-criar">Criar atleta</button><p class="small" id="g-msg-atl" role="status"></p></div>' +
-      '<p class="kicker">' + G.atl.length + (G.atl.length === 1 ? ' atleta' : ' atletas') + '</p>';
-    h += G.atl.map(function (a) {
-      var row = '<div class="grow"><div class="who"><b>' + esc(a.nome) + '</b><small>' + esc(a.modalidade) + (((a.distancias || []).concat(a.estilos || [])).length ? ' · ' + esc((a.distancias || []).concat(a.estilos || []).join(', ')) : '') + ' · ' + (a.grupo === 'pt' ? 'Online training' : 'Atleta') + (a.ativo === false ? ' · inativo' : '') + '</small></div>' +
+      '<p class="kicker">' + G.atl.filter(function (a) { return a.ativo !== false; }).length + ' ativos</p>';
+    var arq = G.atl.filter(function (a) { return a.ativo === false; });
+    var lista = G.atl.filter(function (a) { return a.ativo !== false; }).concat(arq);
+    h += lista.map(function (a, k) {
+      var sep = (a.ativo === false && (k === 0 || lista[k - 1].ativo !== false)) ? '<p class="kicker" style="margin-top:14px">Arquivados (' + arq.length + ') · os dados ficam guardados</p>' : '';
+      var row = sep + '<div class="grow"><div class="who"><b>' + esc(a.nome) + '</b><small>' + esc(a.modalidade) + (((a.distancias || []).concat(a.estilos || [])).length ? ' · ' + esc((a.distancias || []).concat(a.estilos || []).join(', ')) : '') + ' · ' + (a.grupo === 'pt' ? 'Online training' : 'Atleta') + (a.ativo === false ? ' · inativo' : '') + '</small></div>' +
         '<button class="chip" data-act="atl-edit" data-id="' + a.id + '">' + (G.edit === a.id ? 'Fechar' : 'Editar') + '</button></div>';
       if (G.edit === a.id) {
         row += '<div class="gbox">' +
@@ -2958,7 +2981,8 @@ table.rt { min-width: 0; font-size: .85rem; }
           '<div class="inline"><div class="field"><label for="ge-grp">Grupo</label><select class="sel" id="ge-grp"><option value="atleta"' + (a.grupo === 'atleta' ? ' selected' : '') + '>Atleta</option><option value="pt"' + (a.grupo === 'pt' ? ' selected' : '') + '>Online training</option></select></div>' +
           '<div class="field"><label for="ge-pin">Novo PIN (opcional)</label><div class="f"><input id="ge-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar2" type="button">Gerar</button></div></div></div>' +
           '<div class="chips"><button class="primary" data-act="atl-save" data-id="' + a.id + '" style="padding:10px 18px">Guardar</button>' +
-          '<button class="chip" data-act="atl-ativo" data-id="' + a.id + '">' + (a.ativo === false ? 'Reativar' : 'Desativar') + '</button></div>' +
+          '<button class="chip" data-act="atl-ativo" data-id="' + a.id + '">' + (a.ativo === false ? 'Reativar' : 'Arquivar') + '</button></div>' +
+          '<p class="small">' + (a.ativo === false ? 'Arquivado: não aparece nas listas nem entra na app. Todos os dados continuam guardados.' : 'Arquivar tira o atleta das listas, dos dados e da entrada na app, mas guarda tudo (wellness, cargas, PSE, treinos). Podes reativar quando quiseres.') + '</p>' +
           '<p class="small" id="g-msg-edit" role="status"></p></div>';
       }
       return row;
