@@ -1017,7 +1017,7 @@ table.rt { min-width: 0; font-size: .85rem; }
             for (var s = 0; s < e.series; s++) {
               var k = base + '_' + s;
               if (T === 'carga') {
-                body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + (e.pr ? '<span class="small">' + e.pr + (uni ? ' reps/side' : ' reps') + ' (prescrito)</span>' : field(k + '_b', uni ? 'reps/side' : 'reps', 'numeric', '0')) + '</div>';
+                body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + (e.pu ? '<span class="small">' + esc(e.pu) + ' (prescrito)</span>' : e.pr ? '<span class="small">' + e.pr + (uni ? ' reps/side' : ' reps') + ' (prescrito)</span>' : field(k + '_b', uni ? 'reps/side' : 'reps', 'numeric', '0')) + '</div>';
               } else if (T === 'vbt') {
                 body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + field(k + '_b', 'm/s', 'decimal', '0,00') + '</div>';
               } else if (T === 'reps') {
@@ -1912,6 +1912,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var mr = /^\s*(\d{1,3})\s*(\/?\s*(lado|perna|side|leg)\w*)?\s*$/i.exec(reps);
     return {
       pr: mr ? +mr[1] : undefined,
+      pu: /^\s*\d+([.,]\d+)?\s*(km|m|cal|s)\s*$/i.test(reps) ? reps : undefined,
       id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, hn: it.nota_item || undefined,
       pad: it.padrao && it.padrao !== 'core' ? it.padrao : undefined,
       core: it.core_tipo || undefined,
@@ -2232,7 +2233,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         for (var s = 0; s < e.series; s++) {
           var a = toNum(reg[base + '_' + s + '_a']), b = toNum(reg[base + '_' + s + '_b']);
           var row = { item_id: e.id, serie: s + 1 };
-          if (T === 'carga') { row.carga_kg = a; row.reps = e.pr ? (a === '' ? '' : e.pr) : (b === '' ? '' : Math.round(b)); }
+          if (T === 'carga') { row.carga_kg = a; row.reps = e.pu ? '' : e.pr ? (a === '' ? '' : e.pr) : (b === '' ? '' : Math.round(b)); }
           else if (T === 'vbt') { row.carga_kg = a; row.vbt_ms = b; }
           else if (T === 'reps') row.reps = a === '' ? '' : Math.round(a);
           else if (T === 'tempo') row.tempo_s = a === '' ? '' : Math.round(a);
