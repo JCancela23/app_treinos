@@ -452,11 +452,13 @@ table.rt { min-width: 0; font-size: .85rem; }
         <button class="chip" data-g="atletas" aria-pressed="false">Atletas</button>
         <button class="chip" data-g="exercicios" aria-pressed="false">Exercícios</button>
         <button class="chip" data-g="registar" aria-pressed="false">Registar sessão</button>
+        <button class="chip" data-g="testes" aria-pressed="false">Testes</button>
       </div>
       <div id="g-plano" style="display:grid;gap:14px"></div>
       <div id="g-atletas" style="display:grid;gap:12px" hidden></div>
       <div id="g-exercicios" style="display:grid;gap:12px" hidden></div>
       <div id="g-registar" style="display:grid;gap:12px" hidden></div>
+      <div id="g-testes" style="display:grid;gap:12px" hidden></div>
     </div>
 
     <div class="panel">
@@ -3081,7 +3083,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
 
   function gRender() {
-    ['plano', 'atletas', 'exercicios', 'registar'].forEach(function (t) {
+    ['plano', 'atletas', 'exercicios', 'registar', 'testes'].forEach(function (t) {
       $('#g-' + t).hidden = G.tab !== t;
       var b = document.querySelector('#g-tabs [data-g="' + t + '"]');
       if (b) b.setAttribute('aria-pressed', G.tab === t ? 'true' : 'false');
@@ -3089,6 +3091,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (G.tab === 'plano') gRenderPlano();
     else if (G.tab === 'atletas') gRenderAtl();
     else if (G.tab === 'registar') gRenderReg();
+    else if (G.tab === 'testes') gTesLoad();
     else gRenderEx();
     gReapply();
   }
@@ -3392,6 +3395,196 @@ table.rt { min-width: 0; font-size: .85rem; }
       return nw === 4 ? tReq('/rest/v1/wellness?on_conflict=atleta_id,data', { method: 'POST', body: { atleta_id: GR.aid, data: GR.data, sono: +W[0], stress: +W[1], fadiga: +W[2], dor: +W[3] }, headers: H }) : null;
     }).then(function () { return carregar(); }).then(function () { return gRegLoad(); }).then(function () { gMsg('g-msg-reg', 'Guardado para ' + atl.nome + ' (' + gFmtD(GR.data) + ').'); }).catch(function (e) { gMsg('g-msg-reg', gFail(e), true); });
   }
+
+  /* ---------- testes e benchmarks (online training e presencial) ---------- */
+  var GTU = [['kg', 'kg'], ['cm', 'cm'], ['m', 'm'], ['tempo', 'tempo (mm:ss)'], ['reps', 'reps'], ['cal', 'calorias'], ['w', 'watts'], ['outro', 'outro']];
+  var GTS = ['Back squat 1RM', 'Back squat 3RM', 'Back squat 5RM', 'Deadlift 1RM', 'Deadlift 5RM', 'Bench press 1RM', 'Bench press 5RM', 'CMJ', 'Salto em comprimento', '5 km', '10 km', 'Aerox 2000 m'];
+  function gTesFmt(v, u) {
+    v = +v;
+    if (u === 'tempo') {
+      var h = Math.floor(v / 3600), m = Math.floor((v % 3600) / 60), s = v - h * 3600 - m * 60, ss = (s < 10 ? '0' : '') + (Math.round(s * 10) / 10).toString().replace('.', ',');
+      return h ? h + ':' + (m < 10 ? '0' : '') + m + ':' + ss : (m ? m + ':' + ss : ss + ' s');
+    }
+    return String(Math.round(v * 100) / 100).replace('.', ',') + (u === 'outro' ? '' : ' ' + (u === 'w' ? 'W' : u));
+  }
+  function gTesParse(txt, u) {
+    var t = String(txt || '').trim().replace(',', '.');
+    if (!t) return null;
+    if (u === 'tempo' && t.indexOf(':') >= 0) {
+      var p = t.split(':').map(Number);
+      if (p.some(function (x) { return isNaN(x) || x < 0; }) || p.length > 3) return null;
+      return p.reduce(function (a, x) { return a * 60 + x; }, 0);
+    }
+    var n = parseFloat(t);
+    return isNaN(n) || n < 0 ? null : n;
+  }
+  var TSEL = 'select=id,atleta_id,data,nome,valor,unidade,melhor,nota,categoria&order=data,id';
+  function gTesLoad() {
+    var el = $('#g-testes'); if (!el) return;
+    return Promise.all([
+      tGet('testes', TSEL).catch(function () { return tGet('testes', 'select=id,atleta_id,data,nome,valor,unidade,melhor,nota&order=data,id'); }),
+      tGet('teste_categorias', 'select=id,nome,ordem&order=ordem,nome').catch(function () { return null; }),
+      tGet('perfis_fv', 'select=id,atleta_id,data,exercicio,metrica,limiar,pontos,nota&order=data,id').catch(function () { return null; })
+    ]).then(function (r) {
+      G.tes = r[0] || []; G.cat = r[1]; G.fv = r[2]; G.tesErr = '';
+      if (!G.cat || !G.fv) G.tesErr = 'Falta correr a parte 21 do SQL no Supabase (categorias e perfil carga-velocidade).';
+      G.cat = G.cat || []; G.fv = G.fv || [];
+      gRenderTes();
+    }).catch(function (e) { G.tes = []; G.cat = []; G.fv = []; G.tesErr = e && (e.status === 404 || (e.body && /testes/.test(JSON.stringify(e.body)))) ? 'Falta correr a parte 20 do SQL no Supabase.' : gFail(e); gRenderTes(); });
+  }
+  function gSpark(L, melhor) {
+    if (L.length < 2) return '';
+    var vs = L.map(function (x) { return +x.valor; }), mn = Math.min.apply(null, vs), mx = Math.max.apply(null, vs), w = 120, h = 28, rg = (mx - mn) || 1;
+    var pts = vs.map(function (v, i) { return (i * (w - 6) / (vs.length - 1) + 3).toFixed(1) + ',' + (h - 3 - (v - mn) / rg * (h - 6)).toFixed(1); });
+    var up = (vs[vs.length - 1] - vs[0]) * (melhor === 'menos' ? -1 : 1) >= 0;
+    return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true"><polyline fill="none" stroke="' + (up ? 'var(--accent)' : '#b3261e') + '" stroke-width="2" points="' + pts.join(' ') + '"/></svg>';
+  }
+  /* perfil carga-velocidade: reta v = a + b·carga */
+  function gFvCalc(pts, lim) {
+    var P = (pts || []).filter(function (p) { return p && +p.kg > 0 && +p.v > 0; });
+    if (P.length < 3) return null;
+    var n = P.length, mx = 0, my = 0;
+    P.forEach(function (p) { mx += +p.kg; my += +p.v; }); mx /= n; my /= n;
+    var sxx = 0, sxy = 0, syy = 0;
+    P.forEach(function (p) { sxx += (p.kg - mx) * (p.kg - mx); sxy += (p.kg - mx) * (p.v - my); syy += (p.v - my) * (p.v - my); });
+    if (!sxx) return null;
+    var b = sxy / sxx, a = my - b * mx;
+    if (b >= 0) return null;
+    return { a: a, b: b, v0: a, l0: -a / b, rm: (lim - a) / b, r2: syy ? (sxy * sxy) / (sxx * syy) : 1, n: n, pts: P };
+  }
+  function gFvChart(c, prev) {
+    var W = 280, H = 150, pl = 34, pb = 20, pr = 8, pt = 8;
+    var xmax = Math.max(c.l0, prev ? prev.l0 : 0, c.rm) * 1.02, ymax = Math.max(c.v0, prev ? prev.v0 : 0, 0.1) * 1.05;
+    var X = function (k) { return pl + k / xmax * (W - pl - pr); }, Y = function (v) { return H - pb - v / ymax * (H - pb - pt); };
+    var line = function (m, col, dash) { return '<line x1="' + X(0) + '" y1="' + Y(m.v0) + '" x2="' + X(m.l0) + '" y2="' + Y(0) + '" stroke="' + col + '" stroke-width="2"' + (dash ? ' stroke-dasharray="4 3"' : '') + '/>'; };
+    return '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Perfil carga-velocidade">' +
+      '<line x1="' + pl + '" y1="' + (H - pb) + '" x2="' + (W - pr) + '" y2="' + (H - pb) + '" stroke="currentColor" opacity=".3"/><line x1="' + pl + '" y1="' + pt + '" x2="' + pl + '" y2="' + (H - pb) + '" stroke="currentColor" opacity=".3"/>' +
+      (prev ? line(prev, 'currentColor', true).replace('stroke="currentColor"', 'stroke="currentColor" opacity=".45"') : '') + line(c, 'var(--accent)', false) +
+      c.pts.map(function (p) { return '<circle cx="' + X(+p.kg) + '" cy="' + Y(+p.v) + '" r="3.5" fill="var(--accent)"/>'; }).join('') +
+      '<text x="' + (W - pr) + '" y="' + (H - 4) + '" font-size="10" text-anchor="end" fill="currentColor">carga (kg) · máx ' + Math.round(xmax) + '</text>' +
+      '<text x="4" y="' + (pt + 8) + '" font-size="10" fill="currentColor">m/s</text><text x="4" y="' + (H - pb) + '" font-size="10" fill="currentColor">0</text></svg>';
+  }
+  function gFvHtml() {
+    var h = '<p class="small">Perfil carga-velocidade: regista 4 a 6 cargas do mesmo exercício, com a velocidade de cada uma. A app calcula a reta, o 1RM estimado e o perfil. Usa sempre a mesma métrica e o mesmo aparelho.</p>';
+    var exs = []; (G.fv || []).forEach(function (x) { if (exs.indexOf(x.exercicio) < 0) exs.push(x.exercicio); });
+    h += '<div class="inline"><div class="field"><label for="gf-data">Data</label><input class="dt" type="date" id="gf-data" max="' + localISO() + '" value="' + esc(G.fvD || localISO()) + '"></div>' +
+      '<div class="field"><label for="gf-ex">Exercício / movimento</label><input class="dt" id="gf-ex" list="gf-exl" autocomplete="off" placeholder="ex.: Back squat" value="' + esc(G.fvE || '') + '"></div></div>' +
+      '<datalist id="gf-exl">' + exs.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + G.ex.map(function (e) { return exs.indexOf(e.nome) < 0 ? '<option value="' + esc(e.nome) + '">' : ''; }).join('') + '</datalist>' +
+      '<div class="inline"><div class="field"><label for="gf-met">Velocidade medida</label><select class="sel" id="gf-met"><option value="media"' + (G.fvM === 'propulsiva' ? '' : ' selected') + '>Média</option><option value="propulsiva"' + (G.fvM === 'propulsiva' ? ' selected' : '') + '>Média propulsiva</option></select></div>' +
+      '<div class="field"><label for="gf-lim">Limiar do 1RM (m/s)</label><input class="dt" id="gf-lim" inputmode="decimal" autocomplete="off" placeholder="ex.: 0,30" value="' + esc(G.fvL || '') + '"></div></div>' +
+      '<div id="gf-pts">';
+    for (var i = 0; i < 5; i++) h += gFvRow(i);
+    h += '</div><div class="chips"><button class="chip" data-act="fv-row">+ Mais uma carga</button><button class="primary" data-act="fv-add" style="padding:10px 18px">Guardar perfil</button></div><p class="small" id="g-msg-fv" role="status"></p>';
+    var mine = (G.fv || []).filter(function (x) { return x.atleta_id === G.tesA; }), por = {};
+    mine.forEach(function (x) { (por[x.exercicio + ' · ' + (x.metrica === 'propulsiva' ? 'média propulsiva' : 'média')] = por[x.exercicio + ' · ' + (x.metrica === 'propulsiva' ? 'média propulsiva' : 'média')] || []).push(x); });
+    var ks = Object.keys(por).sort(function (a, b) { return a.localeCompare(b, 'pt'); });
+    if (!ks.length) h += '<p class="note">Ainda não há perfis registados para este atleta.</p>';
+    ks.forEach(function (k) {
+      var L = por[k].slice().sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; }), calc = L.map(function (x) { return gFvCalc(x.pontos, +x.limiar); });
+      var li = L.length - 1; while (li >= 0 && !calc[li]) li--;
+      h += '<div class="gbox"><b>' + esc(k) + '</b>';
+      if (li >= 0) {
+        var c = calc[li], pi = li - 1; while (pi >= 0 && !calc[pi]) pi--;
+        var p0 = pi >= 0 ? calc[pi] : null, dl = function (cur, old, f, un) { return old == null ? '' : ' <small style="opacity:.75">(' + (cur - old >= 0 ? '+' : '−') + f(Math.abs(cur - old)) + un + ')</small>'; };
+        var f0 = function (v) { return String(Math.round(v)); }, f2 = function (v) { return String(Math.round(v * 100) / 100).replace('.', ','); };
+        h += '<div style="color:var(--fg)">' + gFvChart(c, p0) + '</div>' +
+          '<p class="small">Último (' + gFmtD(L[li].data) + '): 1RM estimado <b>' + f0(c.rm) + ' kg</b>' + dl(c.rm, p0 && p0.rm, f0, ' kg') + ' · L0 <b>' + f0(c.l0) + ' kg</b>' + dl(c.l0, p0 && p0.l0, f0, ' kg') +
+          ' · V0 <b>' + f2(c.v0) + ' m/s</b>' + dl(c.v0, p0 && p0.v0, f2, ' m/s') + ' · declive <b>' + f2(c.b * 100) + '</b> m/s por 100 kg · R² ' + f2(c.r2) + (c.r2 < 0.95 ? ' <span class="err">(baixo: confirma as medições)</span>' : '') + (c.n < 4 ? ' <span class="err">(poucas cargas)</span>' : '') + '</p>' +
+          '<p class="small">Linha tracejada: perfil anterior. L0 = carga extrapolada a velocidade zero; V0 = velocidade extrapolada sem carga. Declive mais plano = perfil mais de força; mais inclinado = mais de velocidade (compara com o mesmo atleta ao longo do tempo).</p>';
+      } else h += '<p class="err">Não foi possível calcular a reta (precisa de 3 cargas diferentes com velocidade a descer).</p>';
+      h += L.slice().reverse().map(function (x, ix) { var cc = calc[L.length - 1 - ix]; return '<div class="inline" style="align-items:center"><span class="small">' + gFmtD(x.data) + '</span><span class="small">' + (x.pontos || []).map(function (p) { return p.kg + ' kg · ' + String(p.v).replace('.', ',') + ' m/s'; }).join(' | ') + '</span><span class="small">limiar ' + String(x.limiar).replace('.', ',') + '</span>' + (cc ? '<b>1RM ≈ ' + Math.round(cc.rm) + ' kg</b>' : '') + '<button class="chip" data-act="fv-del" data-id="' + x.id + '" aria-label="Apagar">✕</button></div>'; }).join('') + '</div>';
+    });
+    return h;
+  }
+  function gFvRow(i) { return '<div class="inline" data-fvr="' + i + '"><div class="field"><label for="gf-kg-' + i + '">Carga ' + (i + 1) + ' (kg)</label><input class="dt" id="gf-kg-' + i + '" inputmode="decimal"></div><div class="field"><label for="gf-v-' + i + '">Velocidade (m/s)</label><input class="dt" id="gf-v-' + i + '" inputmode="decimal" placeholder="0,00"></div></div>'; }
+  function gRenderTes() {
+    var el = $('#g-testes'); if (!el) return;
+    var elig = G.atl.filter(function (a) { return a.ativo !== false && (a.grupo === 'pt' || a.grupo === 'presencial' || a.grupo === 'atleta'); }).sort(function (x, y) { return x.nome.localeCompare(y.nome, 'pt'); });
+    var gl = function (a) { return a.grupo === 'pt' ? 'Online training' : a.grupo === 'presencial' ? 'Presencial' : esc(a.modalidade); };
+    var h = '<div class="gbox"><p class="kicker">Testes e benchmarks</p><p class="small">Online training e presencial: testes por categoria (RMs, saltos, tempos de prova, etc.). Atletas das modalidades: perfil carga-velocidade. Usa sempre o mesmo nome para o mesmo teste, é assim que se constrói a evolução.</p>' +
+      (G.tesErr ? '<p class="err">' + esc(G.tesErr) + '</p>' : '') +
+      '<div class="field"><label for="gt-atl">Atleta</label><select class="sel" id="gt-atl"><option value="">Escolhe…</option>' + elig.map(function (a) { return '<option value="' + a.id + '"' + (a.id === G.tesA ? ' selected' : '') + '>' + esc(a.nome) + ' · ' + gl(a) + '</option>'; }).join('') + '</select></div>';
+    if (!elig.length) h += '<p class="note">Ainda não tens atletas.</p>';
+    var at = G.tesA && gAtlById(G.tesA);
+    if (at && at.grupo === 'atleta') h += gFvHtml();
+    else if (at) {
+      var nomes = []; (G.tes || []).forEach(function (x) { if (nomes.indexOf(x.nome) < 0) nomes.push(x.nome); });
+      GTS.forEach(function (x) { if (nomes.indexOf(x) < 0) nomes.push(x); });
+      h += '<div class="inline"><div class="field"><label for="gt-data">Data do teste</label><input class="dt" type="date" id="gt-data" max="' + localISO() + '" value="' + esc(G.tesD || localISO()) + '"></div>' +
+        '<div class="field"><label for="gt-cat">Categoria</label><select class="sel" id="gt-cat"><option value="">Sem categoria</option>' + (G.cat || []).map(function (c) { return '<option value="' + esc(c.nome) + '"' + (G.tesC === c.nome ? ' selected' : '') + '>' + esc(c.nome) + '</option>'; }).join('') + '</select></div></div>' +
+        '<div class="field"><label for="gt-nome">Teste</label><input class="dt" id="gt-nome" list="gt-lista" autocomplete="off" placeholder="ex.: Back squat 5RM" value="' + esc(G.tesN || '') + '"></div>' +
+        '<datalist id="gt-lista">' + nomes.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
+        '<div class="inline"><div class="field"><label for="gt-val">Resultado</label><input class="dt" id="gt-val" inputmode="decimal" autocomplete="off" placeholder="ex.: 100 ou 24:30"></div>' +
+        '<div class="field"><label for="gt-un">Unidade</label><select class="sel" id="gt-un">' + GTU.map(function (u) { return '<option value="' + u[0] + '"' + (G.tesU === u[0] ? ' selected' : '') + '>' + u[1] + '</option>'; }).join('') + '</select></div>' +
+        '<div class="field"><label for="gt-mel">Melhor quando é</label><select class="sel" id="gt-mel"><option value="auto">Automático</option><option value="mais">Maior</option><option value="menos">Menor</option></select></div></div>' +
+        '<div class="field"><label for="gt-nota">Nota (opcional)</label><input class="dt" id="gt-nota" autocomplete="off" placeholder="ex.: com cinto, pista, vento…"></div>' +
+        '<div class="chips"><button class="primary" data-act="tes-add" style="padding:10px 18px">Adicionar teste</button></div><p class="small" id="g-msg-tes" role="status"></p>';
+      var mine = (G.tes || []).filter(function (x) { return x.atleta_id === G.tesA; });
+      if (!mine.length) h += '<p class="note">Ainda não há testes registados para este atleta.</p>';
+      var cats = (G.cat || []).map(function (c) { return c.nome; });
+      mine.forEach(function (x) { var c = x.categoria || ''; if (c && cats.indexOf(c) < 0) cats.push(c); });
+      cats.push('');
+      cats.forEach(function (cn) {
+        var sub = mine.filter(function (x) { return (x.categoria || '') === cn; });
+        if (!sub.length) return;
+        var por = {}; sub.forEach(function (x) { (por[x.nome] = por[x.nome] || []).push(x); });
+        h += '<p class="kicker" style="margin-top:8px">' + esc(cn || 'Sem categoria') + '</p>';
+        Object.keys(por).sort(function (a, b) { return a.localeCompare(b, 'pt'); }).forEach(function (k) {
+          var L = por[k].slice().sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; }), u = L[0].unidade, me = L[L.length - 1].melhor;
+          var best = L.reduce(function (b, x) { return (me === 'menos' ? +x.valor < +b.valor : +x.valor > +b.valor) ? x : b; }, L[0]);
+          var d = L.length > 1 ? (+L[L.length - 1].valor - +L[0].valor) : null, bom = d == null ? null : (me === 'menos' ? d <= 0 : d >= 0);
+          h += '<div class="gbox"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + esc(k) + '</b>' + gSpark(L, me) + '</div>' +
+            '<p class="small">Melhor: <b>' + esc(gTesFmt(best.valor, u)) + '</b> (' + gFmtD(best.data) + ')' + (d == null ? '' : ' · desde o primeiro: <span' + (bom ? ' style="color:var(--accent)"' : ' class="err"') + '>' + (d >= 0 ? '+' : '−') + esc(gTesFmt(Math.abs(d), u)) + '</span>') + '</p>' +
+            L.slice().reverse().map(function (x) { return '<div class="inline" style="align-items:center"><span class="small">' + gFmtD(x.data) + '</span><b>' + esc(gTesFmt(x.valor, x.unidade)) + '</b>' + (x.nota ? '<span class="small">' + esc(x.nota) + '</span>' : '') + '<button class="chip" data-act="tes-del" data-id="' + x.id + '" aria-label="Apagar">✕</button></div>'; }).join('') + '</div>';
+        });
+      });
+      h += '<details class="gbox"><summary>Gerir categorias</summary><div class="chips">' + (G.cat || []).map(function (c) { return '<span class="chip">' + esc(c.nome) + ' <button class="chip" data-act="cat-del" data-id="' + c.id + '" aria-label="Apagar categoria ' + esc(c.nome) + '">✕</button></span>'; }).join('') +
+        '</div><div class="inline"><div class="field"><label for="gt-newcat">Nova categoria</label><input class="dt" id="gt-newcat" autocomplete="off" placeholder="ex.: Mobilidade"></div><button class="chip" data-act="cat-add">Adicionar</button></div><p class="small" id="g-msg-cat" role="status">Apagar uma categoria não apaga os testes; ficam com o nome da categoria antiga.</p></details>';
+    }
+    el.innerHTML = h + '</div>';
+  }
+  function gTesRefresh() { return gTesLoad(); }
+  function gTesAdd() {
+    var nome = $('#gt-nome').value.trim(), un = $('#gt-un').value, data = $('#gt-data').value, mel = $('#gt-mel').value, cat = $('#gt-cat').value;
+    var val = gTesParse($('#gt-val').value, un);
+    if (!nome) { gMsg('g-msg-tes', 'Escreve o nome do teste.', true); return; }
+    if (val == null) { gMsg('g-msg-tes', 'Resultado inválido. Para tempos usa mm:ss (ex.: 24:30).', true); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) { gMsg('g-msg-tes', 'Escolhe a data do teste.', true); return; }
+    if (mel === 'auto') mel = un === 'tempo' ? 'menos' : 'mais';
+    G.tesD = data; G.tesN = nome; G.tesU = un; G.tesC = cat;
+    gMsg('g-msg-tes', 'A guardar…');
+    var body = { atleta_id: G.tesA, data: data, nome: nome, valor: val, unidade: un, melhor: mel, nota: $('#gt-nota').value.trim() || null };
+    if (cat) body.categoria = cat;
+    tReq('/rest/v1/testes', { method: 'POST', body: body, headers: { Prefer: 'return=minimal' } })
+      .then(function () { G.tesN = ''; return gTesRefresh(); }).then(function () { gMsg('g-msg-tes', 'Teste guardado.'); })
+      .catch(function (e) { gMsg('g-msg-tes', gFail(e), true); });
+  }
+  function gFvAdd() {
+    var ex = $('#gf-ex').value.trim(), data = $('#gf-data').value, met = $('#gf-met').value, lim = parseFloat(String($('#gf-lim').value).replace(',', '.')), pts = [];
+    document.querySelectorAll('#gf-pts [data-fvr]').forEach(function (r) {
+      var i = r.getAttribute('data-fvr'), kg = parseFloat(String($('#gf-kg-' + i).value).replace(',', '.')), v = parseFloat(String($('#gf-v-' + i).value).replace(',', '.'));
+      if (!isNaN(kg) || !isNaN(v)) pts.push({ kg: kg, v: v });
+    });
+    if (!ex) { gMsg('g-msg-fv', 'Escreve o exercício.', true); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) { gMsg('g-msg-fv', 'Escolhe a data.', true); return; }
+    if (!(lim > 0)) { gMsg('g-msg-fv', 'Indica o limiar de velocidade do 1RM neste movimento (m/s).', true); return; }
+    if (pts.some(function (p) { return !(p.kg > 0) || !(p.v > 0); })) { gMsg('g-msg-fv', 'Cada linha precisa de carga e velocidade (maiores que zero). Apaga o que está a meio.', true); return; }
+    var cc = gFvCalc(pts, lim);
+    if (!cc) { gMsg('g-msg-fv', 'Precisa de pelo menos 3 cargas diferentes com a velocidade a descer à medida que a carga sobe.', true); return; }
+    G.fvD = data; G.fvE = ex; G.fvM = met; G.fvL = $('#gf-lim').value;
+    gMsg('g-msg-fv', 'A guardar…');
+    tReq('/rest/v1/perfis_fv', { method: 'POST', body: { atleta_id: G.tesA, data: data, exercicio: ex, metrica: met, limiar: lim, pontos: pts }, headers: { Prefer: 'return=minimal' } })
+      .then(function () { return gTesRefresh(); }).then(function () { gMsg('g-msg-fv', 'Perfil guardado. 1RM estimado: ' + Math.round(cc.rm) + ' kg.'); })
+      .catch(function (e) { gMsg('g-msg-fv', gFail(e), true); });
+  }
+  $('#g-testes').addEventListener('change', function (e) {
+    if (e.target.id === 'gt-atl') { G.tesA = e.target.value; G.tesN = ''; gRenderTes(); }
+    else if (e.target.id === 'gt-un') G.tesU = e.target.value;
+    else if (e.target.id === 'gf-ex') {
+      var nm = e.target.value.trim(), last = (G.fv || []).filter(function (x) { return x.atleta_id === G.tesA && x.exercicio === nm; }).pop();
+      if (last) { $('#gf-lim').value = String(last.limiar).replace('.', ','); $('#gf-met').value = last.metrica; }
+    }
+  });
   $('#g-panel').addEventListener('change', function (e) { if (e.target.id === 'gp-ren' || e.target.id === 'gp-data') gPagPrev(); });
   $('#g-registar').addEventListener('change', function (e) {
     if (e.target.id === 'gw-fmt') { GR.nf = e.target.value; $('#gw-new').innerHTML = gWodForm('new', GR.nf, {}); return; }
@@ -3660,6 +3853,25 @@ table.rt { min-width: 0; font-size: .85rem; }
     else if (a === 'pag-add') gPagAdd(id);
     else if (a === 'reg-save') gRegSave();
     else if (a === 'wod-save') gWodSave(b);
+    else if (a === 'tes-add') gTesAdd();
+    else if (a === 'fv-add') gFvAdd();
+    else if (a === 'fv-row') { var nr = document.querySelectorAll('#gf-pts [data-fvr]').length; $('#gf-pts').insertAdjacentHTML('beforeend', gFvRow(nr)); }
+    else if (a === 'fv-del') {
+      if (!window.confirm('Apagar este perfil?')) return;
+      tReq('/rest/v1/perfis_fv?id=eq.' + encodeURIComponent(id), { method: 'DELETE' }).then(function () { return gTesRefresh(); }).catch(function (e2) { gMsg('g-msg-fv', gFail(e2), true); });
+    }
+    else if (a === 'cat-add') {
+      var cn = ($('#gt-newcat').value || '').trim(); if (!cn) return;
+      tReq('/rest/v1/teste_categorias', { method: 'POST', body: { nome: cn, ordem: (G.cat || []).length + 1 }, headers: { Prefer: 'return=minimal' } }).then(function () { return gTesRefresh(); }).catch(function (e2) { gMsg('g-msg-cat', gFail(e2), true); });
+    }
+    else if (a === 'cat-del') {
+      if (!window.confirm('Apagar esta categoria? Os testes mantêm-se.')) return;
+      tReq('/rest/v1/teste_categorias?id=eq.' + encodeURIComponent(id), { method: 'DELETE' }).then(function () { return gTesRefresh(); }).catch(function (e2) { gMsg('g-msg-cat', gFail(e2), true); });
+    }
+    else if (a === 'tes-del') {
+      if (!window.confirm('Apagar este teste?')) return;
+      tReq('/rest/v1/testes?id=eq.' + encodeURIComponent(id), { method: 'DELETE' }).then(function () { return gTesRefresh(); }).catch(function (e2) { gMsg('g-msg-tes', gFail(e2), true); });
+    }
     else if (a === 'pag-del') gPagDel(id, b.getAttribute('data-a'));
     else if (a === 'atl-save') gAtlSave(id);
     else if (a === 'fim-add') gFimAdd(parseInt(b.getAttribute('data-n'), 10));
