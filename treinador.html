@@ -464,6 +464,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         <h2 id="t-date">Quarta, 14 de outubro</h2>
         <span class="kicker">Painel do treinador</span><button class="chip" id="t-sair" hidden>Sair</button>
       </header>
+      <div class="chips" id="mods" role="group" aria-label="Modalidade"></div>
       <div class="chips" id="filters" role="group" aria-label="Filtrar"></div>
       <div class="scroll">
         <table>
@@ -479,10 +480,6 @@ table.rt { min-width: 0; font-size: .85rem; }
         <h2>Calendário de competições</h2>
         <span class="kicker">Por atleta</span>
       </header>
-      <div class="field" id="cal-mw">
-        <label for="cal-m">Modalidade</label>
-        <select id="cal-m" class="sel"></select>
-      </div>
       <div class="field">
         <label for="cal-a">Atleta</label>
         <select id="cal-a" class="sel"></select>
@@ -1163,10 +1160,33 @@ table.rt { min-width: 0; font-size: .85rem; }
   });
 
   /* ---------- treinador: lista de hoje ---------- */
-  var filtro = 'todos', sel = 0;
+  var filtro = 'todos', sel = 0, FMOD = '';
   function visiveis() {
-    return ATLETAS.filter(function (a) { return filtro === 'todos' || a.g === filtro; });
+    return ATLETAS.filter(function (a) { return (filtro === 'todos' || a.g === filtro) && (!FMOD || a.m === FMOD); });
   }
+  function renderMods() {
+    var ms = []; ATLETAS.forEach(function (a) { if (ms.indexOf(a.m) < 0) ms.push(a.m); });
+    ms.sort(function (x, y) { return x.localeCompare(y, 'pt'); });
+    if (ms.indexOf(FMOD) < 0) FMOD = '';
+    $('#mods').hidden = ms.length < 2;
+    $('#mods').innerHTML = '<span class="small" style="align-self:center">Modalidade:</span><button class="chip" data-fm="" aria-pressed="' + (FMOD === '') + '">Todas</button>' +
+      ms.map(function (m) { return '<button class="chip" data-fm="' + esc(m) + '" aria-pressed="' + (FMOD === m) + '">' + esc(m) + '</button>'; }).join('');
+  }
+  function fillAtl() {
+    $('#f-atleta').innerHTML = ATLETAS.map(function (a, i) { return (!FMOD || a.m === FMOD) ? '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>' : ''; }).join('');
+  }
+  function aplicarMod() {
+    cal.mod = FMOD; calAtl(); cal.sel = null;
+    renderMods(); fillAtl(); renderRows(); renderPainel(); renderCal(); renderCalDet(); renderUp(); initReport();
+    if (typeof renderWod === 'function') renderWod();
+    if (typeof renderSemana === 'function' && $('#sem-out')) renderSemana();
+  }
+  $('#mods').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-fm]');
+    if (!b) return;
+    FMOD = b.getAttribute('data-fm');
+    aplicarMod();
+  });
   function hooperHoje(a) {
     var w = a.rec[TODAY_I].w;
     return w ? sum(w) : null;
@@ -1177,6 +1197,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     return t;
   }
   function renderFilters() {
+    renderMods();
     var f = [['todos', 'Todos'], ['atleta', 'Atletas'], ['pt', 'Online training']];
     $('#filters').innerHTML = f.map(function (x) {
       return '<button class="chip" data-f="' + x[0] + '" aria-pressed="' + (filtro === x[0]) + '">' + x[1] + '</button>';
@@ -1184,7 +1205,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
   function renderRows() {
     var vis = visiveis();
-    if (vis.indexOf(ATLETAS[sel]) < 0) sel = ATLETAS.indexOf(vis[0]);
+    if (vis.indexOf(ATLETAS[sel]) < 0 && vis.length) sel = ATLETAS.indexOf(vis[0]);
     $('#rows').innerHTML = vis.map(function (a) {
       var i = ATLETAS.indexOf(a);
       var t = hooperHoje(a);
@@ -1661,11 +1682,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
   function initCal() {
     var opts = ATLETAS.map(function (a, i) { return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>'; }).join('');
-    var mods = []; ATLETAS.forEach(function (a) { if (mods.indexOf(a.m) < 0) mods.push(a.m); });
-    mods.sort(function (x, y) { return x.localeCompare(y, 'pt'); });
-    if (mods.indexOf(cal.mod) < 0) cal.mod = '';
-    $('#cal-m').innerHTML = '<option value="">Todas as modalidades</option>' + mods.map(function (m) { return '<option value="' + esc(m) + '"' + (m === cal.mod ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('');
-    $('#cal-mw').hidden = mods.length < 2;
+    cal.mod = FMOD;
     calAtl();
     $('#c-a').innerHTML = opts;
     var nx = COMP.filter(function (c) { return c.i >= TODAY_I; }).sort(function (x, y) { return x.i - y.i; })[0];
@@ -1676,7 +1693,6 @@ table.rt { min-width: 0; font-size: .85rem; }
     }
     renderCal(); renderCalDet(); renderUp();
   }
-  $('#cal-m').addEventListener('change', function () { cal.mod = this.value; calAtl(); cal.sel = null; renderCal(); renderCalDet(); renderUp(); });
   $('#cal-a').addEventListener('change', function () { cal.a = this.value; renderCal(); renderCalDet(); renderUp(); });
   $('#cal-prev').addEventListener('click', function () { cal.m--; if (cal.m < 0) { cal.m = 11; cal.y--; } renderCal(); });
   $('#cal-next').addEventListener('click', function () { cal.m++; if (cal.m > 11) { cal.m = 0; cal.y++; } renderCal(); });
@@ -1714,6 +1730,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   function sgn(d) { return (d >= 0 ? '+' : '−') + num(Math.abs(d)); }
   function initReport() {
     $('#rep-list').innerHTML = ATLETAS.map(function (a, i) {
+      if (FMOD && a.m !== FMOD) return '';
       return '<label class="check"><input type="checkbox" data-ra="' + i + '"' + (a.g === 'atleta' ? ' checked' : '') + '>' + esc(a.n) + ' · ' + esc(a.m) + '</label>';
     }).join('');
   }
@@ -2610,35 +2627,12 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (k != null && !isNaN(i)) COMP.push({ id: c.id, a: k, i: i, n: c.nome, l: c.local || '' });
     });
   }
-  function tFiltroMod() {
-    var f = $('#f-atleta'), fld = f && f.parentNode, m = $('#f-mod');
-    if (!fld) return;
-    if (!m) {
-      var w = document.createElement('div'); w.className = 'field';
-      w.innerHTML = '<label for="f-mod">Modalidade</label><select id="f-mod" class="sel"></select>';
-      fld.parentNode.insertBefore(w, fld); m = w.querySelector('select');
-      m.addEventListener('change', function () {
-        var v = m.value, first = -1;
-        $('#f-atleta').innerHTML = ATLETAS.map(function (a, i) {
-          if (v && a.m !== v) return '';
-          if (first < 0) first = i;
-          return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>';
-        }).join('');
-        if (first >= 0) { $('#f-atleta').value = String(first); $('#f-atleta').dispatchEvent(new Event('change')); }
-      });
-    }
-    var ms = []; ATLETAS.forEach(function (a) { if (ms.indexOf(a.m) < 0) ms.push(a.m); });
-    ms.sort(function (x, y) { return x.localeCompare(y, 'pt'); });
-    m.innerHTML = '<option value="">Todas</option>' + ms.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('');
-    m.parentNode.hidden = ms.length < 2;
-  }
   function refreshTrainerUI() {
     range = { i0: 0, i1: TODAY_I, preset: 'epoca' };
     $('#d-de').min = $('#d-ate').min = toISO(0);
     $('#d-de').max = $('#d-ate').max = toISO(TODAY_I);
     var opts = ATLETAS.map(function (a, i) { return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>'; }).join('');
-    $('#f-atleta').innerHTML = opts;
-    tFiltroMod();
+    fillAtl();
     $('#imp-list').innerHTML = ATLETAS.map(function (a, i) { return '<label class="check"><input type="checkbox" data-ia="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</label>'; }).join('');
     sel = 0; filtro = 'todos';
     var h = localISO(), d = new Date(h + 'T00:00:00Z');
@@ -2782,6 +2776,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var nm = {}; ATLETAS.forEach(function (a) { nm[a.id] = a; });
     var grupos = {};
     WODD.res.forEach(function (x) {
+      if (FMOD && !(nm[x.atleta_id] && nm[x.atleta_id].m === FMOD)) return;
       var c = cfg[x.treino_id + '|' + x.bloco] || {}, nome = (c.nome || '').trim(), k = nome ? nome.toLowerCase() + '|' + x.formato : '(sem nome)|' + x.formato;
       (grupos[k] = grupos[k] || { nome: nome || '(sem nome)', formato: x.formato, rows: [], desc: c }).rows.push(x);
     });
@@ -2824,7 +2819,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     function dots(arr) {
       return '<span class="sdots">' + arr.map(function (v, k) { return '<span class="sd' + (v ? ' ok' : '') + (idxs[k] > hI ? ' fut' : '') + (idxs[k] === hI ? ' hoje' : '') + '"></span>'; }).join('') + '</span>';
     }
-    var lista = ATLETAS.slice().sort(function (x, y) { return (x.m + x.n).localeCompare(y.m + y.n, 'pt'); });
+    var lista = ATLETAS.slice().filter(function (x) { return !FMOD || x.m === FMOD; }).sort(function (x, y) { return (x.m + x.n).localeCompare(y.m + y.n, 'pt'); });
     var faltaW = [];
     var rows = lista.map(function (a) {
       var w = idxs.map(function (i) { return a.rec[i] && a.rec[i].w ? 1 : 0; });
