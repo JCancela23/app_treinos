@@ -479,8 +479,12 @@ table.rt { min-width: 0; font-size: .85rem; }
         <h2>Calendário de competições</h2>
         <span class="kicker">Por atleta</span>
       </header>
+      <div class="field" id="cal-mw">
+        <label for="cal-m">Modalidade</label>
+        <select id="cal-m" class="sel"></select>
+      </div>
       <div class="field">
-        <label for="cal-a">Mostrar</label>
+        <label for="cal-a">Atleta</label>
         <select id="cal-a" class="sel"></select>
       </div>
       <div class="calh">
@@ -1608,13 +1612,14 @@ table.rt { min-width: 0; font-size: .85rem; }
 
   /* ---------- calendário de competições ---------- */
   var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-  var cal = { y: 2026, m: 9, a: 'all', sel: null };
+  var cal = { y: 2026, m: 9, a: 'all', mod: '', sel: null };
+  function calOk(c) { return (cal.a === 'all' || c.a === +cal.a) && (!cal.mod || ATLETAS[c.a].m === cal.mod); }
   function ini(n) {
     var p = n.replace('.', '').split(' ');
     return (p[0].charAt(0) + (p[1] ? p[1].charAt(0) : '')).toUpperCase();
   }
   function compsOn(i) {
-    return COMP.filter(function (c) { return c.i === i && (cal.a === 'all' || c.a === +cal.a); });
+    return COMP.filter(function (c) { return c.i === i && calOk(c); });
   }
   function dayName(i) { return DAYS[dow(i)] + ', ' + fmtDate(i); }
   function renderCal() {
@@ -1642,16 +1647,26 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
   function renderUp() {
     var list = COMP.filter(function (c) {
-      return c.i >= TODAY_I && c.i <= TODAY_I + 30 && (cal.a === 'all' || c.a === +cal.a);
+      return c.i >= TODAY_I && c.i <= TODAY_I + 30 && calOk(c);
     }).sort(function (x, y) { return x.i - y.i; });
     $('#cal-up').innerHTML = list.length ? list.map(function (c) {
       var n = c.i - TODAY_I;
       return '<div class="ci"><div><b>' + esc(ATLETAS[c.a].n) + '</b><small>' + esc(c.n) + (c.l ? ' · ' + esc(c.l) : '') + '</small></div><div class="when">' + fmtDate(c.i) + '<small>' + (n === 0 ? 'hoje' : n === 1 ? 'amanhã' : 'em ' + n + ' dias') + '</small></div></div>';
     }).join('') : '<p class="note">Sem competições nos próximos 30 dias.</p>';
   }
+  function calAtl() {
+    var o = ATLETAS.map(function (a, i) { return (!cal.mod || a.m === cal.mod) ? '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>' : ''; }).join('');
+    $('#cal-a').innerHTML = '<option value="all">' + (cal.mod ? 'Todos de ' + esc(cal.mod) : 'Todos os atletas') + '</option>' + o;
+    cal.a = 'all';
+  }
   function initCal() {
     var opts = ATLETAS.map(function (a, i) { return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>'; }).join('');
-    $('#cal-a').innerHTML = '<option value="all">Todos os atletas</option>' + opts;
+    var mods = []; ATLETAS.forEach(function (a) { if (mods.indexOf(a.m) < 0) mods.push(a.m); });
+    mods.sort(function (x, y) { return x.localeCompare(y, 'pt'); });
+    if (mods.indexOf(cal.mod) < 0) cal.mod = '';
+    $('#cal-m').innerHTML = '<option value="">Todas as modalidades</option>' + mods.map(function (m) { return '<option value="' + esc(m) + '"' + (m === cal.mod ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('');
+    $('#cal-mw').hidden = mods.length < 2;
+    calAtl();
     $('#c-a').innerHTML = opts;
     var nx = COMP.filter(function (c) { return c.i >= TODAY_I; }).sort(function (x, y) { return x.i - y.i; })[0];
     if (nx) {
@@ -1661,6 +1676,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     }
     renderCal(); renderCalDet(); renderUp();
   }
+  $('#cal-m').addEventListener('change', function () { cal.mod = this.value; calAtl(); cal.sel = null; renderCal(); renderCalDet(); renderUp(); });
   $('#cal-a').addEventListener('change', function () { cal.a = this.value; renderCal(); renderCalDet(); renderUp(); });
   $('#cal-prev').addEventListener('click', function () { cal.m--; if (cal.m < 0) { cal.m = 11; cal.y--; } renderCal(); });
   $('#cal-next').addEventListener('click', function () { cal.m++; if (cal.m > 11) { cal.m = 0; cal.y++; } renderCal(); });
@@ -3485,7 +3501,8 @@ table.rt { min-width: 0; font-size: .85rem; }
             var lig = pos > 0 && !!o.it.lig, nxt = its[pos + 1], ult = !(nxt && nxt.it.lig);
             return '<div class="gitem' + (lig ? ' gin' : '') + '"><div class="gname"><b>' + esc(o.it.ex) + '</b>' + (lig ? '<small> · no mesmo grupo que o anterior (as voltas são as do primeiro)</small>' : '') + '</div><div class="gctl">' +
               (lig ? '' : '<label class="gn">' + ((nxt && nxt.it.lig) ? 'Voltas' : 'Séries') + '<input inputmode="numeric" data-f="series" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.series) + '"></label>') +
-              '<label class="gn">Reps / s<input data-f="reps" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.reps) + '"></label>' +
+              '<label class="gn">Quantidade<input data-f="reps" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.reps) + '"></label>' +
+              '<label class="gn">Em<select data-f="unid" data-d="' + i + '" data-k="' + o.k + '">' + [['', 'reps'], ['s', 'segundos'], ['m', 'metros'], ['km', 'km'], ['cal', 'calorias']].map(function (u) { return '<option value="' + u[0] + '"' + ((o.it.unid || '') === u[0] ? ' selected' : '') + '>' + u[1] + '</option>'; }).join('') + '</select></label>' +
  (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
               (pos > 0 ? '<button class="chip" data-act="lig" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + lig + '">Com o anterior</button>' : '') +
               '<label class="gn">O que o atleta regista<select data-f="mreg" data-d="' + i + '" data-k="' + o.k + '"><option value=""' + (!o.it.mreg ? ' selected' : '') + '>Por defeito (' + esc(gRegLabel(reg)) + ')</option>' +
@@ -3511,7 +3528,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   function gAddItem(d, bloco, nome) {
     var ex = gExByName(nome);
     if (!ex) { gMsg('g-msg-plano', '"' + nome + '" não está na biblioteca. Cria-o primeiro no separador Exercícios.', true); return false; }
-    G.plan[d].itens.push({ bloco: bloco, ex: ex.nome, series: '3', reps: '', pede: ex.registo !== 'feito', mreg: '', lig: false, desc: '', nota: '' });
+    G.plan[d].itens.push({ bloco: bloco, ex: ex.nome, series: '3', reps: '', unid: '', pede: ex.registo !== 'feito', mreg: '', lig: false, desc: '', nota: '' });
     return true;
   }
   function gLoadPlan() {
@@ -3535,7 +3552,8 @@ table.rt { min-width: 0; font-size: .85rem; }
           var ex = Array.isArray(it.exercicios) ? it.exercicios[0] : it.exercicios;
           if (!ex) return;
           var arr = plan[i].itens, pv = arr.length ? arr[arr.length - 1] : null;
-          plan[i].itens.push({ bloco: it.bloco, ex: ex.nome, series: String(it.series), reps: it.reps || '', pede: !!it.pede_registo, mreg: it.registo || (it.pede_registo ? '' : 'feito'),
+          var um = /^\s*(\d+(?:[.,]\d+)?)\s*(km|m|cal|s)\s*$/i.exec(it.reps || '');
+          plan[i].itens.push({ bloco: it.bloco, ex: ex.nome, series: String(it.series), reps: um ? um[1] : (it.reps || ''), unid: um ? um[2].toLowerCase() : '', pede: !!it.pede_registo, mreg: it.registo || (it.pede_registo ? '' : 'feito'),
             lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', nota: it.nota || '' }); n++;
         });
       });
@@ -3568,7 +3586,7 @@ table.rt { min-width: 0; font-size: .85rem; }
           var lig = pos > 0 && !!it.lig, nxt = bi[pos + 1], ult = !(nxt && nxt.lig), grupo = null;
           if (lig) { grupo = cur; } else if (nxt && nxt.lig) { grupo = cur = ++gn; ser = String(parseInt(it.series, 10) || 3); } else { cur = null; ser = null; }
           var sr = lig ? ser : String(parseInt(it.series, 10) || 3), ds = parseInt(it.desc, 10);
-          linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: sr, reps: String(it.reps || '').trim(), pede_registo: gPede(it), registo_item: it.mreg || '',
+          linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: sr, reps: (String(it.reps || '').trim() + (it.unid && String(it.reps || '').trim() ? ' ' + it.unid : '')), pede_registo: gPede(it), registo_item: it.mreg || '',
             grupo: grupo, descanso_s: ult && ds > 0 ? ds : null, nota_item: String(it.nota || '').trim() });
         });
       });
