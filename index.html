@@ -3611,13 +3611,14 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (G.tesM && gps.indexOf(G.tesM) < 0) G.tesM = '';
     var lista = elig.filter(function (a) { return G.tesM && gl(a) === G.tesM; });
     if (G.tesA && !lista.some(function (a) { return a.id === G.tesA; })) G.tesA = '';
-    var h = '<div class="gbox"><p class="kicker">Testes e benchmarks</p><p class="small">Online training e presencial: testes por categoria (RMs, saltos, tempos de prova, etc.). Atletas das modalidades: perfil carga-velocidade. Usa sempre o mesmo nome para o mesmo teste, é assim que se constrói a evolução.</p>' +
+    var h = '<div class="gbox"><p class="kicker">Testes e benchmarks</p><p class="small">Testes por categoria (RMs, saltos, tempos de prova, etc.) para qualquer atleta, com a data em que foram feitos, incluindo testes antigos do início da época. Os atletas das modalidades têm também o perfil carga-velocidade. Usa sempre o mesmo nome para o mesmo teste, é assim que se constrói a evolução.</p>' +
       (G.tesErr ? '<p class="err">' + esc(G.tesErr) + '</p>' : '') +
       '<p class="small" style="margin-bottom:4px">1 · Escolhe a modalidade ou o grupo</p><div class="chips">' + gps.map(function (m) { return '<button class="chip" data-act="tes-grp" data-m="' + esc(m) + '" aria-pressed="' + (G.tesM === m) + '">' + esc(m) + '</button>'; }).join('') + '</div>' +
       (G.tesM ? '<div class="field" style="margin-top:8px"><label for="gt-atl">2 · Escolhe o atleta (' + lista.length + ')</label><select class="sel" id="gt-atl"><option value="">Escolhe…</option>' + lista.map(function (a) { return '<option value="' + a.id + '"' + (a.id === G.tesA ? ' selected' : '') + '>' + esc(a.nome) + '</option>'; }).join('') + '</select></div>' : '');
     if (!elig.length) h += '<p class="note">Ainda não tens atletas.</p>';
     var at = G.tesA && gAtlById(G.tesA);
-    if (at && at.grupo === 'atleta') h += gFvHtml();
+    if (at && at.grupo === 'atleta') h += '<div class="chips" style="margin-top:8px"><button class="chip" data-act="tes-mode" data-m="teste" aria-pressed="' + (G.tesMode !== 'fv') + '">Testes</button><button class="chip" data-act="tes-mode" data-m="fv" aria-pressed="' + (G.tesMode === 'fv') + '">Perfil carga-velocidade</button></div>';
+    if (at && at.grupo === 'atleta' && G.tesMode === 'fv') h += gFvHtml();
     else if (at) {
       var nomes = []; (G.tes || []).forEach(function (x) { if (nomes.indexOf(x.nome) < 0) nomes.push(x.nome); });
       GTS.forEach(function (x) { if (nomes.indexOf(x) < 0) nomes.push(x); });
@@ -3975,6 +3976,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     else if (a === 'pv-grp') { PV.grp = b.getAttribute('data-m'); PV.aid = ''; gRenderPlanos(); if (!PV.d) gPvLoad(); }
     else if (a === 'pv-open') { PV.aid = id; gRenderPlanos(); }
     else if (a === 'pv-edit') gPvEdit(id, b.getAttribute('data-d'));
+    else if (a === 'tes-mode') { G.tesMode = b.getAttribute('data-m'); gRenderTes(); }
     else if (a === 'tes-grp') { G.tesM = b.getAttribute('data-m'); G.tesA = ''; gRenderTes(); }
     else if (a === 'tes-add') gTesAdd();
     else if (a === 'fv-add') gFvAdd();
