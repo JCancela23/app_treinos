@@ -448,12 +448,14 @@ table.rt { min-width: 0; font-size: .85rem; }
         <span class="kicker">Atletas · Exercícios · Treinos</span>
       </header>
       <div class="chips" id="g-tabs" role="group" aria-label="Gestão">
+        <button class="chip" data-g="planos" aria-pressed="false">Ver planos</button>
         <button class="chip" data-g="plano" aria-pressed="true">Planear semana</button>
         <button class="chip" data-g="atletas" aria-pressed="false">Atletas</button>
         <button class="chip" data-g="exercicios" aria-pressed="false">Exercícios</button>
         <button class="chip" data-g="registar" aria-pressed="false">Registar sessão</button>
         <button class="chip" data-g="testes" aria-pressed="false">Testes</button>
       </div>
+      <div id="g-planos" style="display:grid;gap:12px" hidden></div>
       <div id="g-plano" style="display:grid;gap:14px"></div>
       <div id="g-atletas" style="display:grid;gap:12px" hidden></div>
       <div id="g-exercicios" style="display:grid;gap:12px" hidden></div>
@@ -3083,12 +3085,13 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
 
   function gRender() {
-    ['plano', 'atletas', 'exercicios', 'registar', 'testes'].forEach(function (t) {
+    ['planos', 'plano', 'atletas', 'exercicios', 'registar', 'testes'].forEach(function (t) {
       $('#g-' + t).hidden = G.tab !== t;
       var b = document.querySelector('#g-tabs [data-g="' + t + '"]');
       if (b) b.setAttribute('aria-pressed', G.tab === t ? 'true' : 'false');
     });
-    if (G.tab === 'plano') gRenderPlano();
+    if (G.tab === 'planos') gPvLoad();
+    else if (G.tab === 'plano') gRenderPlano();
     else if (G.tab === 'atletas') gRenderAtl();
     else if (G.tab === 'registar') gRenderReg();
     else if (G.tab === 'testes') gTesLoad();
@@ -3395,6 +3398,108 @@ table.rt { min-width: 0; font-size: .85rem; }
       return nw === 4 ? tReq('/rest/v1/wellness?on_conflict=atleta_id,data', { method: 'POST', body: { atleta_id: GR.aid, data: GR.data, sono: +W[0], stress: +W[1], fadiga: +W[2], dor: +W[3] }, headers: H }) : null;
     }).then(function () { return carregar(); }).then(function () { return gRegLoad(); }).then(function () { gMsg('g-msg-reg', 'Guardado para ' + atl.nome + ' (' + gFmtD(GR.data) + ').'); }).catch(function (e) { gMsg('g-msg-reg', gFail(e), true); });
   }
+
+
+  /* ---------- ver planos (consulta) e editar o que ainda não foi feito ---------- */
+  var PV = { grp: '', aid: '', mon: '', d: null, err: '' };
+  function pvGl(a) { return a.grupo === 'pt' ? 'Online training' : a.grupo === 'presencial' ? 'Presencial' : a.modalidade; }
+  function gPvLoad() {
+    if (!PV.mon) PV.mon = gMon(localISO());
+    var mon = PV.mon, end = isoAdd(mon, 6);
+    PV.d = null; gRenderPlanos();
+    return Promise.all([
+      tGet('treinos', 'data=gte.' + mon + '&data=lte.' + end + '&select=id,atleta_id,data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(id,bloco,ordem,series,reps,circuito,grupo,exercicios(nome))&order=data&treino_itens.order=ordem'),
+      tGet('sessoes', 'data=gte.' + isoAdd(mon, -7) + '&select=atleta_id,treino_id,data,pse').catch(function () { return []; }),
+      tGet('faltas', 'select=treino_id,motivo').catch(function () { return []; }),
+      tGet('registos_serie', 'data=gte.' + isoAdd(mon, -7) + '&select=data,item:treino_itens(treino_id)').catch(function () { return []; }),
+      tGet('resultados_bloco', 'select=treino_id,data').catch(function () { return []; })
+    ]).then(function (r) {
+      var feito = {}, falta = {};
+      (r[1] || []).forEach(function (x) { if (x.treino_id) feito[x.treino_id] = x.data; });
+      (r[3] || []).forEach(function (x) { var it = Array.isArray(x.item) ? x.item[0] : x.item; if (it && it.treino_id && !feito[it.treino_id]) feito[it.treino_id] = x.data; });
+      (r[4] || []).forEach(function (x) { if (x.treino_id && !feito[x.treino_id]) feito[x.treino_id] = x.data; });
+      (r[2] || []).forEach(function (x) { if (x.treino_id) falta[x.treino_id] = x.motivo; });
+      PV.d = { t: r[0] || [], feito: feito, falta: falta }; PV.err = '';
+      gRenderPlanos();
+    }).catch(function (e) { PV.d = { t: [], feito: {}, falta: {} }; PV.err = gFail(e); gRenderPlanos(); });
+  }
+  function pvStatus(t) {
+    if (t.tipo !== 'gym') return { k: t.tipo, txt: t.tipo === 'rest' ? 'Descanso' : 'Água', edit: false };
+    if (PV.d.falta[t.id] != null) return { k: 'falta', txt: 'Não treinou (' + (PV.d.falta[t.id] === 'lesao' ? 'lesão' : PV.d.falta[t.id]) + ')', edit: false, sym: '✗' };
+    if (PV.d.feito[t.id]) return { k: 'feito', txt: 'Feito a ' + gFmtD(PV.d.feito[t.id]), edit: false, sym: '✓' };
+    return { k: 'pend', txt: 'Por fazer', edit: true, sym: '○' };
+  }
+  function pvDayHtml(t) {
+    var h = '';
+    GBL.forEach(function (b) {
+      var its = (t.treino_itens || []).filter(function (it) { return it.bloco === b[0]; }).sort(function (x, y) { return x.ordem - y.ordem; });
+      if (!its.length) return;
+      var cfg = {}; (t.treino_blocos || []).forEach(function (c) { cfg[c.bloco] = c; });
+      var line = function (it) { var ex = Array.isArray(it.exercicios) ? it.exercicios[0] : it.exercicios; return '<div class="small">• ' + esc(ex ? ex.nome : '?') + ' · ' + it.series + (it.reps ? ' × ' + esc(it.reps) : (it.grupo != null ? ' voltas' : ' séries')) + '</div>'; };
+      h += '<p class="small" style="margin-top:6px"><b>' + esc(b[1]) + '</b></p>';
+      if (cfg[b[0]]) h += '<div class="wodhead"><b>' + esc(wodTitle(cfg[b[0]])) + '</b>' + (cfg[b[0]].nome ? '<span class="wodname">' + esc(cfg[b[0]].nome) + '</span>' : '') + '</div>';
+      var cs = []; its.forEach(function (it) { var c = it.circuito || 0; if (cs.indexOf(c) < 0) cs.push(c); });
+      cs.sort(function (p, q) { return p - q; }).forEach(function (c) {
+        if (c) { var cf = cfg[b[0] + '#' + c]; h += '<div class="wodhead"><b>Circuito ' + c + (cf ? ' · ' + esc(wodTitle(cf)) : '') + '</b>' + (cf && cf.nome ? '<span class="wodname">' + esc(cf.nome) + '</span>' : '') + (cf && cf.descricao ? '<p class="small">' + esc(cf.descricao) + '</p>' : '') + '</div>'; }
+        h += its.filter(function (it) { return (it.circuito || 0) === c; }).map(line).join('');
+      });
+    });
+    return h || '<p class="small">Sem exercícios.</p>';
+  }
+  function gRenderPlanos() {
+    var el = $('#g-planos'); if (!el) return;
+    var ativos = G.atl.filter(function (a) { return a.ativo !== false; });
+    var gps = []; ativos.forEach(function (a) { if (gps.indexOf(pvGl(a)) < 0) gps.push(pvGl(a)); });
+    var ord = ['Online training', 'Presencial']; gps.sort(function (x, y) { var ix = ord.indexOf(x), iy = ord.indexOf(y); return (ix < 0 ? 9 : ix) - (iy < 0 ? 9 : iy) || x.localeCompare(y, 'pt'); });
+    if (PV.grp && gps.indexOf(PV.grp) < 0) PV.grp = '';
+    var lista = ativos.filter(function (a) { return PV.grp && pvGl(a) === PV.grp; }).sort(function (x, y) { return x.nome.localeCompare(y.nome, 'pt'); });
+    if (PV.aid && PV.aid !== 'todos' && !lista.some(function (a) { return a.id === PV.aid; })) PV.aid = '';
+    var mon = PV.mon || gMon(localISO());
+    var h = '<div class="gbox"><p class="kicker">Ver planos</p><p class="small">Consulta o que está planeado. Os dias que ainda não foram feitos podem ser editados (por exemplo para trocar um exercício); os que já têm registos ficam só para ver.</p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><button class="chip" style="width:auto" data-act="pv-prev" aria-label="Semana anterior">‹</button><b>Semana de ' + gFmt(mon) + ' a ' + gFmt(isoAdd(mon, 6)) + '</b><button class="chip" style="width:auto" data-act="pv-next" aria-label="Semana seguinte">›</button><button class="chip" style="width:auto" data-act="pv-hoje">Esta semana</button></div>' +
+      '<p class="small" style="margin-bottom:4px">1 · Modalidade ou grupo</p><div class="chips">' + gps.map(function (m) { return '<button class="chip" data-act="pv-grp" data-m="' + esc(m) + '" aria-pressed="' + (PV.grp === m) + '">' + esc(m) + '</button>'; }).join('') + '</div>' +
+      (PV.grp ? '<div class="field" style="margin-top:8px"><label for="pv-atl">2 · Atleta</label><select class="sel" id="pv-atl"><option value="">Escolhe…</option><option value="todos"' + (PV.aid === 'todos' ? ' selected' : '') + '>Todos de ' + esc(PV.grp) + ' (resumo da semana)</option>' + lista.map(function (a) { return '<option value="' + a.id + '"' + (a.id === PV.aid ? ' selected' : '') + '>' + esc(a.nome) + '</option>'; }).join('') + '</select></div>' : '') +
+      (PV.err ? '<p class="err">' + esc(PV.err) + '</p>' : '');
+    if (PV.grp && PV.aid && !PV.d) h += '<p class="small">A carregar…</p>';
+    else if (PV.grp && PV.aid === 'todos') {
+      var DL = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+      h += '<div class="scroll"><table class="rt"><thead><tr><th>Atleta</th>' + DL.map(function (d, i) { return '<th>' + d + ' ' + isoAdd(mon, i).slice(8) + '</th>'; }).join('') + '</tr></thead><tbody>' + lista.map(function (a) {
+        return '<tr><td><button class="chip" data-act="pv-open" data-id="' + a.id + '">' + esc(a.nome) + '</button></td>' + DL.map(function (d, i) {
+          var t = PV.d.t.filter(function (x) { return x.atleta_id === a.id && x.data === isoAdd(mon, i); })[0];
+          if (!t) return '<td><small>·</small></td>';
+          var s = pvStatus(t);
+          return '<td><small>' + (t.tipo === 'gym' ? esc((t.nome || 'Treino').slice(0, 14)) + ' <b' + (s.k === 'falta' ? ' class="err"' : '') + '>' + s.sym + '</b>' : s.txt) + '</small></td>';
+        }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div><p class="small">✓ feito · ○ por fazer · ✗ não treinou · · sem treino planeado. Toca no nome para ver e editar.</p>';
+    } else if (PV.grp && PV.aid) {
+      var atl = gAtlById(PV.aid);
+      h += '<div class="chips"><button class="primary" data-act="pv-edit" data-id="' + PV.aid + '" style="padding:8px 16px">Editar a semana</button></div>';
+      for (var i = 0; i < 7; i++) {
+        var iso = isoAdd(mon, i), t2 = PV.d.t.filter(function (x) { return x.atleta_id === PV.aid && x.data === iso; })[0];
+        h += '<div class="gbox"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>' + DIASL[i] + ' · ' + gFmt(iso) + (t2 && t2.tipo === 'gym' ? ' · ' + esc(t2.nome || 'Treino') : '') + '</b>';
+        if (!t2) h += '</div><p class="small">Sem treino planeado.</p></div>';
+        else {
+          var st = pvStatus(t2);
+          h += '<span class="small"' + (st.k === 'falta' ? ' style="color:#b3261e"' : '') + '>' + esc(st.txt) + '</span></div>' + (t2.tipo === 'gym' ? pvDayHtml(t2) : '') +
+            (st.edit ? '<div class="chips" style="margin-top:6px"><button class="chip" data-act="pv-edit" data-id="' + PV.aid + '" data-d="' + iso + '">Editar este dia</button></div>' : (t2.tipo === 'gym' ? '<p class="small">Já tem registos: não pode ser alterado.</p>' : '')) + '</div>';
+        }
+      }
+    }
+    el.innerHTML = h + '</div>';
+  }
+  function gPvEdit(aid, onlyIso) {
+    var a = gAtlById(aid); if (!a) return;
+    var mon = PV.mon || gMon(localISO());
+    gFetchPlan(aid, mon).then(function (r) {
+      if (onlyIso) { var k = isoDow(onlyIso); r.plan.forEach(function (d, i) { if (i !== k) { d.tipo = 'none'; d.nome = ''; d.itens = []; d.circ = {}; } }); }
+      G.plan = r.plan; G.planMod = a.modalidade; G.sel = {}; G.sel[aid] = true; G.semana = mon; G.srcAtl = aid; G.srcSem = mon;
+      G.tab = 'plano'; gRender(); window.scrollTo(0, 0);
+      gMsg('g-msg-plano', (onlyIso ? 'A editar ' + gFmt(onlyIso) + ' de ' + a.nome + '. Os outros dias ficam como estão.' : 'A editar a semana de ' + a.nome + '. Os dias que já têm registos não são alterados.') + ' Altera o que precisas e toca em "Guardar plano".');
+    }).catch(function (e) { PV.err = gFail(e); gRenderPlanos(); });
+  }
+  $('#g-planos').addEventListener('change', function (e) {
+    if (e.target.id === 'pv-atl') { PV.aid = e.target.value; gRenderPlanos(); }
+  });
 
   /* ---------- testes e benchmarks (online training e presencial) ---------- */
   var GTU = [['kg', 'kg'], ['cm', 'cm'], ['m', 'm'], ['tempo', 'tempo (mm:ss)'], ['reps', 'reps'], ['cal', 'calorias'], ['w', 'watts'], ['outro', 'outro']];
@@ -3741,13 +3846,8 @@ table.rt { min-width: 0; font-size: .85rem; }
     G.plan[d].itens.push({ bloco: bloco, c: c || 0, ex: ex.nome, series: '3', reps: '', unid: '', pede: ex.registo !== 'feito', mreg: '', lig: false, desc: '', nota: '' });
     return true;
   }
-  function gLoadPlan() {
-    var aid = $('#g-src-a').value, sem = $('#g-src-s').value;
-    if (!aid || !/^\d{4}-\d{2}-\d{2}$/.test(sem)) { gMsg('g-msg-src', 'Escolhe o atleta e a semana.', true); return; }
-    G.srcAtl = aid; G.srcSem = sem;
-    var mon = gMon(sem);
-    gMsg('g-msg-src', 'A carregar…');
-    tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(aid) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
+  function gFetchPlan(aid, mon) {
+    return tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(aid) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
       '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(bloco,ordem,series,reps,pede_registo,registo,grupo,circuito,descanso_s,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
       var plan = gNewPlan(), n = 0;
       rows.forEach(function (t) {
@@ -3776,9 +3876,19 @@ table.rt { min-width: 0; font-size: .85rem; }
           plan[i].itens.forEach(function (it) { if (it.bloco === lb) it.c = 1; });
         });
       });
-      if (!rows.length) { gMsg('g-msg-src', 'Esse atleta não tem treinos nessa semana.', true); return; }
-      G.plan = plan; gRenderPlano();
-      gMsg('g-msg-plano', 'Plano carregado (' + n + ' exercícios). Ajusta o que quiseres e guarda para os atletas e a semana escolhidos acima.');
+      return { plan: plan, n: n, rows: rows };
+    });
+  }
+  function gLoadPlan() {
+    var aid = $('#g-src-a').value, sem = $('#g-src-s').value;
+    if (!aid || !/^\d{4}-\d{2}-\d{2}$/.test(sem)) { gMsg('g-msg-src', 'Escolhe o atleta e a semana.', true); return; }
+    G.srcAtl = aid; G.srcSem = sem;
+    var mon = gMon(sem);
+    gMsg('g-msg-src', 'A carregar…');
+    gFetchPlan(aid, mon).then(function (r) {
+      if (!r.rows.length) { gMsg('g-msg-src', 'Esse atleta não tem treinos nessa semana.', true); return; }
+      G.plan = r.plan; gRenderPlano();
+      gMsg('g-msg-plano', 'Plano carregado (' + r.n + ' exercícios). Ajusta o que quiseres e guarda para os atletas e a semana escolhidos acima.');
     }).catch(function (e) { gMsg('g-msg-src', gFail(e), true); });
   }
   function gSavePlan() {
@@ -3859,6 +3969,12 @@ table.rt { min-width: 0; font-size: .85rem; }
     else if (a === 'pag-add') gPagAdd(id);
     else if (a === 'reg-save') gRegSave();
     else if (a === 'wod-save') gWodSave(b);
+    else if (a === 'pv-prev') { PV.mon = isoAdd(PV.mon || gMon(localISO()), -7); gPvLoad(); }
+    else if (a === 'pv-next') { PV.mon = isoAdd(PV.mon || gMon(localISO()), 7); gPvLoad(); }
+    else if (a === 'pv-hoje') { PV.mon = gMon(localISO()); gPvLoad(); }
+    else if (a === 'pv-grp') { PV.grp = b.getAttribute('data-m'); PV.aid = ''; gRenderPlanos(); if (!PV.d) gPvLoad(); }
+    else if (a === 'pv-open') { PV.aid = id; gRenderPlanos(); }
+    else if (a === 'pv-edit') gPvEdit(id, b.getAttribute('data-d'));
     else if (a === 'tes-grp') { G.tesM = b.getAttribute('data-m'); G.tesA = ''; gRenderTes(); }
     else if (a === 'tes-add') gTesAdd();
     else if (a === 'fv-add') gFvAdd();
