@@ -288,6 +288,11 @@ table.rt { min-width: 0; font-size: .85rem; }
 .wodres{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;margin-top:8px}
 .wodrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .wodrow[hidden]{display:none}
+
+.tes-box { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.tes-rk { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.tes-rk li { display: grid; grid-template-columns: 2.2em 1fr auto; gap: 8px; padding: 5px 8px; border-radius: 8px; }
+.tes-rk li.eu { background: var(--accent-soft, rgba(80,120,255,.14)); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -330,7 +335,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     </div>
 
     <div class="wrap" style="padding:0" id="atleta-app" hidden>
-      <div class="bar"><b id="ola"></b><span class="chips"><button class="chip" id="pin-alt">Alterar PIN</button><button class="chip" id="sair">Sair</button></span></div>
+      <div class="bar"><b id="ola"></b><span class="chips"><button class="chip" id="tes-btn">Testes</button><button class="chip" id="pin-alt">Alterar PIN</button><button class="chip" id="sair">Sair</button></span></div>
 
       <div class="panel" id="pin-panel" hidden>
         <header><h2 id="pinp-t">Escolhe o teu PIN</h2><span class="kicker">PIN</span></header>
@@ -341,6 +346,8 @@ table.rt { min-width: 0; font-size: .85rem; }
         <button class="chip" id="pin-skip" type="button">Agora não</button>
         <p class="err" id="pin-err" role="alert"></p>
       </div>
+
+      <div class="panel" id="tes-panel" hidden><header><h2>Os meus testes</h2><span class="kicker">Ranking</span></header><div id="tes-body"></div></div>
 
       <div class="panel" id="gate">
         <header>
@@ -2214,6 +2221,49 @@ table.rt { min-width: 0; font-size: .85rem; }
         'Não foi possível guardar. Sai e entra outra vez.';
     }).catch(function (e) { $('#pin-save').disabled = false; er.textContent = netErr(e); });
   }
+
+  /* ---- Testes e ranking (atleta) ---- */
+  var TESD = null;
+  function tesFmt(v, u) {
+    if (v == null) return '';
+    if (u === 'tempo') { var s = Math.round(v), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + (m < 10 ? '0' : '') + m : m) + ':' + (x < 10 ? '0' : '') + x; }
+    return String(Math.round(v * 100) / 100).replace('.', ',') + (u && u !== 'outro' ? ' ' + u : '');
+  }
+  function tesDt(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+  function tesHtml(d) {
+    var h = '', meus = d.meus || [], rk = d.rankings || [];
+    if (!meus.length) return '<p class="small">Ainda não tens testes registados. O teu treinador vai adicioná-los.</p>';
+    var por = {}, ord = [];
+    meus.forEach(function (t) { var k = t.nome.toLowerCase().trim() + '|' + t.unidade; if (!por[k]) { por[k] = []; ord.push(k); } por[k].push(t); });
+    h += '<p class="small">' + (d.grupo_ranking ? 'Ranking: ' + esc(d.grupo_ranking) + '. Só vês atletas da tua modalidade e do mesmo género, com o primeiro nome e a inicial do apelido.' :
+      d.ranking_motivo === 'genero' ? 'O ranking ainda não está disponível: pede ao teu treinador para indicar o teu género.' :
+      d.ranking_motivo === 'desligado' ? 'Escolheste não aparecer nos rankings.' : '') + '</p>';
+    ord.forEach(function (k) {
+      var L = por[k], u = L[0].unidade, menos = L[0].melhor === 'menos';
+      var best = L.reduce(function (a, b) { return (menos ? b.valor < a.valor : b.valor > a.valor) ? b : a; });
+      var r = null; rk.forEach(function (x) { if (x.nome.toLowerCase().trim() + '|' + x.unidade === k) r = x; });
+      h += '<div class="tes-box"><b>' + esc(L[0].nome) + '</b> <span class="small">· melhor ' + esc(tesFmt(best.valor, u)) + '</span>';
+      h += '<div class="small">' + L.map(function (t) { return esc(tesDt(t.data)) + ': ' + esc(tesFmt(t.valor, u)); }).join(' · ') + '</div>';
+      if (r) {
+        h += '<ol class="tes-rk">' + r.top.map(function (e) { return '<li' + (e.eu ? ' class="eu"' : '') + '><span>' + e.pos + '.</span><span>' + esc(e.nome) + (e.eu ? ' (tu)' : '') + '</span><b>' + esc(tesFmt(e.valor, u)) + '</b></li>'; }).join('') + '</ol>';
+        if (r.minha_pos > 10) h += '<p class="small"><b>Tu: ' + r.minha_pos + '.º</b> de ' + r.total + ' (' + esc(tesFmt(r.meu_valor, u)) + ')</p>';
+      }
+      h += '</div>';
+    });
+    return h;
+  }
+  function tesAbrir() {
+    var p = $('#tes-panel');
+    if (!p.hidden) { p.hidden = true; return; }
+    p.hidden = false; $('#tes-body').innerHTML = '<p class="small">A carregar…</p>';
+    rpc('atleta_testes', { p_atleta: sess.id, p_pin: sess.pin }).then(function (d) {
+      if (!d || !d.ok) { $('#tes-body').innerHTML = '<p class="err">Não foi possível carregar. Sai e entra outra vez.</p>'; return; }
+      $('#tes-body').innerHTML = tesHtml(d);
+    }).catch(function (e) {
+      $('#tes-body').innerHTML = /404|PGRST202/.test(JSON.stringify(e && (e.body || e.text) || '') + (e && e.status)) ? '<p class="small">Esta função ainda não está ativa. O treinador tem de correr a parte 22 do SQL.</p>' : '<p class="err">' + esc(netErr(e)) + '</p>';
+    });
+  }
+  $('#tes-btn').addEventListener('click', function () { if (sess) tesAbrir(); });
   $('#pin-alt').addEventListener('click', function () { livePinPanel($('#pin-panel').hidden, false); if (!$('#pin-panel').hidden) $('#pin-n1').focus(); });
   $('#pin-save').addEventListener('click', liveSavePin);
   $('#pin-n2').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveSavePin(); });
@@ -3070,13 +3120,16 @@ table.rt { min-width: 0; font-size: .85rem; }
 
   function gLoad() {
     return Promise.all([
-      tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim&order=nome,id').catch(function () {
+      tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim,genero,ranking_visivel&order=nome,id').catch(function () {
+        return tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim&order=nome,id');
+      }).catch(function () {
         return tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente&order=nome,id');
       }),
       tGet('exercicios', 'select=id,nome,video_url,padrao,lateralidade,core_tipo,registo,nota&order=nome,id')
     ]).then(function (r) {
       G.atl = r[0] || []; G.ex = r[1] || [];
       G.hasFim = !G.atl.length || G.atl[0].hasOwnProperty('acesso_fim');
+      G.hasGen = !!G.atl.length && G.atl[0].hasOwnProperty('genero');
       if (!G.semana) G.semana = isoAdd(gMon(localISO()), 7);
       if (!G.srcSem) G.srcSem = gMon(localISO());
       if (!G.plan) G.plan = gNewPlan();
@@ -3127,6 +3180,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       gEspHtml('ga', null) +
       '<div class="inline"><div class="field"><label for="ga-grp">Grupo</label><select class="sel" id="ga-grp"><option value="atleta">Atleta</option><option value="pt">Online training</option><option value="presencial">Presencial (sem app)</option></select></div>' +
       '<div class="field"><label for="ga-pin">PIN (4 dígitos)</label><div class="f"><input id="ga-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar" type="button">Gerar</button></div></div></div>' +
+      (G.hasGen ? '<div class="field"><label for="ga-gen">Género (para os rankings)</label><select class="sel" id="ga-gen"><option value="">—</option><option value="M">Masculino</option><option value="F">Feminino</option></select></div>' : '') +
       '<button class="primary" data-act="atl-criar">Criar atleta</button><p class="small" id="g-msg-atl" role="status"></p></div>' +
       '<p class="kicker">' + G.atl.filter(function (a) { return a.ativo !== false; }).length + ' ativos</p>';
     var arq = G.atl.filter(function (a) { return a.ativo === false; });
@@ -3145,6 +3199,9 @@ table.rt { min-width: 0; font-size: .85rem; }
           '</select></div>' +
           '<div class="inline"><div class="field"><label for="ge-grp">Grupo</label><select class="sel" id="ge-grp"><option value="atleta"' + (a.grupo === 'atleta' ? ' selected' : '') + '>Atleta</option><option value="pt"' + (a.grupo === 'pt' ? ' selected' : '') + '>Online training</option><option value="presencial"' + (a.grupo === 'presencial' ? ' selected' : '') + '>Presencial (sem app)</option></select></div>' +
           '<div class="field"><label for="ge-pin">Novo PIN (opcional)</label><div class="f"><input id="ge-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar2" type="button">Gerar</button></div></div></div>' +
+          (G.hasGen ? '<div class="inline"><div class="field"><label for="ge-gen">Género (para os rankings)</label><select class="sel" id="ge-gen"><option value="">—</option><option value="M"' + (a.genero === 'M' ? ' selected' : '') + '>Masculino</option><option value="F"' + (a.genero === 'F' ? ' selected' : '') + '>Feminino</option></select></div>' +
+            '<div class="field"><label for="ge-rank">Rankings</label><select class="sel" id="ge-rank"><option value="1"' + (a.ranking_visivel !== false ? ' selected' : '') + '>Aparece nos rankings</option><option value="0"' + (a.ranking_visivel === false ? ' selected' : '') + '>Não aparece (escolha do atleta)</option></select></div></div>' +
+            '<p class="small">Os rankings de testes só existem para o grupo Atleta, por modalidade e por género. Sem género definido, o atleta não entra nem vê rankings.</p>' : '<p class="small">Para indicar o género e ativar rankings, corre primeiro o SQL da parte 22.</p>') +
           (G.hasFim ? '<div class="field"><label for="ge-fim">Acesso até (inclusive)</label><input class="dt" type="date" id="ge-fim" value="' + esc(a.acesso_fim || '') + '">' +
             '<div class="chips"><button class="chip" data-act="fim-add" data-n="1">Este mês</button><button class="chip" data-act="fim-add" data-n="3">3 meses</button><button class="chip" data-act="fim-add" data-n="6">6 meses</button><button class="chip" data-act="fim-add" data-n="12">12 meses</button>' +
             '<button class="chip" data-act="fim-bloq">Bloquear já</button><button class="chip" data-act="fim-sem">Sem limite</button></div>' +
@@ -3170,7 +3227,8 @@ table.rt { min-width: 0; font-size: .85rem; }
     tReq('/rest/v1/rpc/criar_atleta', { method: 'POST', body: { p_nome: nome, p_modalidade: mod, p_grupo: grp, p_pin: pin } }).then(function (r) {
       if (!r || !r.ok) { gMsg('g-msg-atl', ERRS_ATL[r && r.erro] || 'Não foi possível criar.', true); return; }
       var esp = gEspLer('ga');
-      return Promise.resolve(esp && (esp.d.length || esp.e.length) ? tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', body: { distancias: esp.d, estilos: esp.e } }) : null).then(function () { return carregar(); }).then(function () { gMsg('g-msg-atl', nome + ' criado. PIN provisório: ' + pin + '. Entrega-o ao atleta: na primeira entrada ele escolhe o seu próprio PIN.'); });
+      var gen = $('#ga-gen') ? $('#ga-gen').value : '', po = {}; if (esp && (esp.d.length || esp.e.length)) { po.distancias = esp.d; po.estilos = esp.e; } if (gen) po.genero = gen;
+      return Promise.resolve(Object.keys(po).length ? tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', body: po }) : null).then(function () { return carregar(); }).then(function () { gMsg('g-msg-atl', nome + ' criado. PIN provisório: ' + pin + '. Entrega-o ao atleta: na primeira entrada ele escolhe o seu próprio PIN.'); });
     }).catch(function (e) { gMsg('g-msg-atl', gFail(e), true); });
   }
   function gAtlSave(id) {
@@ -3178,7 +3236,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (!nome || !mod) { gMsg('g-msg-edit', 'Preenche o nome e a modalidade.', true); return; }
     if (pin && !/^\d{4}$/.test(pin)) { gMsg('g-msg-edit', 'O PIN tem de ter 4 dígitos.', true); return; }
     gMsg('g-msg-edit', 'A guardar…');
-    tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: (function () { var o = { nome: nome, modalidade: mod, grupo: grp, semanas_a_frente: parseInt($('#ge-sem').value, 10) || 0 }, esp = gEspLer('ge'); if ($('#ge-fim')) o.acesso_fim = $('#ge-fim').value || null; if (esp) { o.distancias = esp.d; o.estilos = esp.e; } return o; })() }).then(function () {
+    tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: (function () { var o = { nome: nome, modalidade: mod, grupo: grp, semanas_a_frente: parseInt($('#ge-sem').value, 10) || 0 }, esp = gEspLer('ge'); if ($('#ge-fim')) o.acesso_fim = $('#ge-fim').value || null; if ($('#ge-gen')) { o.genero = $('#ge-gen').value || null; o.ranking_visivel = $('#ge-rank').value !== '0'; } if (esp) { o.distancias = esp.d; o.estilos = esp.e; } return o; })() }).then(function () {
       return pin ? tReq('/rest/v1/rpc/definir_pin_treinador', { method: 'POST', body: { p_atleta: id, p_pin: pin } }) : { ok: true };
     }).then(function (r) {
       if (r && r.ok === false) { gMsg('g-msg-edit', ERRS_ATL[r.erro] || 'Não foi possível mudar o PIN.', true); return; }
