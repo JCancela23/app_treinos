@@ -293,6 +293,9 @@ table.rt { min-width: 0; font-size: .85rem; }
 .tes-rk { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .tes-rk li { display: grid; grid-template-columns: 2.2em 1fr auto; gap: 8px; padding: 5px 8px; border-radius: 8px; }
 .tes-rk li.eu { background: var(--accent-soft, rgba(80,120,255,.14)); font-weight: 600; }
+
+#filtros.fcomp > header, #filtros.fcomp .dates, #filtros.fcomp #range-info { display: none; }
+#filtros.fcomp { padding: 12px 16px; }
 </style>
 </head>
 <body>
@@ -385,7 +388,7 @@ table.rt { min-width: 0; font-size: .85rem; }
           <div class="field" id="dia-box" hidden><label for="dia-sel">Dia em que treinaste</label><select id="dia-sel" class="sel"></select><p class="small">Se treinaste noutro dia, escolhe-o aqui antes de registares as cargas. Depois de guardares, o dia fica fixo.</p></div>
           <div id="work" style="display:grid;gap:12px"></div>
           <p class="small" id="autosave" role="status"></p>
-          <div id="skip-box" hidden><button class="chip" id="skip-go">Não vou fazer este treino</button><div id="skip-opts" hidden><p class="small">Porque não vais treinar?</p><div class="chips"><button class="chip" data-falta="doente">Doente</button><button class="chip" data-falta="lesao">Lesão</button><button class="chip" data-falta="outro">Outro</button><button class="chip" id="skip-x">Cancelar</button></div></div><button class="chip" id="skip-undo" hidden>Anular "não treinou"</button><p class="small" id="skip-msg" role="alert"></p></div>
+          <div id="skip-box" hidden><button class="chip" id="skip-go">Não vou fazer este treino</button><div id="skip-opts" hidden><p class="small">Porque não vais treinar?</p><div class="chips"><button class="chip" data-falta="doente">Doente</button><button class="chip" data-falta="lesao">Lesão</button><button class="chip" data-falta="outro">Outro</button><button class="chip" id="skip-x">Cancelar</button></div></div><button class="chip" id="skip-undo" hidden>Afinal vou fazer este treino</button><p class="small" id="skip-msg" role="alert"></p></div>
         </div>
 
         <div class="panel" id="pse-panel">
@@ -461,6 +464,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         <button class="chip" data-g="exercicios" aria-pressed="false">Exercícios</button>
         <button class="chip" data-g="registar" aria-pressed="false">Registar sessão</button>
         <button class="chip" data-g="testes" aria-pressed="false">Testes</button>
+        <button class="chip" data-g="evolucao" aria-pressed="false">Evolução</button>
       </div>
       <div id="g-planos" style="display:grid;gap:12px" hidden></div>
       <div id="g-plano" style="display:grid;gap:14px"></div>
@@ -468,6 +472,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       <div id="g-exercicios" style="display:grid;gap:12px" hidden></div>
       <div id="g-registar" style="display:grid;gap:12px" hidden></div>
       <div id="g-testes" style="display:grid;gap:12px" hidden></div>
+      <div id="g-evolucao" style="display:grid;gap:12px" hidden></div>
     </div>
 
     <div class="panel">
@@ -1003,7 +1008,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var el = $('#work');
     if (typeof liveSkipBox === 'function') liveSkipBox();
     if (p.bloq || p.saltado) {
-      el.innerHTML = '<p class="note">' + (typeof liveSkipNote === 'function' ? esc(liveSkipNote(p)) : esc(p.bloq || '')) + '</p>';
+      el.innerHTML = '<p class="note">' + (typeof liveSkipNote === 'function' ? esc(liveSkipNote(p)) : esc(p.bloq || '')) + '</p>' + (typeof liveActBtn === 'function' ? liveActBtn(p) : '');
     } else if (p.tipo === 'rest') {
       el.innerHTML = '<p class="note">Dia de descanso. Não há exercícios nem esforço para registar. Aproveita para recuperar.</p>';
     } else if (p.tipo === 'none') {
@@ -1984,6 +1989,9 @@ table.rt { min-width: 0; font-size: .85rem; }
   var MOTIVO_TXT = { doente: 'doente', lesao: 'lesão', outro: 'outro motivo' };
   function liveNeedsPse(p) { return !!(p && p.id && p.tipo === 'gym' && p.feito && p.feito < HOJE && !PSEOK[p.id] && !p.saltado); }
   function liveFirstPend() { var k = -1; PLAN.forEach(function (p, i) { if (k < 0 && liveNeedsPse(p)) k = i; }); return k; }
+  var LIB = {};
+  function libLoad() { try { LIB = JSON.parse(lsGet('alvo.lib.' + (sess && sess.id)) || '{}') || {}; } catch (e) { LIB = {}; } }
+  function libSave() { try { lsSet('alvo.lib.' + sess.id, JSON.stringify(LIB)); } catch (e) { /* sem armazenamento */ } }
   function liveLocks() {
     var open = null;
     PLAN.forEach(function (p) {
@@ -1991,6 +1999,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (!p.id || p.tipo !== 'gym') return;
       if (FALT[p.id]) { p.saltado = true; p.falta = FALT[p.id]; return; }
       if (p.feito && PSEOK[p.id]) return;
+      if (LIB[p.id]) return;
       if (!open) { open = p; return; }
       p.bloq = open.feito
         ? 'Este treino ainda não está disponível. Falta registar o esforço (PSE) de "' + open.nome + '". Depois fica livre.'
@@ -2013,14 +2022,26 @@ table.rt { min-width: 0; font-size: .85rem; }
     if ($('#dia-sel').value) TDIA[p.id] = $('#dia-sel').value;
   }
   if ($('#dia-sel')) $('#dia-sel').addEventListener('change', function () { var p = PLAN[day]; if (p && p.id) TDIA[p.id] = this.value; });
+  function liveActBtn(p) {
+    if (p.bloq) return '<button class="chip" data-lib="1">Fazer este treino primeiro (trocar a ordem)</button>';
+    if (p.saltado) return '<button class="chip" data-undo="1">Afinal vou fazer este treino</button>';
+    return '';
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('#work [data-lib],#work [data-undo]');
+    if (!b || !sess) return;
+    var p = PLAN[day]; if (!p || !p.id) return;
+    if (b.hasAttribute('data-undo')) { var u = $('#skip-undo'); if (u) u.click(); return; }
+    LIB[p.id] = true; libSave(); liveLocks(); liveRenderDays(); renderWork(); livePseFor();
+  });
   function liveSkipNote(p) {
-    if (p.saltado) return 'Marcaste que não treinaste (' + (MOTIVO_TXT[p.falta && p.falta.motivo] || 'outro motivo') + '). Já podes fazer o seguinte. Se foi engano, anula aqui em baixo.';
+    if (p.saltado) return 'Marcaste que não treinaste (' + (MOTIVO_TXT[p.falta && p.falta.motivo] || 'outro motivo') + '). Já podes fazer o seguinte. Se afinal vais fazer este treino, carrega em "Afinal vou fazer este treino".';
     return p.bloq || '';
   }
   function liveSkipBox() {
     var b = $('#skip-box'); if (!b) return;
     var p = PLAN[day], ok = !!(LIVE && p && p.id && p.tipo === 'gym');
-    var can = ok && !p.feito && !p.bloq && !p.saltado;
+    var can = ok && (!p.feito || p.feito === HOJE) && !p.bloq && !p.saltado;
     b.hidden = !(can || (ok && p.saltado));
     liveDiaBox();
     $('#skip-go').hidden = !can;
@@ -2040,10 +2061,15 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#skip-opts').addEventListener('click', function (e) {
       var m = e.target.closest('[data-falta]'), p = PLAN[day];
       if (!m || !p || !sess) return;
+      if (p.feito && !window.confirm('Este treino tem registos de hoje (cargas e/ou PSE). Se disseres que não o fizeste, esses registos de hoje são apagados e o PSE fica livre para outro treino. Continuar?')) return;
       $('#skip-msg').textContent = 'A guardar…';
       rpc('atleta_nao_treinou', { p_atleta: sess.id, p_pin: sess.pin, p_treino: p.id, p_motivo: m.getAttribute('data-falta'), p_nota: null }).then(function (r) {
-        if (r && r.ok) { FALT[p.id] = { treino_id: p.id, motivo: m.getAttribute('data-falta') }; liveAfterFalta(); return; }
-        $('#skip-msg').textContent = r && r.erro === 'feito' ? 'Este treino já tem registos. Não dá para o marcar como não feito.' : r && r.erro === 'pin' ? 'O PIN deixou de ser válido. Sai e entra outra vez.' : 'Não foi possível guardar. Tenta outra vez.';
+        if (r && r.ok) {
+          FALT[p.id] = { treino_id: p.id, motivo: m.getAttribute('data-falta') };
+          if (r.apagado) { loadWeek(sess.id, sess.pin).then(function (w) { if (w && w.ok) hydrate(w); FALT[p.id] = FALT[p.id] || { treino_id: p.id, motivo: m.getAttribute('data-falta') }; liveAfterFalta(); }).catch(function () { liveAfterFalta(); }); return; }
+          liveAfterFalta(); return;
+        }
+        $('#skip-msg').textContent = r && r.erro === 'feito' ? 'Este treino já tem registos de outro dia. Não dá para o marcar como não feito.' : r && r.erro === 'pin' ? 'O PIN deixou de ser válido. Sai e entra outra vez.' : 'Não foi possível guardar. Tenta outra vez.';
       }).catch(function (e2) { $('#skip-msg').textContent = netErr(e2); });
     });
     $('#skip-undo').addEventListener('click', function () {
@@ -2116,6 +2142,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     PLAN = list.map(buildDay);
     if (!PLAN.length) PLAN = [{ nome: 'Sem treino definido', tipo: 'none', iso: null, feito: null }];
     FALT = {}; (r.faltas || []).forEach(function (f) { FALT[f.treino_id] = f; });
+    libLoad();
     PSEOK = {}; (r.sessoes || []).forEach(function (x) { if (x.treino_id) PSEOK[x.treino_id] = true; });
     liveLocks();
     day = 0;
@@ -2381,7 +2408,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       $('#save').disabled = false;
       if (r && r.ok) {
         $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.';
-        PSEOK[tid] = true;
+        PSEOK[tid] = true; liveCelebrate(r.ua, pse, m);
         SESMAP[tid] = { pse: pse, minutos: m }; SESDIAS[r.data || HOJE] = tid; if (!p.feito) p.feito = r.data || HOJE;
         if (!late) { liveLocks(); liveRenderDays(); liveSkipBox(); }
         else { liveLocks(); liveNextOpen(); applyGate(); liveRenderDays(); renderWork(); livePseFor(); $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.'; }
@@ -2398,10 +2425,40 @@ table.rt { min-width: 0; font-size: .85rem; }
       else $('#status').textContent = 'Não foi possível guardar. Tenta outra vez.';
     }).catch(function (e) { $('#save').disabled = false; $('#status').textContent = netErr(e); });
   }
+  /* ---------- confirmação bem visível quando a sessão fica guardada ---------- */
+  function liveCelebrate(ua, pse, min) {
+    try {
+      var old = document.getElementById('cele'); if (old) old.remove();
+      if (!document.getElementById('cele-css')) {
+        var st = document.createElement('style'); st.id = 'cele-css';
+        st.textContent = '#cele{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.55);animation:celeIn .2s ease-out}' +
+          '#cele .cc{background:var(--surface,#fff);color:var(--ink,#111);border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}' +
+          '#cele .ck{width:84px;height:84px;border-radius:50%;background:var(--accent,#1f9d55);display:flex;align-items:center;justify-content:center;animation:celePop .45s cubic-bezier(.2,1.4,.4,1)}' +
+          '#cele .ck svg{width:48px;height:48px;stroke:#fff;stroke-width:5;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:60;stroke-dashoffset:60;animation:celeDraw .5s .15s ease-out forwards}' +
+          '#cele{font-family:inherit}#cele h2{font-family:inherit;margin:0;font-size:26px;line-height:1.1}#cele .big{font-size:34px;font-weight:800}#cele p{margin:0}' +
+          '#cele button{margin-top:6px;width:100%}' +
+          '@keyframes celeIn{from{opacity:0}to{opacity:1}}@keyframes celePop{0%{transform:scale(.3)}100%{transform:scale(1)}}@keyframes celeDraw{to{stroke-dashoffset:0}}' +
+          '@media (prefers-reduced-motion:reduce){#cele,#cele .ck,#cele .ck svg{animation:none}#cele .ck svg{stroke-dashoffset:0}}';
+        document.head.appendChild(st);
+      }
+      var nome = (sess && sess.nome ? String(sess.nome).split(' ')[0] : '');
+      var el = document.createElement('div'); el.id = 'cele'; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-live', 'assertive'); el.setAttribute('aria-label', 'Sessão guardada');
+      el.innerHTML = '<div class="cc"><div class="ck"><svg viewBox="0 0 48 48"><path d="M10 25 L20 35 L38 13"/></svg></div>' +
+        '<h2>Sessão guardada!</h2><p class="big">' + (ua != null ? esc(String(ua)) + ' UA' : '') + '</p>' +
+        '<p class="small">PSE ' + esc(String(pse)) + ' · ' + esc(String(min)) + ' min</p>' +
+        '<p>Bom trabalho' + (nome ? ', ' + esc(nome) : '') + '! Já está tudo registado.</p><button class="primary" id="cele-ok">Fechar</button></div>';
+      document.body.appendChild(el);
+      var close = function () { var x = document.getElementById('cele'); if (x) x.remove(); };
+      el.addEventListener('click', function (e) { if (e.target === el || e.target.id === 'cele-ok') close(); });
+      setTimeout(close, 12000);
+      try { if (navigator.vibrate) navigator.vibrate(60); } catch (e2) { /* sem vibração */ }
+      var ok = document.getElementById('cele-ok'); if (ok) ok.focus();
+    } catch (e3) { /* a confirmação é só visual */ }
+  }
   function liveAfterRender() {
     var edit = liveCanEdit(), p = PLAN[day], msg = '';
     liveWarn(false);
-    $('#work').querySelectorAll('input,textarea,button').forEach(function (el) { el.disabled = !edit; });
+    $('#work').querySelectorAll('input,textarea,button').forEach(function (el) { el.disabled = !edit && !el.hasAttribute('data-lib') && !el.hasAttribute('data-undo'); });
     if (!edit && p && p.tipo === 'gym' && p.feito) msg = 'Este treino foi feito a ' + fmtD(p.feito) + '. Aqui vês o que ficou guardado.';
     $('#autosave').textContent = edit ? autoMsg : msg;
     if (edit && p && p.tipo === 'gym' && !p.feito && liveRecordable(p) && !$('#status').textContent) $('#status').textContent = 'Primeiro regista as cargas do treino. Só depois podes guardar o PSE.';
@@ -2792,6 +2849,8 @@ table.rt { min-width: 0; font-size: .85rem; }
   $('#op-next').addEventListener('click', function () { OP.sem = isoAdd(OP.sem || localISO(), 7); $('#op-sem').value = OP.sem; opRender(); });
   $('#f-atleta').addEventListener('change', function () { if (OBS) opRender(); });
   /* ---------- separadores do treinador + quem preencheu esta semana ---------- */
+  var DSUB = lsGet('alvo.dsub') || 'resumo';
+  var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-hooper', 'Hooper'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-rep', 'Relatório']];
   var TAB = lsGet('alvo.tab') || 'semana';
   if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados') TAB = 'semana';
   (function criarNav() {
@@ -2807,6 +2866,13 @@ table.rt { min-width: 0; font-size: .85rem; }
     var sm = document.createElement('div'); sm.className = 'panel'; sm.id = 'p-semana'; sm.hidden = true;
     sm.innerHTML = '<header><div><p class="kicker">Semana corrente</p><h2>Quem preencheu</h2></div></header><div id="sem-out"></div>';
     v.insertBefore(nav, ref); v.insertBefore(sm, ref);
+    var dn = document.createElement('div'); dn.className = 'panel'; dn.id = 'd-nav'; dn.hidden = true;
+    dn.innerHTML = '<div class="chips" id="d-tabs" role="group" aria-label="Dados"></div>';
+    v.insertBefore(dn, ref);
+    dn.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-d2]');
+      if (b) { DSUB = b.getAttribute('data-d2'); lsSet('alvo.dsub', DSUB); applyTab(); }
+    });
     nav.addEventListener('click', function (e) {
       var b = e.target.closest('[data-t2]');
       if (b) { TAB = b.getAttribute('data-t2'); lsSet('alvo.tab', TAB); applyTab(); window.scrollTo(0, 0); return; }
@@ -2864,13 +2930,29 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
   function applyTab() {
     var nav = $('#t-nav'); if (nav) nav.hidden = false;
+    var secs = DSECS.filter(function (s) { return s[0] !== 'p-wod' || WODD.res.length > 0; });
+    if (!secs.some(function (s) { return s[0] === DSUB; })) DSUB = 'resumo';
     document.querySelectorAll('#view-treinador > .panel').forEach(function (p) {
-      if (p.id === 't-login' || p.id === 't-reset' || p.id === 't-nav' || p.id === 'p-obs-plano') return;
+      if (p.id === 't-login' || p.id === 't-reset' || p.id === 't-nav' || p.id === 'p-obs-plano' || p.id === 'd-nav') return;
       var g = (p.id === 'g-panel' || p.querySelector('#paste')) ? 'gestao' : p.id === 'p-semana' ? 'semana' : 'dados';
       if (p.id === 'p-wod' && WODD.res.length === 0) { p.hidden = true; return; }
+      if (g === 'dados' && TAB === 'dados') {
+        var key = p.querySelector('#t-date') ? 'resumo' : p.id;
+        p.hidden = !(key === DSUB || p.id === 'filtros');
+        p.style.order = p.id === 'filtros' ? '-2' : '';
+        return;
+      }
+      p.style.order = '';
       p.hidden = g !== TAB;
     });
-    $('#tiles').hidden = TAB !== 'dados';
+    var dn = $('#d-nav');
+    if (dn) {
+      dn.hidden = TAB !== 'dados'; dn.style.order = '-3';
+      $('#d-tabs').innerHTML = secs.map(function (s) { return '<button class="chip" data-d2="' + s[0] + '" aria-pressed="' + (s[0] === DSUB) + '">' + s[1] + '</button>'; }).join('');
+    }
+    if (nav) nav.style.order = '-4';
+    $('#tiles').hidden = !(TAB === 'dados' && DSUB === 'resumo'); $('#tiles').style.order = '-1';
+    var fp = $('#filtros'); if (fp) fp.classList.toggle('fcomp', TAB === 'dados' && DSUB !== 'resumo');
     document.querySelectorAll('#t-tabs [data-t2]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-t2') === TAB)); });
     if (TAB === 'semana') renderSemana();
   }
@@ -3131,14 +3213,13 @@ table.rt { min-width: 0; font-size: .85rem; }
       G.hasFim = !G.atl.length || G.atl[0].hasOwnProperty('acesso_fim');
       G.hasGen = !!G.atl.length && G.atl[0].hasOwnProperty('genero');
       if (!G.semana) G.semana = isoAdd(gMon(localISO()), 7);
-      if (!G.srcSem) G.srcSem = gMon(localISO());
       if (!G.plan) G.plan = gNewPlan();
       gRender();
     }).catch(function (e) { gMsg('g-msg-plano', gFail(e), true); });
   }
 
   function gRender() {
-    ['planos', 'plano', 'atletas', 'exercicios', 'registar', 'testes'].forEach(function (t) {
+    ['planos', 'plano', 'atletas', 'exercicios', 'registar', 'testes', 'evolucao'].forEach(function (t) {
       $('#g-' + t).hidden = G.tab !== t;
       var b = document.querySelector('#g-tabs [data-g="' + t + '"]');
       if (b) b.setAttribute('aria-pressed', G.tab === t ? 'true' : 'false');
@@ -3148,6 +3229,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     else if (G.tab === 'atletas') gRenderAtl();
     else if (G.tab === 'registar') gRenderReg();
     else if (G.tab === 'testes') gTesLoad();
+    else if (G.tab === 'evolucao') gRenderEv();
     else gRenderEx();
     gReapply();
   }
@@ -3559,6 +3641,105 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (e.target.id === 'pv-atl') { PV.aid = e.target.value; gRenderPlanos(); }
   });
 
+
+  /* ---------- evolução de um exercício (cargas set a set, por repetições) ---------- */
+  var EV = { mod: '', aid: '', ex: '', reps: '', rows: null, load: false, err: '' };
+  function gKg(v) { return String(Math.round(+v * 100) / 100).replace('.', ','); }
+  function gEvSets() {
+    var out = [];
+    (EV.rows || []).forEach(function (r) {
+      var nome = r.item && r.item.exercicios && r.item.exercicios.nome; if (!nome || r.carga_kg == null) return;
+      var rp = r.reps != null ? +r.reps : (r.item && /^\d+$/.test(String(r.item.reps || '').trim()) ? +r.item.reps : null);
+      out.push({ data: r.data, serie: r.serie, kg: +r.carga_kg, reps: rp, ex: nome });
+    });
+    return out;
+  }
+  function gEvChart(pts) {
+    var W = 300, H = 160, pl = 36, pb = 22, pr = 10, pt = 14;
+    var ys = pts.map(function (p) { return p.kg; }), lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys);
+    if (hi === lo) { lo -= 1; hi += 1; }
+    var pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+    var X = function (i) { return pts.length === 1 ? (pl + W - pr) / 2 : pl + i / (pts.length - 1) * (W - pl - pr); }, Y = function (v) { return H - pb - (v - lo) / (hi - lo) * (H - pb - pt); };
+    var path = pts.map(function (p, i) { return (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p.kg).toFixed(1); }).join(' ');
+    return '<svg width="100%" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Evolução da carga">' +
+      '<line x1="' + pl + '" y1="' + (H - pb) + '" x2="' + (W - pr) + '" y2="' + (H - pb) + '" stroke="currentColor" opacity=".3"/>' +
+      '<path d="' + path + '" fill="none" stroke="var(--accent)" stroke-width="2"/>' +
+      pts.map(function (p, i) { return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(p.kg).toFixed(1) + '" r="3.5" fill="var(--accent)"/><text x="' + X(i).toFixed(1) + '" y="' + (Y(p.kg) - 7).toFixed(1) + '" font-size="9" text-anchor="middle" fill="currentColor">' + gKg(p.kg) + '</text>'; }).join('') +
+      '<text x="' + pl + '" y="' + (H - 6) + '" font-size="9" fill="currentColor">' + gFmt(pts[0].data) + '</text>' +
+      '<text x="' + (W - pr) + '" y="' + (H - 6) + '" font-size="9" text-anchor="end" fill="currentColor">' + gFmt(pts[pts.length - 1].data) + '</text>' +
+      '<text x="4" y="' + (pt + 4) + '" font-size="9" fill="currentColor">kg</text></svg>';
+  }
+  function gRenderEv() {
+    var el = $('#g-evolucao'); if (!el) return;
+    var ativos = G.atl.filter(function (a) { return a.ativo !== false; });
+    var mods = gMods().filter(function (m) { return ativos.some(function (a) { return a.modalidade === m; }); });
+    var h = '<p class="small">Escolhe o atleta e o exercício para ver a carga de cada série ao longo do tempo. Escolhe as repetições para comparar sessões em igualdade (ex.: só as séries de 5 reps).</p>';
+    h += '<div class="chips">' + mods.map(function (m) { return '<button class="chip" data-ev="mod" data-v="' + esc(m) + '" aria-pressed="' + (EV.mod === m) + '">' + esc(m) + '</button>'; }).join('') + '</div>';
+    var da = ativos.filter(function (a) { return a.modalidade === EV.mod; });
+    if (EV.mod) h += '<div class="field"><label for="ev-atl">Atleta</label><select class="sel" id="ev-atl"><option value="">Escolhe…</option>' + da.map(function (a) { return '<option value="' + a.id + '"' + (EV.aid === a.id ? ' selected' : '') + '>' + esc(a.nome) + '</option>'; }).join('') + '</select></div>';
+    if (EV.aid && EV.load) h += '<p class="small">A carregar…</p>';
+    else if (EV.aid && EV.err) h += '<p class="err">' + esc(EV.err) + '</p>';
+    else if (EV.aid && EV.rows) {
+      var sets = gEvSets(), nomes = {}, order = [];
+      sets.forEach(function (s) { if (!nomes[s.ex]) { nomes[s.ex] = 0; order.push(s.ex); } nomes[s.ex]++; });
+      order.sort(function (a, b) { return nomes[b] - nomes[a] || a.localeCompare(b, 'pt'); });
+      if (!order.length) h += '<p class="note">Este atleta ainda não tem cargas registadas.</p>';
+      else {
+        if (order.indexOf(EV.ex) < 0) EV.ex = order[0];
+        h += '<div class="field"><label for="ev-ex">Exercício</label><select class="sel" id="ev-ex">' + order.map(function (n) { return '<option value="' + esc(n) + '"' + (EV.ex === n ? ' selected' : '') + '>' + esc(n) + ' (' + nomes[n] + ' séries)</option>'; }).join('') + '</select></div>';
+        var mine = sets.filter(function (s) { return s.ex === EV.ex; }), rc = {};
+        mine.forEach(function (s) { var k = s.reps == null ? '?' : String(s.reps); rc[k] = (rc[k] || 0) + 1; });
+        var rks = Object.keys(rc).filter(function (k) { return k !== '?'; }).sort(function (a, b) { return +a - +b; });
+        if (EV.reps && !rc[EV.reps]) EV.reps = '';
+        h += '<p class="small">Repetições</p><div class="chips"><button class="chip" data-ev="reps" data-v="" aria-pressed="' + (!EV.reps) + '">Todas</button>' +
+          rks.map(function (k) { return '<button class="chip" data-ev="reps" data-v="' + k + '" aria-pressed="' + (EV.reps === k) + '">' + k + ' reps (' + rc[k] + ')</button>'; }).join('') + '</div>';
+        var porDia = {}, dias = [];
+        mine.forEach(function (s) { if (!porDia[s.data]) { porDia[s.data] = []; dias.push(s.data); } porDia[s.data].push(s); });
+        dias.sort();
+        var pts = [];
+        dias.forEach(function (d) {
+          var L = porDia[d].filter(function (s) { return !EV.reps || String(s.reps) === EV.reps; });
+          if (L.length) pts.push({ data: d, kg: Math.max.apply(null, L.map(function (s) { return s.kg; })) });
+        });
+        if (!pts.length) h += '<p class="note">Sem séries com essas repetições.</p>';
+        else {
+          var d0 = pts[0].kg, d1 = pts[pts.length - 1].kg, dif = Math.round((d1 - d0) * 100) / 100;
+          h += '<div class="gbox"><b>' + esc(EV.ex) + (EV.reps ? ' · ' + EV.reps + ' reps' : ' · todas as repetições') + '</b>' + gEvChart(pts) +
+            '<p class="small">Melhor carga de cada sessão. ' + pts.length + (pts.length === 1 ? ' sessão' : ' sessões') + (pts.length > 1 ? ' · de ' + gKg(d0) + ' para ' + gKg(d1) + ' kg (' + (dif > 0 ? '+' : '') + gKg(dif) + ' kg)' : '') + '.</p></div>';
+        }
+        h += '<div class="gbox"><b>Todas as séries</b><div class="small">A negrito: séries com as repetições escolhidas.</div>' +
+          dias.slice().reverse().map(function (d) {
+            var L = porDia[d].slice().sort(function (a, b) { return a.serie - b.serie; });
+            return '<p class="small"><b>' + gFmt(d) + '</b> · ' + L.map(function (s) {
+              var t = 'S' + s.serie + ' ' + gKg(s.kg) + ' kg' + (s.reps != null ? ' × ' + s.reps : '');
+              return !EV.reps || String(s.reps) === EV.reps ? '<b>' + esc(t) + '</b>' : esc(t);
+            }).join(' · ') + '</p>';
+          }).join('') + '</div>';
+      }
+    }
+    el.innerHTML = h;
+  }
+  function gEvLoad() {
+    EV.rows = null; EV.err = ''; EV.ex = ''; EV.reps = '';
+    if (!EV.aid) { gRenderEv(); return; }
+    EV.load = true; gRenderEv();
+    var aid = EV.aid;
+    tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,item:treino_itens(reps,exercicios(nome))&atleta_id=eq.' + encodeURIComponent(aid) + '&carga_kg=not.is.null&order=data,serie').then(function (rows) {
+      if (EV.aid !== aid) return;
+      EV.rows = (rows || []).filter(function (r) { return r.atleta_id === aid; }); EV.load = false; gRenderEv();
+    }).catch(function (e) { EV.load = false; EV.err = gFail(e); gRenderEv(); });
+  }
+  $('#g-evolucao').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ev]'); if (!b) return;
+    var k = b.getAttribute('data-ev'), v = b.getAttribute('data-v');
+    if (k === 'mod') { EV.mod = v; EV.aid = ''; EV.rows = null; gRenderEv(); }
+    else if (k === 'reps') { EV.reps = v; gRenderEv(); }
+  });
+  $('#g-evolucao').addEventListener('change', function (e) {
+    if (e.target.id === 'ev-atl') { EV.aid = e.target.value; gEvLoad(); }
+    else if (e.target.id === 'ev-ex') { EV.ex = e.target.value; EV.reps = ''; gRenderEv(); }
+  });
+
   /* ---------- testes e benchmarks (online training e presencial) ---------- */
   var GTU = [['kg', 'kg'], ['cm', 'cm'], ['m', 'm'], ['tempo', 'tempo (mm:ss)'], ['reps', 'reps'], ['cal', 'calorias'], ['w', 'watts'], ['outro', 'outro']];
   var GTS = ['Back squat 1RM', 'Back squat 3RM', 'Back squat 5RM', 'Deadlift 1RM', 'Deadlift 5RM', 'Bench press 1RM', 'Bench press 5RM', 'CMJ', 'Salto em comprimento', '5 km', '10 km', 'Aerox 2000 m'];
@@ -3867,10 +4048,14 @@ table.rt { min-width: 0; font-size: .85rem; }
     h += '<div class="gbox"><p class="kicker">2 · Semana</p><div class="field"><label for="g-sem">Escolhe qualquer dia dessa semana</label><input class="dt" type="date" id="g-sem" value="' + G.semana + '"></div>' +
       '<p class="small">Semana de ' + gFmt(mon) + ' a ' + gFmt(isoAdd(mon, 6)) + '</p></div>';
 
-    h += '<details class="gbox"' + '><summary>Copiar ou editar um plano que já existe</summary>' +
+    var selIds = Object.keys(G.sel).filter(function (k) { return G.sel[k]; }), unico = selIds.length === 1 ? gAtlById(selIds[0]) : null;
+    var srcA = G.srcAtl || (unico ? unico.id : ''), srcS = G.srcSem || G.semana;
+    if (unico) h += '<div class="gbox"><button class="chip" data-act="carregar-sel">Carregar o plano já existente de ' + esc(unico.nome) + ' (semana de ' + gFmt(mon) + ')</button><p class="small" id="g-msg-sel" role="status">Para editares ou continuares o que já está planeado. Usa o atleta e a semana escolhidos acima.</p></div>';
+    h += '<details class="gbox"' + '><summary>Copiar de outro atleta ou de outra semana</summary>' +
+      '<p class="small">Por defeito usa o atleta escolhido no passo 1 e a semana do passo 2. Só mudas aqui se quiseres copiar de outro atleta ou de outra semana.</p>' +
       '<div class="field"><label for="g-src-a">De que atleta</label><select class="sel" id="g-src-a"><option value="">Escolhe…</option>' +
-      G.atl.map(function (a) { return '<option value="' + a.id + '"' + (G.srcAtl === a.id ? ' selected' : '') + '>' + esc(a.nome) + ' · ' + esc(a.modalidade) + '</option>'; }).join('') + '</select></div>' +
-      '<div class="field"><label for="g-src-s">De que semana (qualquer dia dessa semana)</label><input class="dt" type="date" id="g-src-s" value="' + G.srcSem + '"></div>' +
+      G.atl.map(function (a) { return '<option value="' + a.id + '"' + (srcA === a.id ? ' selected' : '') + '>' + esc(a.nome) + ' · ' + esc(a.modalidade) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="g-src-s">De que semana (qualquer dia dessa semana)</label><input class="dt" type="date" id="g-src-s" value="' + srcS + '"></div>' +
       '<button class="chip" data-act="carregar">Carregar no editor</button><p class="small" id="g-msg-src" role="status"></p></details>';
 
     h += '<p class="kicker">3 · Dias</p>';
@@ -3937,6 +4122,16 @@ table.rt { min-width: 0; font-size: .85rem; }
       });
       return { plan: plan, n: n, rows: rows };
     });
+  }
+  function gLoadSel() {
+    var ids = Object.keys(G.sel).filter(function (k) { return G.sel[k]; });
+    if (ids.length !== 1) return;
+    G.srcAtl = ids[0]; G.srcSem = G.semana;
+    gFetchPlan(ids[0], gMon(G.semana)).then(function (r) {
+      if (!r.rows.length) { gMsg('g-msg-sel', 'Ainda não há treinos planeados para este atleta nesta semana.', true); return; }
+      G.plan = r.plan; gRenderPlano();
+      gMsg('g-msg-plano', 'Plano carregado (' + r.n + ' exercícios). Altera o que precisas e toca em "Guardar plano". Os dias que já têm registos não são alterados.');
+    }).catch(function (e) { gMsg('g-msg-sel', gFail(e), true); });
   }
   function gLoadPlan() {
     var aid = $('#g-src-a').value, sem = $('#g-src-s').value;
@@ -4086,9 +4281,9 @@ table.rt { min-width: 0; font-size: .85rem; }
         });
       }).catch(function (e) { gMsg('g-msg-ex', e && e.status === 409 ? 'Este exercício está a ser usado e não pode ser apagado.' : gFail(e), true); });
     }
-    else if (a === 'sel') { G.sel[id] = !G.sel[id]; gRenderPlano(); }
-    else if (a === 'pmod') { G.planMod = b.getAttribute('data-m'); G.sel = {}; G.atl.forEach(function (x) { if (x.ativo !== false && x.modalidade === G.planMod) G.sel[x.id] = true; }); gRenderPlano(); }
-    else if (a === 'selmod') {
+    else if (a === 'sel') { G.sel[id] = !G.sel[id]; G.srcAtl = ''; gRenderPlano(); }
+    else if (a === 'pmod') { G.srcAtl = ''; G.planMod = b.getAttribute('data-m'); G.sel = {}; G.atl.forEach(function (x) { if (x.ativo !== false && x.modalidade === G.planMod) G.sel[x.id] = true; }); gRenderPlano(); }
+    else if (a === 'selmod') { G.srcAtl = '';
       var m = b.getAttribute('data-m'), ids = G.atl.filter(function (x) { return x.ativo !== false && x.modalidade === m; });
       var all = ids.every(function (x) { return G.sel[x.id]; });
       ids.forEach(function (x) { G.sel[x.id] = !all; });
@@ -4123,6 +4318,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       gRenderPlano();
     }
     else if (a === 'carregar') gLoadPlan();
+    else if (a === 'carregar-sel') gLoadSel();
     else if (a === 'guardar') gSavePlan();
     else if (a === 'limpar') { G.plan = gNewPlan(); gRenderPlano(); gMsg('g-msg-plano', 'Editor limpo.'); }
   });
@@ -4151,7 +4347,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   });
   $('#g-panel').addEventListener('change', function (e) {
     var t = e.target;
-    if (t.id === 'g-sem') { if (/^\d{4}-\d{2}-\d{2}$/.test(t.value)) { G.semana = t.value; gRenderPlano(); } return; }
+    if (t.id === 'g-sem') { if (/^\d{4}-\d{2}-\d{2}$/.test(t.value)) { G.semana = t.value; G.srcSem = ''; gRenderPlano(); } return; }
     if (t.id === 'g-src-a') { G.srcAtl = t.value; return; }
     if (t.id === 'g-src-s') { G.srcSem = t.value; return; }
     var ad = t.getAttribute('data-add');
