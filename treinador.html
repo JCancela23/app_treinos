@@ -701,7 +701,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         <p class="small" id="rep-msg" role="status"></p>
       </div>
       <textarea id="rep-text" hidden readonly aria-label="Resumo em texto"></textarea>
-      <p class="small">Na versão real, o relatório descarrega-se em PDF. Neste protótipo podes ver o resultado e copiar o resumo.</p>
+      <p class="small">Vês o relatório aqui e podes copiar o resumo em texto para enviar.</p>
     </div>
 
     <div class="panel">
@@ -2864,7 +2864,11 @@ table.rt { min-width: 0; font-size: .85rem; }
   var DSUB = lsGet('alvo.dsub') || 'resumo';
   var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-hooper', 'Hooper'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-rep', 'Relatório']];
   var TAB = lsGet('alvo.tab') || 'semana';
-  if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados') TAB = 'semana';
+  if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados' && TAB !== 'online') TAB = 'semana';
+  var ONSUB = lsGet('alvo.osub') || 'alunos';
+  var ONSECS = [['semana', 'Esta semana'], ['alunos', 'Alunos'], ['plano', 'Planear'], ['planos', 'Ver planos'], ['registar', 'Registar sessão'], ['pagamentos', 'Pagamentos'], ['dados', 'Dados'], ['evolucao', 'Evolução'], ['testes', 'Testes'], ['rep', 'Relatório']];
+  var ONG = { alunos: 'atletas', plano: 'plano', planos: 'planos', registar: 'registar', pagamentos: 'pagamentos', evolucao: 'evolucao', testes: 'testes' };
+  function liveOnSet(k) { ONSUB = k; lsSet('alvo.osub', k); document.querySelectorAll('#o-tabs [data-o2]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-o2') === ONSUB)); }); }
   (function criarNav() {
     var v = $('#view-treinador'), ref = $('#g-panel');
     if (!v || !ref) return;
@@ -2873,11 +2877,18 @@ table.rt { min-width: 0; font-size: .85rem; }
     document.head.appendChild(st);
     var nav = document.createElement('div'); nav.className = 'panel'; nav.id = 't-nav'; nav.hidden = true;
     nav.innerHTML = '<div class="chips" id="t-tabs" role="group" aria-label="Secções">' +
-      [['semana', 'Esta semana'], ['gestao', 'Planear e gerir'], ['dados', 'Dados dos atletas']].map(function (t) { return '<button class="chip" data-t2="' + t[0] + '" aria-pressed="false">' + t[1] + '</button>'; }).join('') +
+      [['semana', 'Esta semana'], ['gestao', 'Planear e gerir'], ['dados', 'Dados dos atletas'], ['online', 'Online training']].map(function (t) { return '<button class="chip" data-t2="' + t[0] + '" aria-pressed="false">' + t[1] + '</button>'; }).join('') +
       '<button class="chip" id="t-sair2">Sair</button></div>';
     var sm = document.createElement('div'); sm.className = 'panel'; sm.id = 'p-semana'; sm.hidden = true;
     sm.innerHTML = '<header><div><p class="kicker">Semana corrente</p><h2>Quem preencheu</h2></div></header><div id="sem-out"></div>';
     v.insertBefore(nav, ref); v.insertBefore(sm, ref);
+    var on = document.createElement('div'); on.className = 'panel'; on.id = 'o-nav'; on.hidden = true;
+    on.innerHTML = '<p class="kicker">Online training</p><div class="chips" id="o-tabs" role="group" aria-label="Online training"></div>';
+    v.insertBefore(on, ref);
+    on.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-o2]');
+      if (b) { ONSUB = b.getAttribute('data-o2'); lsSet('alvo.osub', ONSUB); applyTab(); }
+    });
     var dn = document.createElement('div'); dn.className = 'panel'; dn.id = 'd-nav'; dn.hidden = true;
     dn.innerHTML = '<div class="chips" id="d-tabs" role="group" aria-label="Dados"></div>';
     v.insertBefore(dn, ref);
@@ -2942,31 +2953,51 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
   function applyTab() {
     var nav = $('#t-nav'); if (nav) nav.hidden = false;
-    var secs = DSECS.filter(function (s) { return s[0] !== 'p-wod' || WODD.res.length > 0; });
+    var on = TAB === 'online';
+    liveSetScope(on ? 'pt' : 'main');
+    if (!ONSECS.some(function (s) { return s[0] === ONSUB; })) ONSUB = 'alunos';
+    var showDados = TAB === 'dados' || (on && ONSUB === 'dados');
+    var gKey = on ? ONG[ONSUB] : null;
+    var secs = DSECS.filter(function (s) { return (s[0] !== 'p-wod' || WODD.res.length > 0) && !(on && s[0] === 'p-rep'); });
     if (!secs.some(function (s) { return s[0] === DSUB; })) DSUB = 'resumo';
     document.querySelectorAll('#view-treinador > .panel').forEach(function (p) {
-      if (p.id === 't-login' || p.id === 't-reset' || p.id === 't-nav' || p.id === 'p-obs-plano' || p.id === 'd-nav') return;
-      var g = (p.id === 'g-panel' || p.querySelector('#paste')) ? 'gestao' : p.id === 'p-semana' ? 'semana' : 'dados';
+      if (p.id === 't-login' || p.id === 't-reset' || p.id === 't-nav' || p.id === 'p-obs-plano' || p.id === 'd-nav' || p.id === 'o-nav') return;
+      p.style.order = '';
+      if (p.id === 'g-panel') { p.hidden = !(TAB === 'gestao' || gKey); return; }
+      if (p.querySelector('#paste')) { p.hidden = TAB !== 'gestao'; return; }
+      if (p.id === 'p-semana') { p.hidden = !(TAB === 'semana' || (on && ONSUB === 'semana')); return; }
       if (p.id === 'p-wod' && WODD.res.length === 0) { p.hidden = true; return; }
-      if (g === 'dados' && TAB === 'dados') {
+      if (p.id === 'p-rep' && on) { p.hidden = ONSUB !== 'rep'; return; }
+      if (p.id === 'filtros' && on && ONSUB === 'rep') { p.hidden = false; p.style.order = '-2'; return; }
+      if (showDados) {
         var key = p.querySelector('#t-date') ? 'resumo' : p.id;
         p.hidden = !(key === DSUB || p.id === 'filtros');
         p.style.order = p.id === 'filtros' ? '-2' : '';
         return;
       }
-      p.style.order = '';
-      p.hidden = g !== TAB;
+      p.hidden = true;
     });
     var dn = $('#d-nav');
     if (dn) {
-      dn.hidden = TAB !== 'dados'; dn.style.order = '-3';
+      dn.hidden = !showDados; dn.style.order = '-3';
       $('#d-tabs').innerHTML = secs.map(function (s) { return '<button class="chip" data-d2="' + s[0] + '" aria-pressed="' + (s[0] === DSUB) + '">' + s[1] + '</button>'; }).join('');
     }
-    if (nav) nav.style.order = '-4';
-    $('#tiles').hidden = !(TAB === 'dados' && DSUB === 'resumo'); $('#tiles').style.order = '-1';
-    var fp = $('#filtros'); if (fp) fp.classList.toggle('fcomp', TAB === 'dados' && DSUB !== 'resumo');
+    var onv = $('#o-nav');
+    if (onv) {
+      onv.hidden = !on; onv.style.order = '-4';
+      $('#o-tabs').innerHTML = ONSECS.map(function (s) { return '<button class="chip" data-o2="' + s[0] + '" aria-pressed="' + (s[0] === ONSUB) + '">' + s[1] + '</button>'; }).join('');
+    }
+    if (nav) nav.style.order = '-5';
+    $('#tiles').hidden = !(showDados && DSUB === 'resumo'); $('#tiles').style.order = '-1';
+    var fp = $('#filtros'); if (fp) fp.classList.toggle('fcomp', showDados && DSUB !== 'resumo');
     document.querySelectorAll('#t-tabs [data-t2]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-t2') === TAB)); });
-    if (TAB === 'semana') renderSemana();
+    var gh = document.querySelector('#g-panel > header h2'), gk = document.querySelector('#g-panel > header .kicker');
+    if (gh) gh.textContent = on ? 'Online training' : 'Gestão'; if (gk) gk.textContent = on ? 'Alunos · Planos · Pagamentos' : 'Atletas · Exercícios · Treinos';
+    if (typeof G !== 'undefined' && G.all) {
+      if (on && gKey) { G.tab = gKey; if (typeof gRender === 'function') gRender(); }
+      else if (TAB === 'gestao') { if (G.tab === 'pagamentos') G.tab = 'plano'; if (typeof gRender === 'function') gRender(); }
+    }
+    if (TAB === 'semana' || (on && ONSUB === 'semana')) renderSemana();
   }
   function renderSemana() {
     var out = $('#sem-out'); if (!out) return;
@@ -2998,6 +3029,21 @@ table.rt { min-width: 0; font-size: .85rem; }
       '<div class="scroll"><table class="rt"><thead><tr><th>Atleta</th><th>Wellness</th><th>Cargas</th><th>PSE</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<p class="small">Wellness: dias preenchidos. Cargas: dias com carga registada / treinos de ginásio planeados; a vermelho, treinos que o atleta marcou como não feitos. PSE: sessões com esforço registado. O wellness só é obrigatório nos dias em que o atleta treina.</p>';
   }
+  var RAWD = null, SCOPE = 'main';
+  function liveBuildScope() {
+    if (!RAWD) return;
+    var pt = SCOPE === 'pt', ok = {};
+    var ats = RAWD.D.atletas.filter(function (a) { var e = (a.grupo === 'pt') === pt; if (e) ok[a.id] = true; return e; });
+    var D = {}; Object.keys(RAWD.D).forEach(function (k) { D[k] = RAWD.D[k]; }); D.atletas = ats;
+    buildLive(D, RAWD.hoje);
+    WODD = { res: (RAWD.wod.res || []).filter(function (x) { return ok[x.atleta_id]; }), cfg: RAWD.wod.cfg || [] }; renderWod();
+  }
+  function liveSetScope(sc) {
+    if (SCOPE === sc) return;
+    SCOPE = sc;
+    if (RAWD) { liveBuildScope(); refreshTrainerUI(); }
+    if (typeof gSetScope === 'function' && G.all) gSetScope(sc);
+  }
   function carregarTodos() {
     var hojeISO = localISO();
     $('#t-err').textContent = '';
@@ -3013,8 +3059,9 @@ table.rt { min-width: 0; font-size: .85rem; }
       tGet('resultados_bloco', 'select=atleta_id,treino_id,data,bloco,formato,tempo_s,rondas,reps,completo,nota&order=data,id').catch(function () { return []; }),
       tGet('treino_blocos', 'select=treino_id,bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min').catch(function () { return []; })
     ]).then(function (r) {
-      buildLive({ atletas: r[0], wellness: r[1], sessoes: r[2], treinos: r[3], registos: r[4], notas: r[5], competicoes: r[6], faltas: r[7] }, hojeISO);
-      WODD = { res: r[8] || [], cfg: r[9] || [] }; renderWod();
+      RAWD = { D: { atletas: r[0], wellness: r[1], sessoes: r[2], treinos: r[3], registos: r[4], notas: r[5], competicoes: r[6], faltas: r[7] }, wod: { res: r[8] || [], cfg: r[9] || [] }, hoje: hojeISO };
+      SCOPE = TAB === 'online' ? 'pt' : 'main';
+      liveBuildScope();
       showTrainer(true);
       refreshTrainerUI();
       return gLoad();
@@ -3185,6 +3232,17 @@ table.rt { min-width: 0; font-size: .85rem; }
     for (var i = 0; i < G.ex.length; i++) if (G.ex[i].nome.toLowerCase() === k) return G.ex[i];
     return null;
   }
+  var PTN = 'Online training';
+  function gSetScope(sc) {
+    var mudou = G.scope !== (sc === 'pt' ? 'pt' : 'main');
+    G.scope = sc === 'pt' ? 'pt' : 'main';
+    G.atl = (G.all || []).filter(function (a) { return G.scope === 'pt' ? a.grupo === 'pt' : a.grupo !== 'pt'; }).map(function (a) {
+      return G.scope === 'pt' ? Object.assign({}, a, { _mod: a.modalidade, modalidade: PTN }) : a;
+    });
+    if (!mudou) return;
+    G.sel = {}; G.planMod = ''; G.edit = null; G.pagEdit = null; G.srcAtl = ''; G.tesA = ''; G.tesM = ''; GR.aid = ''; GR.loaded = false;
+    PV.aid = ''; PV.grp = ''; EV.aid = ''; EV.mod = ''; EV.rows = null; PG.mes = '';
+  }
   function gAtlById(id) { for (var i = 0; i < G.atl.length; i++) if (G.atl[i].id === id) return G.atl[i]; return null; }
   function gMods() {
     var m = [];
@@ -3221,9 +3279,10 @@ table.rt { min-width: 0; font-size: .85rem; }
       }),
       tGet('exercicios', 'select=id,nome,video_url,padrao,lateralidade,core_tipo,registo,nota&order=nome,id')
     ]).then(function (r) {
-      G.atl = r[0] || []; G.ex = r[1] || [];
-      G.hasFim = !G.atl.length || G.atl[0].hasOwnProperty('acesso_fim');
-      G.hasGen = !!G.atl.length && G.atl[0].hasOwnProperty('genero');
+      G.all = r[0] || []; G.ex = r[1] || [];
+      G.hasFim = !G.all.length || G.all[0].hasOwnProperty('acesso_fim');
+      G.hasGen = !!G.all.length && G.all[0].hasOwnProperty('genero');
+      gSetScope(typeof SCOPE !== 'undefined' ? SCOPE : (G.scope || 'main'));
       if (!G.semana) G.semana = isoAdd(gMon(localISO()), 7);
       if (!G.plan) G.plan = gNewPlan();
       gRender();
@@ -3236,6 +3295,8 @@ table.rt { min-width: 0; font-size: .85rem; }
       var b = document.querySelector('#g-tabs [data-g="' + t + '"]');
       if (b) b.setAttribute('aria-pressed', G.tab === t ? 'true' : 'false');
     });
+    var bar = $('#g-tabs'); if (bar) bar.hidden = G.scope === 'pt';
+    [].forEach.call(document.querySelectorAll('#g-tabs [data-g="pagamentos"]'), function (b) { b.hidden = true; });
     if (G.tab === 'planos') gPvLoad();
     else if (G.tab === 'plano') gRenderPlano();
     else if (G.tab === 'atletas') gRenderAtl();
@@ -3268,33 +3329,33 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
   function gRenderAtl() {
     var mods = gModsSug();
-    var h = '<div class="gbox"><p class="kicker">Novo atleta</p>' +
+    var h = '<div class="gbox"><p class="kicker">' + (G.scope === 'pt' ? 'Novo aluno de online training' : 'Novo atleta') + '</p>' +
       '<div class="field"><label for="ga-nome">Nome</label><input class="dt" id="ga-nome" autocomplete="off"></div>' +
-      '<div class="field"><label for="ga-mod">Modalidade</label><input class="dt" id="ga-mod" list="ga-mods" autocomplete="off" placeholder="Ex.: Surf"><datalist id="ga-mods">' +
+      '<div class="field"><label for="ga-mod">Modalidade</label><input class="dt" id="ga-mod" list="ga-mods" autocomplete="off" placeholder="Ex.: Surf"' + (G.scope === 'pt' ? ' value="Online training"' : '') + '><datalist id="ga-mods">' +
       mods.map(function (m) { return '<option value="' + esc(m) + '">'; }).join('') + '</datalist></div>' +
       gEspHtml('ga', null) +
-      '<div class="inline"><div class="field"><label for="ga-grp">Grupo</label><select class="sel" id="ga-grp"><option value="atleta">Atleta</option><option value="pt">Online training</option><option value="presencial">Presencial (sem app)</option></select></div>' +
+      '<div class="inline"><div class="field"' + (G.scope === 'pt' ? ' hidden' : '') + '><label for="ga-grp">Grupo</label><select class="sel" id="ga-grp">' + (G.scope === 'pt' ? '<option value="pt">Online training</option>' : '<option value="atleta">Atleta</option><option value="presencial">Presencial (sem app)</option>') + '</select></div>' +
       '<div class="field"><label for="ga-pin">PIN (4 dígitos)</label><div class="f"><input id="ga-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar" type="button">Gerar</button></div></div></div>' +
-      (G.hasGen ? '<div class="field"><label for="ga-gen">Género (para os rankings)</label><select class="sel" id="ga-gen"><option value="">—</option><option value="M">Masculino</option><option value="F">Feminino</option></select></div>' : '') +
-      '<button class="primary" data-act="atl-criar">Criar atleta</button><p class="small" id="g-msg-atl" role="status"></p></div>' +
+      (G.hasGen && G.scope !== 'pt' ? '<div class="field"><label for="ga-gen">Género (para os rankings)</label><select class="sel" id="ga-gen"><option value="">—</option><option value="M">Masculino</option><option value="F">Feminino</option></select></div>' : '') +
+      '<button class="primary" data-act="atl-criar">' + (G.scope === 'pt' ? 'Criar aluno' : 'Criar atleta') + '</button><p class="small" id="g-msg-atl" role="status"></p></div>' +
       '<p class="kicker">' + G.atl.filter(function (a) { return a.ativo !== false; }).length + ' ativos</p>';
     var arq = G.atl.filter(function (a) { return a.ativo === false; });
     var lista = G.atl.filter(function (a) { return a.ativo !== false; }).concat(arq);
     h += lista.map(function (a, k) {
       var sep = (a.ativo === false && (k === 0 || lista[k - 1].ativo !== false)) ? '<p class="kicker" style="margin-top:14px">Arquivados (' + arq.length + ') · os dados ficam guardados</p>' : '';
-      var row = sep + '<div class="grow"><div class="who"><b>' + esc(a.nome) + '</b><small>' + esc(a.modalidade) + gFimTag(a) + (a.grupo === 'presencial' ? ' · presencial' : '') + (((a.distancias || []).concat(a.estilos || [])).length ? ' · ' + esc((a.distancias || []).concat(a.estilos || []).join(', ')) : '') + ' · ' + (a.grupo === 'pt' ? 'Online training' : 'Atleta') + (a.ativo === false ? ' · inativo' : '') + '</small></div>' +
+      var row = sep + '<div class="grow"><div class="who"><b>' + esc(a.nome) + '</b><small>' + (G.scope === 'pt' ? esc(a._mod && a._mod !== PTN ? a._mod : '') + gFimTag(a).replace(/^ · /, a._mod && a._mod !== PTN ? ' · ' : '') : esc(a.modalidade) + gFimTag(a)) + (a.grupo === 'presencial' ? ' · presencial' : '') + (((a.distancias || []).concat(a.estilos || [])).length ? ' · ' + esc((a.distancias || []).concat(a.estilos || []).join(', ')) : '') + (G.scope === 'pt' ? '' : ' · ' + (a.grupo === 'pt' ? 'Online training' : 'Atleta')) + (a.ativo === false ? ' · inativo' : '') + '</small></div>' +
         '<button class="chip" data-act="atl-edit" data-id="' + a.id + '">' + (G.edit === a.id ? 'Fechar' : 'Editar') + '</button></div>';
       if (G.edit === a.id) {
         row += '<div class="gbox">' +
           '<div class="field"><label for="ge-nome">Nome</label><input class="dt" id="ge-nome" value="' + esc(a.nome) + '"></div>' +
-          '<div class="field"><label for="ge-mod">Modalidade</label><input class="dt" id="ge-mod" list="ga-mods" value="' + esc(a.modalidade) + '"></div>' +
+          '<div class="field"><label for="ge-mod">Modalidade</label><input class="dt" id="ge-mod" list="ga-mods" value="' + esc(a._mod || a.modalidade) + '"></div>' +
           gEspHtml('ge', a) +
           '<div class="field"><label for="ge-sem">Semanas que o atleta vê</label><select class="sel" id="ge-sem">' +
             [[0, 'Só a semana corrente'], [1, 'Semana corrente + a seguinte'], [2, 'Corrente + 2 seguintes'], [3, 'Corrente + 3 seguintes'], [4, 'Corrente + 4 seguintes']].map(function (o) { return '<option value="' + o[0] + '"' + ((a.semanas_a_frente || 0) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
           '</select></div>' +
           '<div class="inline"><div class="field"><label for="ge-grp">Grupo</label><select class="sel" id="ge-grp"><option value="atleta"' + (a.grupo === 'atleta' ? ' selected' : '') + '>Atleta</option><option value="pt"' + (a.grupo === 'pt' ? ' selected' : '') + '>Online training</option><option value="presencial"' + (a.grupo === 'presencial' ? ' selected' : '') + '>Presencial (sem app)</option></select></div>' +
           '<div class="field"><label for="ge-pin">Novo PIN (opcional)</label><div class="f"><input id="ge-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar2" type="button">Gerar</button></div></div></div>' +
-          (G.hasGen ? '<div class="inline"><div class="field"><label for="ge-gen">Género (para os rankings)</label><select class="sel" id="ge-gen"><option value="">—</option><option value="M"' + (a.genero === 'M' ? ' selected' : '') + '>Masculino</option><option value="F"' + (a.genero === 'F' ? ' selected' : '') + '>Feminino</option></select></div>' +
+          (G.hasGen && G.scope !== 'pt' ? '<div class="inline"><div class="field"><label for="ge-gen">Género (para os rankings)</label><select class="sel" id="ge-gen"><option value="">—</option><option value="M"' + (a.genero === 'M' ? ' selected' : '') + '>Masculino</option><option value="F"' + (a.genero === 'F' ? ' selected' : '') + '>Feminino</option></select></div>' +
             '<div class="field"><label for="ge-rank">Rankings</label><select class="sel" id="ge-rank"><option value="1"' + (a.ranking_visivel !== false ? ' selected' : '') + '>Aparece nos rankings</option><option value="0"' + (a.ranking_visivel === false ? ' selected' : '') + '>Não aparece (escolha do atleta)</option></select></div></div>' +
             '<p class="small">Os rankings de testes só existem para o grupo Atleta, por modalidade e por género. Sem género definido, o atleta não entra nem vê rankings.</p>' : '<p class="small">Para indicar o género e ativar rankings, corre primeiro o SQL da parte 22.</p>') +
           (G.hasFim ? '<div class="field"><label for="ge-fim">Acesso até (inclusive)</label><input class="dt" type="date" id="ge-fim" value="' + esc(a.acesso_fim || '') + '">' +
@@ -3376,7 +3437,12 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (G.pagErr) return '<div class="field"><p class="kicker">Pagamentos</p><p class="small">' + esc(G.pagErr) + '</p></div>';
     var l = (G.pag && G.pag[a.id]) || [], tot = l.reduce(function (s2, r) { return s2 + Number(r.valor); }, 0);
     return '<div class="field"><p class="kicker">Pagamentos</p>' +
-      (l.length ? '<div>' + l.map(function (r) { return '<div class="grow"><div class="who"><b>' + gEur(r.valor) + '</b><small>' + gFmtD(r.data) + (r.nota ? ' · ' + esc(r.nota) : '') + '</small></div><button class="chip" data-act="pag-del" data-id="' + r.id + '" data-a="' + a.id + '">Apagar</button></div>'; }).join('') + '</div><p class="small">Total registado: <b>' + gEur(tot) + '</b> em ' + l.length + (l.length === 1 ? ' pagamento' : ' pagamentos') + '.</p>' : '<p class="small">Ainda não há pagamentos registados.</p>') +
+      (l.length ? '<div>' + l.map(function (r) {
+        if (G.pagEdit === r.id) return '<div class="gbox"><div class="inline"><div class="field"><label for="pe-data">Data</label><input class="dt" type="date" id="pe-data" value="' + esc(r.data) + '"></div>' +
+          '<div class="field"><label for="pe-val">Valor (€)</label><input class="dt" id="pe-val" inputmode="decimal" value="' + esc(String(r.valor).replace('.', ',')) + '"></div></div>' +
+          '<div class="field"><label for="pe-nota">Nota</label><input class="dt" id="pe-nota" value="' + esc(r.nota || '') + '"></div>' +
+          '<div class="chips"><button class="chip" data-act="pag-save" data-id="' + r.id + '" data-a="' + a.id + '">Guardar correção</button><button class="chip" data-act="pag-cancel">Cancelar</button></div><p class="small" id="g-msg-pe" role="status"></p></div>';
+        return '<div class="grow"><div class="who"><b>' + gEur(r.valor) + '</b><small>' + gFmtD(r.data) + (r.nota ? ' · ' + esc(r.nota) : '') + '</small></div><div class="chips"><button class="chip" data-act="pag-edit" data-id="' + r.id + '" data-a="' + a.id + '">Corrigir</button><button class="chip" data-act="pag-del" data-id="' + r.id + '" data-a="' + a.id + '">Apagar</button></div></div>'; }).join('') + '</div><p class="small">Total registado: <b>' + gEur(tot) + '</b> em ' + l.length + (l.length === 1 ? ' pagamento' : ' pagamentos') + '.</p>' : '<p class="small">Ainda não há pagamentos registados.</p>') +
       '<div class="inline"><div class="field"><label for="gp-data">Data</label><input class="dt" type="date" id="gp-data" value="' + localISO() + '"></div>' +
       '<div class="field"><label for="gp-val">Valor (€)</label><input class="dt" id="gp-val" inputmode="decimal" placeholder="ex.: 60"></div></div>' +
       '<div class="field"><label for="gp-nota">Nota (opcional)</label><input class="dt" id="gp-nota" placeholder="ex.: mensalidade de novembro"></div>' +
@@ -3394,6 +3460,14 @@ table.rt { min-width: 0; font-size: .85rem; }
       var novo = gRenovaFim(data, ren, a.acesso_fim);   // mesmo dia do mês seguinte; nunca encurta um acesso que já vai mais longe
       return tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: { acesso_fim: novo } });
     }).then(function () { return carregar(); }).then(function () { return gLoadPag(id); }).then(function () { gMsg('g-msg-pag', 'Pagamento registado.'); }).catch(function (e) { gMsg('g-msg-pag', gFail(e), true); });
+  }
+  function gPagSave(pid, aid) {
+    var data = $('#pe-data').value, v = parseFloat(($('#pe-val').value || '').replace(',', '.')), nota = $('#pe-nota').value.trim();
+    if (!data) { gMsg('g-msg-pe', 'Escolhe a data.', true); return; }
+    if (!(v >= 0) || isNaN(v)) { gMsg('g-msg-pe', 'Indica o valor (por exemplo 60 ou 59,90).', true); return; }
+    gMsg('g-msg-pe', 'A guardar…');
+    tReq('/rest/v1/pagamentos?id=eq.' + encodeURIComponent(pid), { method: 'PATCH', body: { data: data, valor: Math.round(v * 100) / 100, nota: nota || null } })
+      .then(function () { G.pagEdit = null; return gLoadPag(aid); }).catch(function (e) { gMsg('g-msg-pe', gFail(e), true); });
   }
   function gPagDel(pid, aid) {
     if (!window.confirm('Apagar este pagamento do histórico?')) return;
@@ -3614,6 +3688,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var gps = []; ativos.forEach(function (a) { if (gps.indexOf(pvGl(a)) < 0) gps.push(pvGl(a)); });
     var ord = ['Online training', 'Presencial']; gps.sort(function (x, y) { var ix = ord.indexOf(x), iy = ord.indexOf(y); return (ix < 0 ? 9 : ix) - (iy < 0 ? 9 : iy) || x.localeCompare(y, 'pt'); });
     if (PV.grp && gps.indexOf(PV.grp) < 0) PV.grp = '';
+    if (!PV.grp && gps.length === 1) PV.grp = gps[0];
     var lista = ativos.filter(function (a) { return PV.grp && pvGl(a) === PV.grp; }).sort(function (x, y) { return x.nome.localeCompare(y.nome, 'pt'); });
     if (PV.aid && PV.aid !== 'todos' && !lista.some(function (a) { return a.id === PV.aid; })) PV.aid = '';
     var mon = PV.mon || gMon(localISO());
@@ -3655,7 +3730,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     gFetchPlan(aid, mon).then(function (r) {
       if (onlyIso) { var k = isoDow(onlyIso); r.plan.forEach(function (d, i) { if (i !== k) { d.tipo = 'none'; d.nome = ''; d.itens = []; d.circ = {}; } }); }
       G.plan = r.plan; G.planMod = a.modalidade; G.sel = {}; G.sel[aid] = true; G.semana = mon; G.srcAtl = aid; G.srcSem = mon;
-      G.tab = 'plano'; gRender(); window.scrollTo(0, 0);
+      G.tab = 'plano'; if (typeof liveOnSet === 'function') liveOnSet('plano'); gRender(); window.scrollTo(0, 0);
       gMsg('g-msg-plano', (onlyIso ? 'A editar ' + gFmt(onlyIso) + ' de ' + a.nome + '. Os outros dias ficam como estão.' : 'A editar a semana de ' + a.nome + '. Os dias que já têm registos não são alterados.') + ' Altera o que precisas e toca em "Guardar plano".');
     }).catch(function (e) { PV.err = gFail(e); gRenderPlanos(); });
   }
@@ -3695,6 +3770,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var el = $('#g-evolucao'); if (!el) return;
     var ativos = G.atl.filter(function (a) { return a.ativo !== false; });
     var mods = gMods().filter(function (m) { return ativos.some(function (a) { return a.modalidade === m; }); });
+    if (!EV.mod && mods.length === 1) EV.mod = mods[0];
     var h = '<p class="small">Escolhe o atleta e o exercício para ver a carga de cada série ao longo do tempo. Escolhe as repetições para comparar sessões em igualdade (ex.: só as séries de 5 reps).</p>';
     h += '<div class="chips">' + mods.map(function (m) { return '<button class="chip" data-ev="mod" data-v="' + esc(m) + '" aria-pressed="' + (EV.mod === m) + '">' + esc(m) + '</button>'; }).join('') + '</div>';
     var da = ativos.filter(function (a) { return a.modalidade === EV.mod; });
@@ -3778,7 +3854,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var hoje = localISO(), mesAtual = hoje.slice(0, 7);
     var MN = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
     var mnome = function (k) { return MN[parseInt(k.slice(5, 7), 10) - 1] + ' ' + k.slice(0, 4); };
-    var h = '<div class="chips">' + ['pt', 'atleta', 'presencial', 'todos'].map(function (k) { return '<button class="chip" data-pg="grp" data-v="' + k + '" aria-pressed="' + (PG.grp === k) + '">' + PG_NOMES[k] + '</button>'; }).join('') + '</div>';
+    var h = '';
     if (PG.err) { el.innerHTML = h + '<p class="small">' + esc(PG.err) + '</p>'; return; }
     var doGrp = function (a) { return PG.grp === 'todos' || a.grupo === PG.grp; };
     var rows = (PG.rows || []).map(function (r) { var a = gAtlById(r.atleta_id); return a && doGrp(a) ? { id: r.id, data: r.data, valor: Number(r.valor), nota: r.nota, a: a } : null; }).filter(Boolean);
@@ -3944,6 +4020,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var gps = []; elig.forEach(function (a) { if (gps.indexOf(gl(a)) < 0) gps.push(gl(a)); });
     var ord = ['Online training', 'Presencial']; gps.sort(function (x, y) { var ix = ord.indexOf(x), iy = ord.indexOf(y); return (ix < 0 ? 9 : ix) - (iy < 0 ? 9 : iy) || x.localeCompare(y, 'pt'); });
     if (G.tesM && gps.indexOf(G.tesM) < 0) G.tesM = '';
+    if (!G.tesM && gps.length === 1) G.tesM = gps[0];
     var lista = elig.filter(function (a) { return G.tesM && gl(a) === G.tesM; });
     if (G.tesA && !lista.some(function (a) { return a.id === G.tesA; })) G.tesA = '';
     var h = '<div class="gbox"><p class="kicker">Testes e benchmarks</p><p class="small">Testes por categoria (RMs, saltos, tempos de prova, etc.) para qualquer atleta, com a data em que foram feitos, incluindo testes antigos do início da época. Os atletas das modalidades têm também o perfil carga-velocidade. Usa sempre o mesmo nome para o mesmo teste, é assim que se constrói a evolução.</p>' +
@@ -4127,15 +4204,17 @@ table.rt { min-width: 0; font-size: .85rem; }
   function gRenderPlano() {
     var mods = gMods(), ativos = G.atl.filter(function (a) { return a.ativo !== false; });
     var mon = gMon(G.semana);
-    var h = '<div class="gbox"><p class="kicker">1 · Modalidade e atletas</p>';
+    if (G.scope === 'pt' && !G.planMod && ativos.length) { G.planMod = PTN; G.sel = {}; ativos.forEach(function (x) { G.sel[x.id] = true; }); }
+    var h = '<div class="gbox"><p class="kicker">' + (G.scope === 'pt' ? '1 · Alunos' : '1 · Modalidade e atletas') + '</p>';
     var mods2 = mods.filter(function (m) { return ativos.some(function (a) { return a.modalidade === m; }); });
     if (G.planMod && mods2.indexOf(G.planMod) < 0) G.planMod = '';
-    h += ativos.length ? '<p class="small">Escolhe primeiro a modalidade.</p><div class="chips">' + mods2.map(function (m) {
+    h += G.scope === 'pt' ? '' : ativos.length ? '<p class="small">Escolhe primeiro a modalidade.</p><div class="chips">' + mods2.map(function (m) {
       return '<button class="chip" data-act="pmod" data-m="' + esc(m) + '" aria-pressed="' + (G.planMod === m) + '">' + esc(m) + '</button>';
     }).join('') + '</div>' : '<span class="small">Ainda não há atletas. Cria-os no separador Atletas.</span>';
+    if (G.scope === 'pt' && !ativos.length) h += '<span class="small">Ainda não há alunos de online training. Cria-os em "Alunos".</span>';
     if (G.planMod) {
       var da = ativos.filter(function (a) { return a.modalidade === G.planMod; }), nsel0 = da.filter(function (a) { return G.sel[a.id]; }).length;
-      h += '<p class="small" style="margin-top:8px">Atletas de ' + esc(G.planMod) + ' (' + nsel0 + ' de ' + da.length + ' escolhidos). Tira os que não queres incluir.</p><div class="chips">' +
+      h += '<p class="small" style="margin-top:8px">' + (G.scope === 'pt' ? 'Alunos' : 'Atletas de ' + esc(G.planMod)) + ' (' + nsel0 + ' de ' + da.length + ' escolhidos). Tira os que não queres incluir.</p><div class="chips">' +
         '<button class="chip" data-act="selmod" data-m="' + esc(G.planMod) + '" aria-pressed="' + (nsel0 === da.length) + '">Todos</button>' +
         da.map(function (a) { return '<button class="chip" data-act="sel" data-id="' + a.id + '" aria-pressed="' + (!!G.sel[a.id]) + '">' + esc(a.nome) + '</button>'; }).join('') + '</div>';
     }
@@ -4347,6 +4426,9 @@ table.rt { min-width: 0; font-size: .85rem; }
       tReq('/rest/v1/testes?id=eq.' + encodeURIComponent(id), { method: 'DELETE' }).then(function () { return gTesRefresh(); }).catch(function (e2) { gMsg('g-msg-tes', gFail(e2), true); });
     }
     else if (a === 'pag-del') gPagDel(id, b.getAttribute('data-a'));
+    else if (a === 'pag-edit') { G.pagEdit = id; gRenderAtl(); }
+    else if (a === 'pag-cancel') { G.pagEdit = null; gRenderAtl(); }
+    else if (a === 'pag-save') gPagSave(id, b.getAttribute('data-a'));
     else if (a === 'atl-save') gAtlSave(id);
     else if (a === 'fim-add') gFimAdd(parseInt(b.getAttribute('data-n'), 10));
     else if (a === 'fim-bloq') $('#ge-fim').value = isoAdd(localISO(), -1);
