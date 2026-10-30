@@ -296,6 +296,16 @@ table.rt { min-width: 0; font-size: .85rem; }
 
 #filtros.fcomp > header, #filtros.fcomp .dates, #filtros.fcomp #range-info { display: none; }
 #filtros.fcomp { padding: 12px 16px; }
+
+.pg-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pg-tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pg-tile.ok { background: var(--accent-soft); } .pg-tile.warn { background: var(--warn-soft); } .pg-tile.crit { background: var(--crit-soft); }
+.pg-tl { font-size: .78rem; color: var(--muted); } .pg-tv { font-size: 1.7rem; line-height: 1.1; } .pg-ts { font-size: .78rem; color: var(--muted); }
+.pg-card { border-top: 1px solid var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.pg-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pg-mes { display: flex; justify-content: space-between; margin-top: 10px; padding: 6px 10px; border-radius: 8px; background: var(--accent-soft); }
+.pg-row { display: grid; grid-template-columns: 3.2em 1fr auto; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); align-items: baseline; }
+.pg-row small, .pg-d { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -465,6 +475,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         <button class="chip" data-g="registar" aria-pressed="false">Registar sessão</button>
         <button class="chip" data-g="testes" aria-pressed="false">Testes</button>
         <button class="chip" data-g="evolucao" aria-pressed="false">Evolução</button>
+        <button class="chip" data-g="pagamentos" aria-pressed="false">Pagamentos</button>
       </div>
       <div id="g-planos" style="display:grid;gap:12px" hidden></div>
       <div id="g-plano" style="display:grid;gap:14px"></div>
@@ -473,6 +484,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       <div id="g-registar" style="display:grid;gap:12px" hidden></div>
       <div id="g-testes" style="display:grid;gap:12px" hidden></div>
       <div id="g-evolucao" style="display:grid;gap:12px" hidden></div>
+      <div id="g-pagamentos" style="display:grid;gap:12px" hidden></div>
     </div>
 
     <div class="panel">
@@ -3219,7 +3231,7 @@ table.rt { min-width: 0; font-size: .85rem; }
   }
 
   function gRender() {
-    ['planos', 'plano', 'atletas', 'exercicios', 'registar', 'testes', 'evolucao'].forEach(function (t) {
+    ['planos', 'plano', 'atletas', 'exercicios', 'registar', 'testes', 'evolucao', 'pagamentos'].forEach(function (t) {
       $('#g-' + t).hidden = G.tab !== t;
       var b = document.querySelector('#g-tabs [data-g="' + t + '"]');
       if (b) b.setAttribute('aria-pressed', G.tab === t ? 'true' : 'false');
@@ -3230,6 +3242,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     else if (G.tab === 'registar') gRenderReg();
     else if (G.tab === 'testes') gTesLoad();
     else if (G.tab === 'evolucao') gRenderEv();
+    else if (G.tab === 'pagamentos') gPagLoadAll();
     else gRenderEx();
     gReapply();
   }
@@ -3747,6 +3760,80 @@ table.rt { min-width: 0; font-size: .85rem; }
   $('#g-evolucao').addEventListener('change', function (e) {
     if (e.target.id === 'ev-atl') { EV.aid = e.target.value; gEvLoad(); }
     else if (e.target.id === 'ev-ex') { EV.ex = e.target.value; EV.reps = ''; gRenderEv(); }
+  });
+
+
+  /* ---------- todos os pagamentos (por grupo) ---------- */
+  var PG = { grp: 'pt', mes: '', rows: null, err: '' };
+  var PG_NOMES = { pt: 'Online training', atleta: 'Atletas', presencial: 'Presencial', todos: 'Todos' };
+  function gPagLoadAll() {
+    var el = $('#g-pagamentos'); if (!el) return;
+    el.innerHTML = '<p class="small">A carregar…</p>';
+    tGet('pagamentos', 'select=id,atleta_id,data,valor,nota&order=data.desc,criado_em.desc').then(function (rows) {
+      PG.rows = rows || []; PG.err = ''; gRenderPagAll();
+    }).catch(function () { PG.rows = []; PG.err = 'Para ver pagamentos, corre primeiro o SQL da parte 17.'; gRenderPagAll(); });
+  }
+  function gRenderPagAll() {
+    var el = $('#g-pagamentos'); if (!el) return;
+    var hoje = localISO(), mesAtual = hoje.slice(0, 7);
+    var MN = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    var mnome = function (k) { return MN[parseInt(k.slice(5, 7), 10) - 1] + ' ' + k.slice(0, 4); };
+    var h = '<div class="chips">' + ['pt', 'atleta', 'presencial', 'todos'].map(function (k) { return '<button class="chip" data-pg="grp" data-v="' + k + '" aria-pressed="' + (PG.grp === k) + '">' + PG_NOMES[k] + '</button>'; }).join('') + '</div>';
+    if (PG.err) { el.innerHTML = h + '<p class="small">' + esc(PG.err) + '</p>'; return; }
+    var doGrp = function (a) { return PG.grp === 'todos' || a.grupo === PG.grp; };
+    var rows = (PG.rows || []).map(function (r) { var a = gAtlById(r.atleta_id); return a && doGrp(a) ? { id: r.id, data: r.data, valor: Number(r.valor), nota: r.nota, a: a } : null; }).filter(Boolean);
+    var porMes = {}; rows.forEach(function (r) { var k = r.data.slice(0, 7); porMes[k] = porMes[k] || { n: 0, t: 0 }; porMes[k].n++; porMes[k].t += r.valor; });
+    var tot = rows.reduce(function (s2, r) { return s2 + r.valor; }, 0);
+    var ant = (function () { var y = +mesAtual.slice(0, 4), m = +mesAtual.slice(5, 7) - 1; if (!m) { y--; m = 12; } return y + '-' + (m < 10 ? '0' : '') + m; })();
+    var tAt = (porMes[mesAtual] || { t: 0 }).t, tAn = (porMes[ant] || { t: 0 }).t;
+    var ativos = G.atl.filter(function (a) { return a.ativo !== false && doGrp(a); });
+    var lim = isoAdd(hoje, 7), nT = 0, nA = 0, nS = 0;
+    var cartas = ativos.map(function (a) {
+      var est = !G.hasFim ? 'none' : !a.acesso_fim ? 'none' : a.acesso_fim < hoje ? 'crit' : a.acesso_fim <= lim ? 'warn' : 'ok';
+      if (est === 'crit') nT++; else if (est === 'warn') nA++; if (G.hasFim && !a.acesso_fim) nS++;
+      var meus = rows.filter(function (r) { return r.a.id === a.id; }), ult = meus.length ? meus[0] : null;
+      var rot = est === 'crit' ? 'Acesso terminado' : est === 'warn' ? 'A acabar' : est === 'ok' ? 'Em dia' : 'Sem data de fim';
+      return { a: a, est: est, rot: rot, ult: ult, soma: meus.reduce(function (s2, r) { return s2 + r.valor; }, 0), n: meus.length, ord: est === 'crit' ? 0 : est === 'warn' ? 1 : est === 'none' ? 2 : 3 };
+    }).sort(function (x, y) { if (x.ord !== y.ord) return x.ord - y.ord; return (x.a.acesso_fim || '9') < (y.a.acesso_fim || '9') ? -1 : 1; });
+    var tile = function (t, v, sub, cls) { return '<div class="pg-tile' + (cls ? ' ' + cls : '') + '"><span class="pg-tl">' + t + '</span><b class="pg-tv">' + v + '</b><span class="pg-ts">' + sub + '</span></div>'; };
+    var dif = tAt - tAn;
+    h += '<div class="pg-tiles">' + tile('Recebido em ' + MN[+mesAtual.slice(5, 7) - 1], gEur(tAt), (porMes[mesAtual] ? porMes[mesAtual].n : 0) + ' pagamento(s)') +
+      tile('Mês anterior', gEur(tAn), (tAt || tAn) ? (dif >= 0 ? '+' : '−') + gEur(Math.abs(dif)) + ' este mês' : '—') +
+      tile('Alunos ativos', String(ativos.length), PG_NOMES[PG.grp]) +
+      tile('A renovar', String(nT + nA), nT + ' terminado(s) · ' + nA + ' a acabar', nT ? 'crit' : nA ? 'warn' : 'ok') + '</div>';
+    // gráfico dos últimos 6 meses
+    var ms = [], y0 = +mesAtual.slice(0, 4), m0 = +mesAtual.slice(5, 7);
+    for (var i = 5; i >= 0; i--) { var mm = m0 - i, yy = y0; while (mm < 1) { mm += 12; yy--; } ms.push(yy + '-' + (mm < 10 ? '0' : '') + mm); }
+    var mx = Math.max.apply(null, ms.map(function (k) { return (porMes[k] || { t: 0 }).t; }).concat([1]));
+    var W = 320, H = 150, bw = 34, gap = (W - 6 * bw) / 7;
+    var svg = '<svg width="100%" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Recebido por mês">' +
+      ms.map(function (k, ix) {
+        var v = (porMes[k] || { t: 0 }).t, bh = Math.round(v / mx * 96), x = gap + ix * (bw + gap), cur = k === mesAtual;
+        return '<g data-pg="mes" data-v="' + k + '" style="cursor:pointer"><rect x="' + x + '" y="' + (112 - bh) + '" width="' + bw + '" height="' + Math.max(bh, v ? 2 : 0) + '" rx="4" fill="var(--accent)" opacity="' + (cur ? 1 : .55) + '"/>' +
+          '<text x="' + (x + bw / 2) + '" y="' + (106 - bh) + '" font-size="10" text-anchor="middle" fill="currentColor">' + (v ? Math.round(v) + '€' : '') + '</text>' +
+          '<text x="' + (x + bw / 2) + '" y="130" font-size="10" text-anchor="middle" fill="currentColor">' + MN[+k.slice(5, 7) - 1] + '</text></g>';
+      }).join('') + '<line x1="0" y1="113" x2="' + W + '" y2="113" stroke="currentColor" opacity=".25"/></svg>';
+    h += '<div class="gbox"><b>Recebido por mês</b>' + svg + '<p class="small">Total registado: <b>' + gEur(tot) + '</b> em ' + rows.length + ' pagamento(s). Toca numa barra para filtrar a lista por esse mês.</p></div>';
+    // cartas dos alunos
+    h += '<div class="gbox"><b>Alunos</b>' + (cartas.length ? cartas.map(function (c) {
+      return '<div class="pg-card"><div class="pg-top"><b>' + esc(c.a.nome) + '</b><span class="pill ' + c.est + '">' + c.rot + (c.a.acesso_fim && G.hasFim ? ' · ' + gFmt(c.a.acesso_fim) : '') + '</span></div>' +
+        '<p class="small">' + (c.ult ? 'Último pagamento: <b>' + gEur(c.ult.valor) + '</b> a ' + gFmtD(c.ult.data) : '<span class="err">Nenhum pagamento registado</span>') + (c.n > 1 ? ' · ' + c.n + ' pagamentos, ' + gEur(c.soma) : '') + '</p></div>';
+    }).join('') : '<p class="note">Não há atletas neste grupo.</p>') + (G.hasFim ? '' : '<p class="small">Para controlar o acesso por data, corre o SQL da parte 16.</p>') + '</div>';
+    // lista por mês
+    var meses = Object.keys(porMes).sort().reverse(), vis = PG.mes ? meses.filter(function (k) { return k === PG.mes; }) : meses;
+    h += '<div class="gbox"><b>Pagamentos</b>' + (meses.length ? '<div class="chips"><button class="chip" data-pg="mes" data-v="" aria-pressed="' + (!PG.mes) + '">Todos os meses</button>' + meses.map(function (k) { return '<button class="chip" data-pg="mes" data-v="' + k + '" aria-pressed="' + (PG.mes === k) + '">' + mnome(k) + '</button>'; }).join('') + '</div>' : '') +
+      (vis.length ? vis.map(function (k) {
+        return '<div class="pg-mes"><span>' + mnome(k) + '</span><b>' + gEur(porMes[k].t) + '</b></div>' + rows.filter(function (r) { return r.data.slice(0, 7) === k; }).map(function (r) {
+          return '<div class="pg-row"><span class="pg-d">' + gFmt(r.data) + '</span><span class="pg-n">' + esc(r.a.nome) + (r.nota ? '<small> · ' + esc(r.nota) + '</small>' : '') + '</span><b>' + gEur(r.valor) + '</b></div>';
+        }).join('');
+      }).join('') : '<p class="note">Ainda não há pagamentos registados.</p>') + '</div>';
+    el.innerHTML = h;
+  }
+  $('#g-pagamentos').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pg]'); if (!b) return;
+    if (b.getAttribute('data-pg') === 'grp') { PG.grp = b.getAttribute('data-v'); PG.mes = ''; }
+    else PG.mes = b.getAttribute('data-v');
+    gRenderPagAll();
   });
 
   /* ---------- testes e benchmarks (online training e presencial) ---------- */
