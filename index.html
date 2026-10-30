@@ -339,6 +339,18 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 #atleta-app.pn > *:not(.bar):not(#well-alert):not(#pin-panel):not(#mac-panel):not(#evo-panel):not(#per-panel):not(#tes-panel) { display: none !important; }
 .pn-back { margin-bottom: 8px; }
 #atleta-app.pn > #wsum { display: none !important; }
+.mac-wh { display: flex; justify-content: space-between; align-items: center; }
+.mac-cur { border-color: var(--accent, #0b6e8a); }
+.mac-tr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: center; border-top: 1px solid var(--line); padding-top: 8px; }
+.mac-tr .small { grid-column: 1; }
+.mac-add { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center; margin-top: 6px; }
+.mac-add { grid-template-columns: 1fr auto; }
+.mac-add input { grid-column: 1 / -1; }
+.mac-tr input { grid-column: 1 / -1; }
+.mac-tr .small { grid-column: 1; }
+#g-macro .inline .field { flex: 1 1 100%; }
+#g-macro .inline input.dt { width: 100%; }
+.mac-nota { background: var(--surface-2, #f1efe8); border-left: 3px solid var(--accent, #0b6e8a); border-radius: 8px; padding: 8px 10px; margin: 4px 0 8px; font-size: .92em; }
 </style>
 </head>
 <body>
@@ -515,6 +527,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         <button class="chip" data-g="testes" aria-pressed="false">Testes</button>
         <button class="chip" data-g="evolucao" aria-pressed="false">Evolução</button>
         <button class="chip" data-g="pagamentos" aria-pressed="false">Pagamentos</button>
+        <button class="chip" data-g="macro" aria-pressed="false" hidden>Macro</button>
       </div>
       <div id="g-planos" style="display:grid;gap:12px" hidden></div>
       <div id="g-plano" style="display:grid;gap:14px"></div>
@@ -524,6 +537,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       <div id="g-testes" style="display:grid;gap:12px" hidden></div>
       <div id="g-evolucao" style="display:grid;gap:12px" hidden></div>
       <div id="g-pagamentos" style="display:grid;gap:12px" hidden></div>
+      <div id="g-macro" style="display:grid;gap:12px" hidden></div>
     </div>
 
     <div class="panel">
@@ -2255,7 +2269,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       hydrate(r);
       lsSet('alvo.sessao', JSON.stringify(sess));
       livePinPanel(!!r.pin_provisorio && !lsGet('alvo.skip.' + id), !!r.pin_provisorio);
-      liveMacProbe();
+      liveMacProbe(); liveBday();
       return { ok: true };
     });
   }
@@ -2272,6 +2286,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
           $('#entrar-err').textContent = r0 && r0.erro === 'expirado' ? 'O teu acesso terminou. Fala com o teu treinador para o renovar.' : 'Email ou PIN incorretos. Depois de 5 tentativas falhadas, a entrada fica bloqueada 15 minutos. Fala com o teu treinador se precisares.';
           return;
         }
+        ONL = true;
         return startSession(r0.id, r0.nome, pin).then(function (r) {
           $('#entrar').disabled = false;
           if (r.ok) { $('#pin').value = ''; EMV = ''; return; }
@@ -2291,6 +2306,9 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     }).catch(function (e) { $('#entrar').disabled = false; $('#entrar-err').textContent = netErr(e); });
   }
   var PINPROV = false;
+  var ONL = false;
+  function pinPt() { return ONL || PTOK; }
+  function pinTxt() { return pinPt() ? '6 dígitos' : '4 a 6 dígitos'; }
   function livePinPanel(show, prov) {
     PINPROV = prov;
     var p = $('#pin-panel');
@@ -2298,7 +2316,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     p.hidden = !show;
     if (!show) return;
     $('#pinp-t').textContent = prov ? 'Escolhe o teu PIN' : 'Alterar PIN';
-    $('#pinp-help').textContent = prov ? 'Este PIN foi-te dado pelo teu treinador. Escolhe um que só tu saibas, com 4 a 6 dígitos, e que seja fácil de lembrar.' : 'Escolhe um PIN novo, com 4 a 6 dígitos.';
+    $('#pinp-help').textContent = prov ? 'Este PIN foi-te dado pelo teu treinador. Escolhe um que só tu saibas, com ' + pinTxt() + ', e que seja fácil de lembrar.' : 'Escolhe um PIN novo, com ' + pinTxt() + '.';
     $('#pin-skip').textContent = prov ? 'Agora não' : 'Cancelar';
     $('#pin-err').textContent = '';
     $('#pin-n1').value = ''; $('#pin-n2').value = '';
@@ -2306,7 +2324,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   function liveSavePin() {
     if (!sess) return;
     var n1 = $('#pin-n1').value.trim(), n2 = $('#pin-n2').value.trim(), er = $('#pin-err');
-    if (!/^\d{4,6}$/.test(n1)) { er.textContent = 'O PIN tem de ter 4 a 6 dígitos (só números).'; return; }
+    if (!(pinPt() ? /^\d{6}$/ : /^\d{4,6}$/).test(n1)) { er.textContent = 'O PIN tem de ter ' + pinTxt() + ' (só números).'; return; }
     if (n1 !== n2) { er.textContent = 'Os dois PINs são diferentes.'; return; }
     if (n1 === sess.pin) { er.textContent = 'Escolhe um PIN diferente do atual.'; return; }
     $('#pin-save').disabled = true; er.textContent = '';
@@ -2321,7 +2339,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       }
       er.textContent = r && r.erro === 'fraco' ? 'Esse PIN é fácil de adivinhar (por exemplo 1234 ou 1111). Escolhe outro.' :
         r && r.erro === 'igual' ? 'Escolhe um PIN diferente do atual.' :
-        r && r.erro === 'formato' ? 'O PIN tem de ter 4 a 6 dígitos (só números).' :
+        r && r.erro === 'formato' ? 'O PIN tem de ter ' + pinTxt() + ' (só números).' :
         'Não foi possível guardar. Sai e entra outra vez.';
     }).catch(function (e) { $('#pin-save').disabled = false; er.textContent = netErr(e); });
   }
@@ -2390,7 +2408,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var porData = {}; (d.treinos || []).forEach(function (t) { (porData[t.data] = porData[t.data] || []).push(t); });
     var feitosEm = {}; (d.treinos || []).forEach(function (t) { if (t.feito_em) (feitosEm[t.feito_em] = feitosEm[t.feito_em] || []).push(t); });
     var fut = {}; (d.futuras || []).forEach(function (f) { fut[f.ini] = f.n; });
-    var fase = {}; (d.fases || []).forEach(function (f) { fase[f.semana] = f.fase; });
+    var fase = {}, obj = {}, nota = {}; (d.fases || []).forEach(function (f) { fase[f.semana] = f.fase; obj[f.semana] = f.objetivo; nota[f.semana] = f.nota; });
     var tot = 0, ok = 0;
     (d.treinos || []).forEach(function (t) { if (t.data.slice(0, 7) === first.slice(0, 7)) { tot++; if (t.feito_em) ok++; } });
     h += '<div class="mac-hd"><button class="chip" id="mac-prev" aria-label="Mês anterior">‹</button><b>' + MESES[MACM - 1] + ' ' + MACY + '</b><button class="chip" id="mac-next" aria-label="Mês seguinte">›</button></div>';
@@ -2412,9 +2430,10 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       h += '</div>';
       (d.treinos || []).forEach(function (x) { if (x.data >= w && x.data <= macAdd(w, 6)) { nt++; if (x.feito_em) nf++; } });
       var ph = fase[w] ? '<span class="mac-ph">' + esc(fase[w]) + '</span>' : '';
-      if (futura && !fut[w]) h += '<div class="mac-l"><span>Sem treinos planeados</span>' + ph + '</div>';
+      var ob = (obj[w] ? '<div class="small mac-ob">' + esc(obj[w]) + '</div>' : '') + (nota[w] ? '<div class="mac-nota"><b>Nota do treinador</b><br>' + esc(nota[w]) + '</div>' : '');
+      if (futura && !fut[w]) h += '<div class="mac-l"><span>Sem treinos planeados</span>' + ph + '</div>' + ob;
       else if (futura) h += '<div class="mac-l fut"><span>' + (fut[w] || 0) + ' treino' + ((fut[w] || 0) === 1 ? '' : 's') + ' planeado' + ((fut[w] || 0) === 1 ? '' : 's') + '</span>' + (ph || '<span>só resumo</span>') + '</div>';
-      else h += '<div class="mac-l"><span>' + (atual ? 'Esta semana' : fmtD(w) + ' – ' + fmtD(macAdd(w, 6))) + ' ' + ph + '</span><span>' + nf + '/' + nt + ' feitos</span></div>';
+      else h += '<div class="mac-l"><span>' + (atual ? 'Esta semana' : fmtD(w) + ' – ' + fmtD(macAdd(w, 6))) + ' ' + ph + '</span><span>' + nf + '/' + nt + ' feitos</span></div>' + ob;
       w = macAdd(w, 7);
     }
     h += '<div class="mac-lg"><span><i class="dot f"></i>Feito</span><span><i class="dot p"></i>Planeado</span><span><i class="dot x"></i>Por fazer / não fiz</span></div>';
@@ -2768,9 +2787,9 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       var nome = (sess && sess.nome ? String(sess.nome).split(' ')[0] : '');
       var el = document.createElement('div'); el.id = 'cele'; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-live', 'assertive'); el.setAttribute('aria-label', 'Sessão guardada');
       el.innerHTML = '<div class="cc"><div class="ck"><svg viewBox="0 0 48 48"><path d="M10 25 L20 35 L38 13"/></svg></div>' +
-        '<h2>Sessão guardada!</h2><p class="big">' + (ua != null ? esc(String(ua)) + ' UA' : '') + '</p>' +
+        '<h2>' + (nome ? 'Boa, ' + esc(nome) + '!' : 'Sessão guardada!') + '</h2><p class="small">Sessão guardada</p><p class="big">' + (ua != null ? esc(String(ua)) + ' UA' : '') + '</p>' +
         '<p class="small">PSE ' + esc(String(pse)) + ' · ' + esc(String(min)) + ' min</p>' +
-        '<p>Bom trabalho' + (nome ? ', ' + esc(nome) : '') + '! Já está tudo registado.</p><button class="primary" id="cele-ok">Fechar</button></div>';
+        '<p>Já está tudo registado.</p><button class="primary" id="cele-ok">Fechar</button></div>';
       document.body.appendChild(el);
       var close = function () { var x = document.getElementById('cele'); if (x) x.remove(); };
       el.addEventListener('click', function (e) { if (e.target === el || e.target.id === 'cele-ok') close(); });
@@ -3178,8 +3197,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   var TAB = lsGet('alvo.tab') || 'semana';
   if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados' && TAB !== 'online') TAB = 'semana';
   var ONSUB = lsGet('alvo.osub') || 'alunos';
-  var ONSECS = [['semana', 'Esta semana'], ['alunos', 'Alunos'], ['plano', 'Planear'], ['planos', 'Ver planos'], ['registar', 'Registar sessão'], ['pagamentos', 'Pagamentos'], ['dados', 'Dados'], ['evolucao', 'Evolução'], ['testes', 'Testes'], ['rep', 'Relatório']];
-  var ONG = { alunos: 'atletas', plano: 'plano', planos: 'planos', registar: 'registar', pagamentos: 'pagamentos', evolucao: 'evolucao', testes: 'testes' };
+  var ONSECS = [['semana', 'Esta semana'], ['alunos', 'Alunos'], ['macro', 'Macro'], ['plano', 'Planear'], ['planos', 'Ver planos'], ['registar', 'Registar sessão'], ['pagamentos', 'Pagamentos'], ['dados', 'Dados'], ['evolucao', 'Evolução'], ['testes', 'Testes'], ['rep', 'Relatório']];
+  var ONG = { alunos: 'atletas', macro: 'macro', plano: 'plano', planos: 'planos', registar: 'registar', pagamentos: 'pagamentos', evolucao: 'evolucao', testes: 'testes' };
   function liveOnSet(k) { ONSUB = k; lsSet('alvo.osub', k); document.querySelectorAll('#o-tabs [data-o2]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-o2') === ONSUB)); }); }
   (function criarNav() {
     var v = $('#view-treinador'), ref = $('#g-panel');
@@ -3376,6 +3395,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       liveBuildScope();
       showTrainer(true);
       try { liveTrainerWellAlert(); } catch (e0) { /* aviso opcional */ }
+      try { liveTrainerBday(); } catch (e0b) { /* opcional */ }
       refreshTrainerUI();
       return gLoad();
     }).catch(function (e) {
@@ -3384,6 +3404,34 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     });
   }
   /* aviso no painel do treinador: atletas com bem-estar (Hooper) em atenção (>= 14) hoje ou ontem */
+  /* ---------- parabéns no dia de anos ---------- */
+  function liveBday() {
+    if (!sess) return;
+    var h = HOJE || localISO(), k = 'alvo.bday.' + sess.id;
+    if (lsGet(k) === h) return;
+    rpc('atleta_aniversario', { p_atleta: sess.id, p_pin: sess.pin }).then(function (r) {
+      if (!r || !r.ok || !r.hoje) return;
+      lsSet(k, h);
+      var old = document.getElementById('bday'); if (old) old.remove();
+      var el = document.createElement('div'); el.id = 'bday'; el.className = 'mac-warn'; el.setAttribute('role', 'status');
+      el.style.cssText = 'margin:10px 14px;text-align:center';
+      el.innerHTML = '<b>Parabéns, ' + esc(sess.nome.split(' ')[0]) + '! 🎉</b><br>Tenhas um dia fantástico. Um abraço do teu treinador.<br><button class="chip" type="button" id="bday-ok">Obrigado</button>';
+      var app = $('#atleta-app'); app.insertBefore(el, app.firstChild);
+      $('#bday-ok').addEventListener('click', function () { el.remove(); });
+    }).catch(function () {});
+  }
+  function liveTrainerBday() {
+    var v = $('#view-treinador'); if (!v) return;
+    tGet('atletas', 'select=nome,grupo,modalidade,ativo,nascimento&nascimento=not.is.null').then(function (rows) {
+      var h = RAWD && RAWD.hoje ? RAWD.hoje : localISO(), md = h.slice(5), L = rows.filter(function (a) { return a.ativo !== false && a.nascimento && a.nascimento.slice(5) === md; });
+      var el = $('#t-bday'); if (el) el.remove();
+      if (!L.length || lsGet('alvo.tbday') === h) return;
+      el = document.createElement('div'); el.id = 't-bday'; el.className = 'mac-warn'; el.setAttribute('role', 'status'); el.style.margin = '10px 14px';
+      el.innerHTML = '<b>Hoje fazem anos 🎂</b><br>' + L.map(function (a) { return esc(a.nome) + ' <span class="small">· ' + (a.grupo === 'pt' ? 'Online training' : esc(a.modalidade || '')) + '</span>'; }).join('<br>') + '<br><button class="chip" type="button" id="t-bday-ok">Ok, vi</button>';
+      v.insertBefore(el, v.firstChild);
+      $('#t-bday-ok').addEventListener('click', function () { lsSet('alvo.tbday', h); el.remove(); });
+    }).catch(function () {});
+  }
   function liveTrainerWellAlert() {
     var v = $('#view-treinador'), el = $('#t-walert'); if (!v || !RAWD) return;
     if (!el) { el = document.createElement('div'); el.id = 't-walert'; el.className = 'mac-warn'; el.setAttribute('role', 'alert'); el.style.margin = '10px 14px'; v.insertBefore(el, v.firstChild); }
@@ -3605,7 +3653,9 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 
   function gLoad() {
     return Promise.all([
-      tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim,genero,ranking_visivel,email,objetivo,limitacoes,inicio_programa&order=nome,id').catch(function () {
+      tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim,genero,ranking_visivel,email,objetivo,limitacoes,inicio_programa,nascimento&order=nome,id').catch(function () {
+        return tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim,genero,ranking_visivel,email,objetivo,limitacoes,inicio_programa&order=nome,id');
+      }).catch(function () {
         return tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim,genero,ranking_visivel,email&order=nome,id');
       }).catch(function () {
         return tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim,genero,ranking_visivel&order=nome,id');
@@ -3618,6 +3668,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     ]).then(function (r) {
       G.all = r[0] || []; G.ex = r[1] || [];
       G.hasFim = !G.all.length || G.all[0].hasOwnProperty('acesso_fim');
+    G.hasNasc = !!G.all.length && G.all[0].hasOwnProperty('nascimento');
       G.hasGen = !!G.all.length && G.all[0].hasOwnProperty('genero');
       G.hasEmail = !!G.all.length && G.all[0].hasOwnProperty('email');
       G.hasPerfil = !!G.all.length && G.all[0].hasOwnProperty('objetivo');
@@ -3629,13 +3680,13 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   }
 
   function gRender() {
-    ['planos', 'plano', 'atletas', 'exercicios', 'registar', 'testes', 'evolucao', 'pagamentos'].forEach(function (t) {
+    ['planos', 'plano', 'atletas', 'exercicios', 'registar', 'testes', 'evolucao', 'pagamentos', 'macro'].forEach(function (t) {
       $('#g-' + t).hidden = G.tab !== t;
       var b = document.querySelector('#g-tabs [data-g="' + t + '"]');
       if (b) b.setAttribute('aria-pressed', G.tab === t ? 'true' : 'false');
     });
     var bar = $('#g-tabs'); if (bar) bar.hidden = G.scope === 'pt';
-    [].forEach.call(document.querySelectorAll('#g-tabs [data-g="pagamentos"]'), function (b) { b.hidden = true; });
+    [].forEach.call(document.querySelectorAll('#g-tabs [data-g="pagamentos"],#g-tabs [data-g="macro"]'), function (b) { b.hidden = true; });
     if (G.tab === 'planos') gPvLoad();
     else if (G.tab === 'plano') gRenderPlano();
     else if (G.tab === 'atletas') gRenderAtl();
@@ -3643,6 +3694,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     else if (G.tab === 'testes') gTesLoad();
     else if (G.tab === 'evolucao') gRenderEv();
     else if (G.tab === 'pagamentos') gPagLoadAll();
+    else if (G.tab === 'macro') gMacLoad();
     else gRenderEx();
     gReapply();
   }
@@ -3672,12 +3724,14 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       '<div class="field"><label for="ga-nome">Nome</label><input class="dt" id="ga-nome" autocomplete="off"></div>' +
       (G.scope === 'pt' && G.hasPerfil ? '<div class="field"><label for="ga-obj">Objetivo (o aluno vê no perfil)</label><input class="dt" id="ga-obj" maxlength="120" placeholder="ex.: fazer a primeira suspensão completa"></div><div class="field"><label for="ga-ini">Início do programa</label><input class="dt" type="date" id="ga-ini" value="' + localISO() + '"></div>' : '') +
       (G.scope === 'pt' ? (G.hasEmail ? '<div class="field"><label for="ga-email">Email do aluno (é com ele que entra na app)</label><input class="dt" id="ga-email" type="email" inputmode="email" autocomplete="off" autocapitalize="none" placeholder="nome@email.pt"></div>' : '<p class="small">Para os alunos entrarem com email, corre primeiro o SQL da parte 26.</p>') : '') +
+      '<div class="field"><label for="ga-nasc">Data de nascimento (opcional · para a mensagem de parabéns)</label><input class="dt" type="date" id="ga-nasc"></div>' +
       '<div class="field"><label for="ga-mod">Modalidade</label><input class="dt" id="ga-mod" list="ga-mods" autocomplete="off" placeholder="Ex.: Surf"' + (G.scope === 'pt' ? ' value="Online training"' : '') + '><datalist id="ga-mods">' +
       mods.map(function (m) { return '<option value="' + esc(m) + '">'; }).join('') + '</datalist></div>' +
       gEspHtml('ga', null) +
       '<div class="inline"><div class="field"' + (G.scope === 'pt' ? ' hidden' : '') + '><label for="ga-grp">Grupo</label><select class="sel" id="ga-grp">' + (G.scope === 'pt' ? '<option value="pt">Online training</option>' : '<option value="atleta">Atleta</option><option value="presencial">Presencial (sem app)</option>') + '</select></div>' +
-      '<div class="field"><label for="ga-pin">PIN (4 dígitos)</label><div class="f"><input id="ga-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar" type="button">Gerar</button></div></div></div>' +
+      '<div class="field"><label for="ga-pin">PIN (' + (G.scope === 'pt' ? '6' : '4') + ' dígitos)</label><div class="f"><input id="ga-pin" inputmode="numeric" maxlength="' + (G.scope === 'pt' ? 6 : 4) + '" autocomplete="off"><button class="chip" data-act="atl-gerar" type="button">Gerar</button></div></div></div>' +
       (G.hasGen && G.scope !== 'pt' ? '<div class="field"><label for="ga-gen">Género (para os rankings)</label><select class="sel" id="ga-gen"><option value="">—</option><option value="M">Masculino</option><option value="F">Feminino</option></select></div>' : '') +
+      (G.scope === 'pt' && G.hasFim ? '<div class="gbox"><p class="kicker">Primeiro pagamento (opcional)</p><div class="inline"><div class="field"><label for="ga-pv">Valor (€)</label><input class="dt" id="ga-pv" inputmode="decimal" placeholder="ex.: 60"></div><div class="field"><label for="ga-pd">Data</label><input class="dt" type="date" id="ga-pd" value="' + localISO() + '"></div></div><div class="field"><label for="ga-pr">Acesso do aluno</label><select class="sel" id="ga-pr"><option value="0">Não definir o fim do acesso</option><option value="1">1 mês (a contar da data)</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div></div>' : '') +
       '<button class="primary" data-act="atl-criar">' + (G.scope === 'pt' ? 'Criar aluno' : 'Criar atleta') + '</button><p class="small" id="g-msg-atl" role="status"></p></div>' +
       '<p class="kicker">' + G.atl.filter(function (a) { return a.ativo !== false; }).length + ' ativos</p>';
     var arq = G.atl.filter(function (a) { return a.ativo === false; });
@@ -3699,7 +3753,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
             [[0, 'Só a semana corrente'], [1, 'Semana corrente + a seguinte'], [2, 'Corrente + 2 seguintes'], [3, 'Corrente + 3 seguintes'], [4, 'Corrente + 4 seguintes']].map(function (o) { return '<option value="' + o[0] + '"' + ((a.semanas_a_frente || 0) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
           '</select></div>' +
           '<div class="inline"><div class="field"><label for="ge-grp">Grupo</label><select class="sel" id="ge-grp"><option value="atleta"' + (a.grupo === 'atleta' ? ' selected' : '') + '>Atleta</option><option value="pt"' + (a.grupo === 'pt' ? ' selected' : '') + '>Online training</option><option value="presencial"' + (a.grupo === 'presencial' ? ' selected' : '') + '>Presencial (sem app)</option></select></div>' +
-          '<div class="field"><label for="ge-pin">Novo PIN (opcional)</label><div class="f"><input id="ge-pin" inputmode="numeric" maxlength="4" autocomplete="off"><button class="chip" data-act="atl-gerar2" type="button">Gerar</button></div></div></div>' +
+          (G.hasNasc ? '<div class="field"><label for="ge-nasc">Data de nascimento (para a mensagem de parabéns)</label><input class="dt" type="date" id="ge-nasc" value="' + esc(a.nascimento || '') + '"></div>' : '') +
+          '<div class="field"><label for="ge-pin">Novo PIN (opcional · 6 dígitos no Online training)</label><div class="f"><input id="ge-pin" inputmode="numeric" maxlength="6" autocomplete="off"><button class="chip" data-act="atl-gerar2" type="button">Gerar</button></div></div></div>' +
           (G.hasGen && G.scope !== 'pt' ? '<div class="inline"><div class="field"><label for="ge-gen">Género (para os rankings)</label><select class="sel" id="ge-gen"><option value="">—</option><option value="M"' + (a.genero === 'M' ? ' selected' : '') + '>Masculino</option><option value="F"' + (a.genero === 'F' ? ' selected' : '') + '>Feminino</option></select></div>' +
             '<div class="field"><label for="ge-rank">Rankings</label><select class="sel" id="ge-rank"><option value="1"' + (a.ranking_visivel !== false ? ' selected' : '') + '>Aparece nos rankings</option><option value="0"' + (a.ranking_visivel === false ? ' selected' : '') + '>Não aparece (escolha do atleta)</option></select></div></div>' +
             '<p class="small">Os rankings de testes só existem para o grupo Atleta, por modalidade e por género. Sem género definido, o atleta não entra nem vê rankings.</p>' : '<p class="small">Para indicar o género e ativar rankings, corre primeiro o SQL da parte 22.</p>') +
@@ -3717,8 +3772,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     $('#g-atletas').innerHTML = h;
     gReapply();
   }
-  function gPinRand() { return String(Math.floor(Math.random() * 10000) + 10000).slice(1); }
-  var ERRS_ATL = { existe: 'Já existe um atleta com esse nome.', pin: 'O PIN tem de ter 4 dígitos.', campos: 'Preenche o nome e a modalidade.', grupo: 'Grupo inválido.', acesso: 'Esta conta não tem acesso de treinador.' };
+  function gPinRand(n) { n = n || 4; var p = Math.pow(10, n); return String(Math.floor(Math.random() * p) + p).slice(1); }
+  var ERRS_ATL = { existe: 'Já existe um atleta com esse nome.', pin: 'O PIN tem de ter 4 dígitos (6 no Online training).', campos: 'Preenche o nome e a modalidade.', grupo: 'Grupo inválido.', acesso: 'Esta conta não tem acesso de treinador.' };
   function gAtlCriar() {
     var nome = $('#ga-nome').value.trim(), mod = $('#ga-mod').value.trim(), grp = $('#ga-grp').value, pin = $('#ga-pin').value.trim();
     var emc = $('#ga-email') ? $('#ga-email').value.trim().toLowerCase() : '';
@@ -3726,22 +3781,27 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     if (emc && G.all.some(function (x) { return (x.email || '').toLowerCase() === emc; })) { gMsg('g-msg-atl', 'Já existe um aluno com esse email.', true); return; }
     if (!nome || !mod) { gMsg('g-msg-atl', 'Preenche o nome e a modalidade.', true); return; }
     if (grp === 'presencial' && !pin) pin = gPinRand();   // não usa a app: o PIN é só para cumprir o registo
-    if (!/^\d{4}$/.test(pin)) { gMsg('g-msg-atl', 'O PIN tem de ter 4 dígitos. Podes carregar em Gerar.', true); return; }
+    var npin = grp === 'pt' ? 6 : 4;
+    if (!new RegExp('^\\d{' + npin + '}$').test(pin)) { gMsg('g-msg-atl', 'O PIN tem de ter ' + npin + ' dígitos. Podes carregar em Gerar.', true); return; }
     gMsg('g-msg-atl', 'A criar…');
     tReq('/rest/v1/rpc/criar_atleta', { method: 'POST', body: { p_nome: nome, p_modalidade: mod, p_grupo: grp, p_pin: pin } }).then(function (r) {
       if (!r || !r.ok) { gMsg('g-msg-atl', ERRS_ATL[r && r.erro] || 'Não foi possível criar.', true); return; }
       var esp = gEspLer('ga');
-      var gen = $('#ga-gen') ? $('#ga-gen').value : '', po = {}; if (emc) po.email = emc; if ($('#ga-obj') && $('#ga-obj').value.trim()) po.objetivo = $('#ga-obj').value.trim(); if ($('#ga-ini') && $('#ga-ini').value) po.inicio_programa = $('#ga-ini').value; if (esp && (esp.d.length || esp.e.length)) { po.distancias = esp.d; po.estilos = esp.e; } if (gen) po.genero = gen;
-      return Promise.resolve(Object.keys(po).length ? tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', body: po }) : null).then(function () { return carregar(); }).then(function () { gMsg('g-msg-atl', nome + ' criado. PIN provisório: ' + pin + '. Entrega-o ao atleta: na primeira entrada ele escolhe o seu próprio PIN.'); });
+      var gen = $('#ga-gen') ? $('#ga-gen').value : '', po = {}; if (emc) po.email = emc; if ($('#ga-obj') && $('#ga-obj').value.trim()) po.objetivo = $('#ga-obj').value.trim(); if ($('#ga-ini') && $('#ga-ini').value) po.inicio_programa = $('#ga-ini').value; if (esp && (esp.d.length || esp.e.length)) { po.distancias = esp.d; po.estilos = esp.e; } if (gen) po.genero = gen; if ($('#ga-nasc') && $('#ga-nasc').value && G.hasNasc) po.nascimento = $('#ga-nasc').value;
+      var pv = $('#ga-pv') ? parseFloat(($('#ga-pv').value || '').replace(',', '.')) : NaN, pdt = $('#ga-pd') ? $('#ga-pd').value : '', pren = $('#ga-pr') ? parseInt($('#ga-pr').value, 10) : 0, pagMsg = '';
+      if (pren && pdt) po.acesso_fim = gRenovaFim(pdt, pren, null);
+      return Promise.resolve(Object.keys(po).length ? tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', body: po }) : null).then(function () {
+        if (pv >= 0 && !isNaN(pv) && pdt) return tReq('/rest/v1/pagamentos', { method: 'POST', body: { atleta_id: r.id, data: pdt, valor: Math.round(pv * 100) / 100, nota: 'Primeiro pagamento' } }).then(function () { pagMsg = ' Primeiro pagamento registado' + (po.acesso_fim ? '; acesso até ' + gFmtD(po.acesso_fim) : '') + '.'; }).catch(function () { pagMsg = ' (o pagamento não ficou registado: regista-o no perfil do aluno)'; });
+      }).then(function () { return carregar(); }).then(function () { gMsg('g-msg-atl', nome + ' criado. PIN provisório: ' + pin + '. Entrega-o ao atleta: na primeira entrada ele escolhe o seu próprio PIN.' + pagMsg); });
     }).catch(function (e) { gMsg('g-msg-atl', gFail(e), true); });
   }
   function gAtlSave(id) {
     var nome = $('#ge-nome').value.trim(), mod = $('#ge-mod').value.trim(), grp = $('#ge-grp').value, pin = $('#ge-pin').value.trim();
     if (!nome || !mod) { gMsg('g-msg-edit', 'Preenche o nome e a modalidade.', true); return; }
-    if (pin && !/^\d{4}$/.test(pin)) { gMsg('g-msg-edit', 'O PIN tem de ter 4 dígitos.', true); return; }
+    if (pin && !(grp === 'pt' ? /^\d{6}$/ : /^\d{4,6}$/).test(pin)) { gMsg('g-msg-edit', grp === 'pt' ? 'O PIN do Online training tem 6 dígitos.' : 'O PIN tem de ter 4 a 6 dígitos.', true); return; }
     if ($('#ge-email')) { var ev = $('#ge-email').value.trim().toLowerCase(); if (ev && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ev)) { gMsg('g-msg-edit', 'O email não parece válido.', true); return; } if (ev && G.all.some(function (x) { return x.id !== id && (x.email || '').toLowerCase() === ev; })) { gMsg('g-msg-edit', 'Já existe um aluno com esse email.', true); return; } }
     gMsg('g-msg-edit', 'A guardar…');
-    tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: (function () { var o = { nome: nome, modalidade: mod, grupo: grp, semanas_a_frente: parseInt($('#ge-sem').value, 10) || 0 }, esp = gEspLer('ge'); if ($('#ge-fim')) o.acesso_fim = $('#ge-fim').value || null; if ($('#ge-obj')) { o.objetivo = $('#ge-obj').value.trim() || null; o.inicio_programa = $('#ge-ini').value || null; o.limitacoes = $('#ge-lim').value.trim() || null; }
+    tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: (function () { var o = { nome: nome, modalidade: mod, grupo: grp, semanas_a_frente: parseInt($('#ge-sem').value, 10) || 0 }, esp = gEspLer('ge'); if ($('#ge-fim')) o.acesso_fim = $('#ge-fim').value || null; if ($('#ge-nasc')) o.nascimento = $('#ge-nasc').value || null; if ($('#ge-obj')) { o.objetivo = $('#ge-obj').value.trim() || null; o.inicio_programa = $('#ge-ini').value || null; o.limitacoes = $('#ge-lim').value.trim() || null; }
  if ($('#ge-email')) { var em2 = $('#ge-email').value.trim().toLowerCase(); o.email = em2 || null; }
  if ($('#ge-gen')) { o.genero = $('#ge-gen').value || null; o.ranking_visivel = $('#ge-rank').value !== '0'; } if (esp) { o.distancias = esp.d; o.estilos = esp.e; } return o; })() }).then(function () {
       return pin ? tReq('/rest/v1/rpc/definir_pin_treinador', { method: 'POST', body: { p_atleta: id, p_pin: pin } }) : { ok: true };
@@ -3864,6 +3924,154 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     if (!window.confirm('Apagar este pagamento do histórico?')) return;
     tReq('/rest/v1/pagamentos?id=eq.' + encodeURIComponent(pid), { method: 'DELETE' }).then(function () { return gLoadPag(aid); }).catch(function (e) { gMsg('g-msg-pag', gFail(e), true); });
   }
+
+  /* ---------- macro do aluno (Online training): fase, objetivo e treinos de cada semana ---------- */
+  var MC = { aid: '', mes: '', rows: null, err: '', msg: '' }, MCDIAS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+      MCMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  function gMacRange() {
+    var ini = MC.mes + '-01', y = +MC.mes.slice(0, 4), m = +MC.mes.slice(5, 7), fimMes = isoAdd(new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10), -1);
+    return { a: gMon(ini), b: isoAdd(gMon(fimMes), 6), fimMes: fimMes };
+  }
+  function gMacLoad() {
+    var pts = G.atl.filter(function (a) { return a.ativo !== false; });
+    if (!MC.mes) MC.mes = localISO().slice(0, 7);
+    if (!MC.aid || !pts.some(function (a) { return a.id === MC.aid; })) MC.aid = pts.length ? pts[0].id : '';
+    if (!MC.aid) { MC.rows = null; gRenderMacro(); return; }
+    var r = gMacRange(), de = isoAdd(r.a, -7), aid = encodeURIComponent(MC.aid);
+    MC.err = '';
+    Promise.all([
+      tGet('treinos', 'select=id,atleta_id,data,nome,tipo&atleta_id=eq.' + aid + '&data=gte.' + de + '&data=lte.' + r.b + '&order=data'),
+      tGet('sessoes', 'select=atleta_id,data,pse,treino_id&atleta_id=eq.' + aid + '&data=gte.' + de + '&data=lte.' + isoAdd(r.b, 7)).catch(function () { return []; }),
+      tGet('faltas', 'select=atleta_id,treino_id,motivo&atleta_id=eq.' + aid).catch(function () { return []; }),
+      tGet('fases_semana', 'select=atleta_id,semana,fase,objetivo,nota&atleta_id=eq.' + aid + '&semana=gte.' + de + '&semana=lte.' + r.b).catch(function () { return tGet('fases_semana', 'select=atleta_id,semana,fase,objetivo&atleta_id=eq.' + aid + '&semana=gte.' + de + '&semana=lte.' + r.b); }).catch(function () { MC.err = 'Para planear a macro, corre primeiro o SQL das partes 27 e 31.'; return []; })
+    ]).then(function (x) {
+      var id = MC.aid;
+      MC.rows = {
+        d: x[0].filter(function (t) { return t.atleta_id === id; }).map(function (t) { return t.data; }),
+        t: x[0].filter(function (t) { return t.atleta_id === id && t.tipo !== 'rest'; }),
+        s: x[1].filter(function (s) { return s.atleta_id === id; }),
+        f: x[2].filter(function (f) { return f.atleta_id === id; }),
+        w: x[3].filter(function (w) { return w.atleta_id === id; })
+      };
+      gRenderMacro();
+    }).catch(function (e) { MC.err = gFail(e); MC.rows = null; gRenderMacro(); });
+  }
+  function gMacEstado(t) {
+    var s = MC.rows.s.filter(function (x) { return x.treino_id === t.id; })[0];
+    if (s) return '<span class="small">✓ feito a ' + gFmt(s.data) + ' · PSE ' + s.pse + '</span>';
+    if (MC.rows.f.some(function (f) { return f.treino_id === t.id; })) return '<span class="small">não fez</span>';
+    return '<span class="small">por fazer</span>';
+  }
+  function gRenderMacro() {
+    var el = $('#g-macro'); if (!el) return;
+    var pts = G.atl.filter(function (a) { return a.ativo !== false; });
+    var h = '<div class="gbox"><div class="inline"><div class="field"><label for="mc-aid">Aluno</label><select class="sel" id="mc-aid">' +
+      pts.map(function (a) { return '<option value="' + a.id + '"' + (a.id === MC.aid ? ' selected' : '') + '>' + esc(a.nome) + (a._mod ? ' · ' + esc(a._mod) : '') + '</option>'; }).join('') + '</select></div></div>' +
+      '<div class="mac-hd"><button class="chip" data-act="mc-mes" data-n="-1" aria-label="Mês anterior">‹</button><b>' + MCMES[+MC.mes.slice(5, 7) - 1] + ' ' + MC.mes.slice(0, 4) + '</b><button class="chip" data-act="mc-mes" data-n="1" aria-label="Mês seguinte">›</button></div>' +
+      '<p class="small">1.º define o mês: fase, objetivo e treinos de cada semana (o tema é o nome do treino). 2.º planeia os exercícios semana a semana, em «Planear exercícios».</p>' +
+      (MC.err ? '<p class="err">' + esc(MC.err) + '</p>' : '') + '<p class="small" id="g-msg-mac" role="status">' + esc(MC.msg || '') + '</p></div>';
+    if (!pts.length) { el.innerHTML = '<p class="small">Ainda não há alunos de Online training.</p>'; return; }
+    if (!MC.rows) { el.innerHTML = h + '<p class="small">A carregar…</p>'; return; }
+    var r = gMacRange(), hj = localISO(), cur = gMon(hj), w = r.a;
+    while (w <= r.b) {
+      var f = MC.rows.w.filter(function (x) { return x.semana === w; })[0] || {}, fim = isoAdd(w, 6);
+      var ts = MC.rows.t.filter(function (t) { return t.data >= w && t.data <= fim; });
+      var feitos = ts.filter(function (t) { return MC.rows.s.some(function (s) { return s.treino_id === t.id; }); }).length;
+      h += '<div class="gbox' + (w === cur ? ' mac-cur' : '') + '"><div class="mac-wh"><b>' + gFmt(w) + ' – ' + gFmt(fim) + (w === cur ? ' · esta semana' : '') + '</b><span class="small">' + feitos + '/' + ts.length + ' feitos</span></div>' +
+        '<div class="inline"><div class="field"><label for="mf-' + w + '">Fase</label><input class="dt" id="mf-' + w + '" data-mc="sem" data-w="' + w + '" maxlength="40" placeholder="ex.: Acumulação" value="' + esc(f.fase || '') + '"></div></div>' +
+        '<div class="field"><label for="mo-' + w + '">Objetivo da semana</label><input class="dt" id="mo-' + w + '" data-mc="sem" data-w="' + w + '" maxlength="120" placeholder="ex.: aumentar volume na suspensão" value="' + esc(f.objetivo || '') + '"></div>' +
+        '<div class="field"><label for="mt-' + w + '">Nota para o aluno (opcional)</label><textarea class="dt" id="mt-' + w + '" data-mc="nota" data-w="' + w + '" rows="2" maxlength="400" placeholder="ex.: Esta semana foca-te na respiração">' + esc(f.nota || '') + '</textarea></div>';
+      ts.forEach(function (t) {
+        var dow = isoDow(t.data);
+        h += '<div class="mac-tr"><input class="dt" data-mc="tn" data-id="' + t.id + '" maxlength="80" value="' + esc(t.nome) + '" aria-label="Tema do treino">' +
+          '<select class="sel" data-mc="td" data-id="' + t.id + '" data-w="' + w + '" aria-label="Dia">' + MCDIAS.map(function (d, i) { return '<option value="' + i + '"' + (i === dow ? ' selected' : '') + '>' + d + ' ' + gFmt(isoAdd(w, i)) + '</option>'; }).join('') + '</select>' +
+          gMacEstado(t) + '<button class="chip" data-act="mc-del" data-id="' + t.id + '">Apagar</button></div>';
+      });
+      var livre = 0; for (var i = 0; i < 7; i++) { if (MC.rows.d.indexOf(isoAdd(w, i)) < 0) { livre = i; break; } }
+      h += '<div class="mac-add"><input class="dt" id="mn-' + w + '" maxlength="80" placeholder="+ novo treino (ex.: Suspensão)"><select class="sel" id="md-' + w + '">' +
+        MCDIAS.map(function (d, i) { return '<option value="' + i + '"' + (i === livre ? ' selected' : '') + '>' + d + ' ' + gFmt(isoAdd(w, i)) + '</option>'; }).join('') + '</select>' +
+        '<button class="chip" data-act="mc-add" data-w="' + w + '">Adicionar</button></div>' +
+        '<div class="chips"><button class="chip" data-act="mc-copy" data-w="' + w + '">Copiar semana anterior</button><button class="primary" data-act="mc-plan" data-w="' + w + '" style="padding:8px 14px">Planear exercícios →</button></div></div>';
+      w = isoAdd(w, 7);
+    }
+    el.innerHTML = h;
+  }
+  function gMacRpc(nome, body) { return tReq('/rest/v1/rpc/' + nome, { method: 'POST', body: body }); }
+  var MCERR = { registos: 'Este treino já tem registos do aluno: não pode mudar de dia nem ser apagado.', ocupado: 'Já existe um treino nesse dia.', campos: 'Escreve o tema do treino.', acesso: 'Esta conta não tem acesso de treinador.' };
+  function gMacSem(w) {
+    var f = $('#mf-' + w).value, o = $('#mo-' + w).value;
+    gMsg('g-msg-mac', 'A guardar…');
+    gMacRpc('definir_semana_macro', { p_atleta: MC.aid, p_semana: w, p_fase: f, p_objetivo: o }).then(function (r) {
+      if (r && r.ok === false) { gMsg('g-msg-mac', MCERR[r.erro] || 'Não foi possível guardar.', true); return; }
+      gMsg('g-msg-mac', 'Semana de ' + gFmt(w) + ' guardada.');
+      var x = MC.rows.w.filter(function (z) { return z.semana === w; })[0];
+      if (!x) { x = { atleta_id: MC.aid, semana: w }; MC.rows.w.push(x); } x.fase = f.trim() || null; x.objetivo = o.trim() || null;
+    }).catch(function (e) { gMsg('g-msg-mac', MC.err || gFail(e) + ' (corre o SQL da parte 31)', true); });
+  }
+  function gMacNota(w) {
+    var n = $('#mt-' + w).value;
+    gMsg('g-msg-mac', 'A guardar…');
+    gMacRpc('definir_nota_semana', { p_atleta: MC.aid, p_semana: w, p_nota: n }).then(function (r) {
+      if (r && r.ok === false) { gMsg('g-msg-mac', MCERR[r.erro] || 'Não foi possível guardar.', true); return; }
+      gMsg('g-msg-mac', 'Nota da semana de ' + gFmt(w) + ' guardada.');
+      var x = MC.rows.w.filter(function (z) { return z.semana === w; })[0];
+      if (!x) { x = { atleta_id: MC.aid, semana: w }; MC.rows.w.push(x); } x.nota = n.trim() || null;
+    }).catch(function (e) { gMsg('g-msg-mac', gFail(e) + ' (corre o SQL da parte 32)', true); });
+  }
+  function gMacAdd(w) {
+    var nome = $('#mn-' + w).value.trim(), dia = +$('#md-' + w).value;
+    if (!nome) { gMsg('g-msg-mac', 'Escreve o tema do treino.', true); return; }
+    tReq('/rest/v1/treinos', { method: 'POST', body: { atleta_id: MC.aid, data: isoAdd(w, dia), nome: nome, tipo: 'gym' } })
+      .then(function () { MC.msg = '«' + nome + '» adicionado.'; gMacLoad(); })
+      .catch(function (e) { gMsg('g-msg-mac', e && e.status === 409 ? MCERR.ocupado : gFail(e), true); });
+  }
+  function gMacEdit(id, w) {
+    var nome = ($('#g-macro [data-mc="tn"][data-id="' + id + '"]') || {}).value, dia = +($('#g-macro [data-mc="td"][data-id="' + id + '"]') || {}).value;
+    gMacRpc('editar_treino_macro', { p_treino: id, p_nome: nome, p_data: isoAdd(w, dia) }).then(function (r) {
+      if (r && r.ok === false) { gMsg('g-msg-mac', MCERR[r.erro] || 'Não foi possível guardar.', true); gMacLoad(); return; }
+      MC.msg = 'Treino guardado.'; gMacLoad();
+    }).catch(function (e) { gMsg('g-msg-mac', gFail(e) + ' (corre o SQL da parte 31)', true); });
+  }
+  function gMacDel(id) {
+    if (!window.confirm('Apagar este treino (e os exercícios planeados)?')) return;
+    gMacRpc('apagar_treino_macro', { p_treino: id }).then(function (r) {
+      if (r && r.ok === false) { gMsg('g-msg-mac', MCERR[r.erro] || 'Não foi possível apagar.', true); return; }
+      MC.msg = 'Treino apagado.'; gMacLoad();
+    }).catch(function (e) { gMsg('g-msg-mac', gFail(e) + ' (corre o SQL da parte 31)', true); });
+  }
+  function gMacCopy(w) {
+    var pw = isoAdd(w, -7), pf = MC.rows.w.filter(function (x) { return x.semana === pw; })[0] || {};
+    var pt = MC.rows.t.filter(function (t) { return t.data >= pw && t.data <= isoAdd(pw, 6); });
+    if (!pt.length && !pf.fase && !pf.objetivo) { gMsg('g-msg-mac', 'A semana anterior está vazia.', true); return; }
+    var ocup = {}; MC.rows.d.forEach(function (d) { ocup[d] = true; });
+    gMsg('g-msg-mac', 'A copiar…');
+    var p = (pf.fase || pf.objetivo) ? gMacRpc('definir_semana_macro', { p_atleta: MC.aid, p_semana: w, p_fase: pf.fase || '', p_objetivo: pf.objetivo || '' }) : Promise.resolve();
+    pt.reduce(function (pr, t) {
+      var d = isoAdd(w, isoDow(t.data)); if (ocup[d]) return pr;
+      return pr.then(function () { return tReq('/rest/v1/treinos', { method: 'POST', body: { atleta_id: MC.aid, data: d, nome: t.nome, tipo: 'gym' } }); });
+    }, p).then(function () { MC.msg = 'Semana copiada (fase, objetivo e temas; os exercícios planeias depois).'; gMacLoad(); })
+      .catch(function (e) { gMsg('g-msg-mac', gFail(e), true); });
+  }
+  function gMacPlan(w) {
+    G.sel = {}; G.sel[MC.aid] = true; G.semana = w;
+    ONSUB = 'plano'; lsSet('alvo.osub', 'plano'); applyTab();
+  }
+  $('#g-macro').addEventListener('change', function (e) {
+    var t = e.target, k = t.getAttribute && t.getAttribute('data-mc');
+    if (t.id === 'mc-aid') { MC.aid = t.value; MC.msg = ''; MC.rows = null; gMacLoad(); return; }
+    if (k === 'sem') gMacSem(t.getAttribute('data-w'));
+    else if (k === 'nota') gMacNota(t.getAttribute('data-w'));
+    else if (k === 'tn' || k === 'td') { var row = t.closest('.mac-tr'), sel = row.querySelector('[data-mc="td"]'); gMacEdit(t.getAttribute('data-id'), sel.getAttribute('data-w')); }
+  });
+  $('#g-macro').addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-act]'); if (!b) return;
+    var a = b.getAttribute('data-act'), w = b.getAttribute('data-w');
+    if (a === 'mc-mes') { var y = +MC.mes.slice(0, 4), m = +MC.mes.slice(5, 7) + (+b.getAttribute('data-n')); if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; } MC.mes = y + '-' + (m < 10 ? '0' : '') + m; MC.msg = ''; MC.rows = null; gMacLoad(); }
+    else if (a === 'mc-add') gMacAdd(w);
+    else if (a === 'mc-del') gMacDel(b.getAttribute('data-id'));
+    else if (a === 'mc-copy') gMacCopy(w);
+    else if (a === 'mc-plan') gMacPlan(w);
+  });
   /* ---------- registar sessão (treino presencial, feito por ti) ---------- */
   var GR = { aid: '', data: '', t: null, regs: {}, ses: null, well: null };
   function gRegT(it) {
@@ -4788,8 +4996,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     if (!b) return;
     var a = b.getAttribute('data-act'), d = +b.getAttribute('data-d'), k = +b.getAttribute('data-k'), id = b.getAttribute('data-id');
     if (a === 'esp-tog') b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
-    else if (a === 'atl-gerar') $('#ga-pin').value = gPinRand();
-    else if (a === 'atl-gerar2') $('#ge-pin').value = gPinRand();
+    else if (a === 'atl-gerar') $('#ga-pin').value = gPinRand(G.scope === 'pt' ? 6 : 4);
+    else if (a === 'atl-gerar2') $('#ge-pin').value = gPinRand($('#ge-grp') && $('#ge-grp').value === 'pt' ? 6 : 4);
     else if (a === 'atl-criar') gAtlCriar();
     else if (a === 'atl-edit') { G.edit = G.edit === id ? null : id; G.pagErr = ''; gRenderAtl(); var ed = gAtlById(G.edit); if (ed && ed.grupo === 'pt') { gLoadPag(ed.id); gLoadLes(ed.id); } }
     else if (a === 'pag-add') gPagAdd(id);
