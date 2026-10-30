@@ -306,6 +306,39 @@ table.rt { min-width: 0; font-size: .85rem; }
 .pg-mes { display: flex; justify-content: space-between; margin-top: 10px; padding: 6px 10px; border-radius: 8px; background: var(--accent-soft); }
 .pg-row { display: grid; grid-template-columns: 3.2em 1fr auto; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); align-items: baseline; }
 .pg-row small, .pg-d { color: var(--muted); }
+
+.mac-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.mac-sum { margin: 0 0 8px; }
+.mac-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.mac-dow span { text-align: center; font-size: 11px; color: var(--muted, #667785); }
+.mac-c { min-height: 46px; border: 1px solid var(--line); border-radius: 7px; padding: 2px 3px; font-size: 10px; line-height: 1.2; overflow: hidden; }
+.mac-c i { font-style: normal; display: block; opacity: .6; }
+.mac-c.out { opacity: .35; }
+.mac-c.f { background: rgba(46, 160, 67, .18); border-color: transparent; font-weight: 600; letter-spacing: -.2px; }
+.mac-c.p { background: rgba(11, 110, 138, .14); border-color: transparent; }
+.mac-c.x { background: rgba(224, 142, 0, .18); border-color: transparent; }
+.mac-c.td { outline: 2px solid var(--accent, #0b6e8a); outline-offset: -2px; }
+.mac-g.cur .mac-c { background-color: rgba(11, 110, 138, .06); }
+.mac-l { display: flex; justify-content: space-between; font-size: 11px; opacity: .75; margin: 2px 2px 8px; }
+.mac-l.fut { color: var(--accent, #0b6e8a); opacity: 1; }
+.mac-lg { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; margin: 6px 0; }
+.mac-lg .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.mac-lg .dot.f { background: rgba(46, 160, 67, .5); } .mac-lg .dot.p { background: rgba(11, 110, 138, .45); } .mac-lg .dot.x { background: rgba(224, 142, 0, .55); }
+.row2 { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.mac-warn { background: rgba(224, 142, 0, .18); border-radius: 10px; padding: 10px; margin: 10px 0; }
+.mac-c { text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+.mac-c i { width: 100%; text-align: center; }
+.mac-ph { font-weight: 600; background: rgba(11, 110, 138, .12); border-radius: 99px; padding: 0 8px; }
+.ev-svg { width: 100%; height: 150px; color: var(--accent, #0b6e8a); }
+.ev-v { font-size: 11px; font-weight: 700; fill: currentColor; }
+.ev-l { font-size: 10px; fill: #667785; }
+.les { border-top: 1px solid var(--line); padding: 8px 0; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.les-ac { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.les-ac .dt { width: auto; }
+textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
+#atleta-app.pn > *:not(.bar):not(#well-alert):not(#pin-panel):not(#mac-panel):not(#evo-panel):not(#per-panel):not(#tes-panel) { display: none !important; }
+.pn-back { margin-bottom: 8px; }
+#atleta-app.pn > #wsum { display: none !important; }
 </style>
 </head>
 <body>
@@ -348,7 +381,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     </div>
 
     <div class="wrap" style="padding:0" id="atleta-app" hidden>
-      <div class="bar"><b id="ola"></b><span class="chips"><button class="chip" id="tes-btn">Testes</button><button class="chip" id="pin-alt">Alterar PIN</button><button class="chip" id="sair">Sair</button></span></div>
+      <div class="bar"><b id="ola"></b><span class="chips"><button class="chip" id="mac-btn" hidden>Macro</button><button class="chip" id="evo-btn" hidden>Evolução</button><button class="chip" id="tes-btn">Testes</button><button class="chip" id="per-btn" hidden>Perfil</button><button class="chip" id="pin-alt">Alterar PIN</button><button class="chip" id="sair">Sair</button></span></div>
 
       <div class="panel" id="pin-panel" hidden>
         <header><h2 id="pinp-t">Escolhe o teu PIN</h2><span class="kicker">PIN</span></header>
@@ -359,6 +392,12 @@ table.rt { min-width: 0; font-size: .85rem; }
         <button class="chip" id="pin-skip" type="button">Agora não</button>
         <p class="err" id="pin-err" role="alert"></p>
       </div>
+
+      <div class="panel" id="mac-panel" hidden><header><h2>Macro</h2><span class="kicker">Mês</span></header><div id="mac-body"></div></div>
+
+      <div class="panel" id="evo-panel" hidden><header><h2>Evolução</h2><span class="kicker">Semana a semana</span></header><div id="evo-body"></div></div>
+
+      <div class="panel" id="per-panel" hidden><header><h2>O meu perfil</h2><span class="kicker">Online training</span></header><div id="per-body"></div></div>
 
       <div class="panel" id="tes-panel" hidden><header><h2>Os meus testes</h2><span class="kicker">Ranking</span></header><div id="tes-body"></div></div>
 
@@ -2198,6 +2237,7 @@ table.rt { min-width: 0; font-size: .85rem; }
         savedNotes[n.data + '|' + n.bloco] = true;
       });
     });
+    liveWellScan(r.wellness);
     var w = (r.wellness || []).filter(function (x) { return x.data === HOJE; })[0];
     if (w) { well = [w.sono, w.stress, w.fadiga, w.dor]; wellDone = true; } else { well = [null, null, null, null]; wellDone = false; }
     TSESS = (r.sessoes || []).filter(function (x) { return x.data === HOJE; })[0] || null;
@@ -2215,6 +2255,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       hydrate(r);
       lsSet('alvo.sessao', JSON.stringify(sess));
       livePinPanel(!!r.pin_provisorio && !lsGet('alvo.skip.' + id), !!r.pin_provisorio);
+      liveMacProbe();
       return { ok: true };
     });
   }
@@ -2326,7 +2367,253 @@ table.rt { min-width: 0; font-size: .85rem; }
       $('#tes-body').innerHTML = /404|PGRST202/.test(JSON.stringify(e && (e.body || e.text) || '') + (e && e.status)) ? '<p class="small">Esta função ainda não está ativa. O treinador tem de correr a parte 22 do SQL.</p>' : '<p class="err">' + esc(netErr(e)) + '</p>';
     });
   }
-  $('#tes-btn').addEventListener('click', function () { if (sess) tesAbrir(); });
+  /* ---- Macro (calendário mensal) e Perfil: só Online training ---- */
+  var MACD = null, MACY = 0, MACM = 0, MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  function macIso(d) { return d.getUTCFullYear() + '-' + p2(d.getUTCMonth() + 1) + '-' + p2(d.getUTCDate()); }
+  function macAdd(iso, n) { var d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return macIso(d); }
+  function macLoad(y, m) {
+    return rpc('atleta_macro', { p_atleta: sess.id, p_pin: sess.pin, p_ano: y, p_mes: m }).then(function (d) {
+      if (d && d.ok) { MACD = d; MACY = y; MACM = m; }
+      return d;
+    });
+  }
+  function liveMacProbe() {
+    $('#mac-btn').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true;
+    var h = HOJE || localISO(), y = +h.slice(0, 4), m = +h.slice(5, 7);
+    macLoad(y, m).then(function (d) {
+      if (d && d.ok) { $('#mac-btn').hidden = false; $('#per-btn').hidden = false; $('#evo-btn').hidden = false; PTOK = true; liveWellAlert(); }
+    }).catch(function () {});
+  }
+  function macAb(n) { var w = String(n || '').trim().split(/\s+/)[0]; return w.length > 5 ? w.slice(0, 4) + '.' : w; }
+  function macHtml() {
+    var d = MACD, hoje = d.hoje, first = macIso(new Date(Date.UTC(MACY, MACM - 1, 1))), w = d.w0, h = '';
+    var porData = {}; (d.treinos || []).forEach(function (t) { (porData[t.data] = porData[t.data] || []).push(t); });
+    var feitosEm = {}; (d.treinos || []).forEach(function (t) { if (t.feito_em) (feitosEm[t.feito_em] = feitosEm[t.feito_em] || []).push(t); });
+    var fut = {}; (d.futuras || []).forEach(function (f) { fut[f.ini] = f.n; });
+    var fase = {}; (d.fases || []).forEach(function (f) { fase[f.semana] = f.fase; });
+    var tot = 0, ok = 0;
+    (d.treinos || []).forEach(function (t) { if (t.data.slice(0, 7) === first.slice(0, 7)) { tot++; if (t.feito_em) ok++; } });
+    h += '<div class="mac-hd"><button class="chip" id="mac-prev" aria-label="Mês anterior">‹</button><b>' + MESES[MACM - 1] + ' ' + MACY + '</b><button class="chip" id="mac-next" aria-label="Mês seguinte">›</button></div>';
+    h += '<div class="mac-g mac-dow"><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span><span>D</span></div>';
+    while (w <= d.w1) {
+      var atual = w === d.sem_atual, futura = w > d.sem_atual, nt = 0, nf = 0, i;
+      h += '<div class="mac-g' + (atual ? ' cur' : '') + '">';
+      for (i = 0; i < 7; i++) {
+        var dia = macAdd(w, i), fora = dia.slice(0, 7) !== first.slice(0, 7), c = '', t = '';
+        var fs = feitosEm[dia] || [], ps = porData[dia] || [];
+        if (fs.length) { c = ' f'; t = fs.map(function (x) { return esc(macAb(x.nome)); }).join('<br>') + ' ✓'; }
+        else if (!futura) {
+          var pend = ps.filter(function (x) { return !x.feito_em; });
+          if (pend.length) { var faltou = pend.every(function (x) { return x.falta; }); c = faltou ? ' x' : (dia < hoje ? ' x' : ' p'); t = pend.map(function (x) { return esc(macAb(x.nome)); }).join('<br>'); }
+        }
+        if (dia === hoje) c += ' td';
+        h += '<div class="mac-c' + c + (fora ? ' out' : '') + '" data-d="' + dia + '"><i>' + (+dia.slice(8, 10)) + '</i>' + t + '</div>';
+      }
+      h += '</div>';
+      (d.treinos || []).forEach(function (x) { if (x.data >= w && x.data <= macAdd(w, 6)) { nt++; if (x.feito_em) nf++; } });
+      var ph = fase[w] ? '<span class="mac-ph">' + esc(fase[w]) + '</span>' : '';
+      if (futura && !fut[w]) h += '<div class="mac-l"><span>Sem treinos planeados</span>' + ph + '</div>';
+      else if (futura) h += '<div class="mac-l fut"><span>' + (fut[w] || 0) + ' treino' + ((fut[w] || 0) === 1 ? '' : 's') + ' planeado' + ((fut[w] || 0) === 1 ? '' : 's') + '</span>' + (ph || '<span>só resumo</span>') + '</div>';
+      else h += '<div class="mac-l"><span>' + (atual ? 'Esta semana' : fmtD(w) + ' – ' + fmtD(macAdd(w, 6))) + ' ' + ph + '</span><span>' + nf + '/' + nt + ' feitos</span></div>';
+      w = macAdd(w, 7);
+    }
+    h += '<div class="mac-lg"><span><i class="dot f"></i>Feito</span><span><i class="dot p"></i>Planeado</span><span><i class="dot x"></i>Por fazer / não fiz</span></div>';
+    h += '<p class="small">Cada treino aparece no dia em que o fizeste. Só consegues abrir os treinos da semana atual, no ecrã principal.</p>';
+    return (tot ? '<p class="mac-sum"><b>' + ok + '</b> de ' + tot + ' treinos feitos em ' + MESES[MACM - 1].toLowerCase() + '</p>' : '') + h;
+  }
+  function macRender() {
+    $('#mac-body').innerHTML = macHtml();
+    $('#mac-prev').addEventListener('click', function () { macMove(-1); });
+    $('#mac-next').addEventListener('click', function () { macMove(1); });
+  }
+  function macMove(n) {
+    var y = MACY, m = MACM + n; if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
+    $('#mac-body').insertAdjacentHTML('afterbegin', '');
+    macLoad(y, m).then(function (d) { if (d && d.ok) macRender(); }).catch(function (e) { $('#mac-body').innerHTML = '<p class="err">' + esc(netErr(e)) + '</p>'; });
+  }
+  function macAbrir() {
+    var p = $('#mac-panel');
+    if (!p.hidden) { p.hidden = true; return; }
+    $('#per-panel').hidden = true; $('#tes-panel').hidden = true; $('#evo-panel').hidden = true;
+    p.hidden = false;
+    if (MACD) macRender(); else $('#mac-body').innerHTML = '<p class="small">A carregar…</p>';
+    var h = HOJE || localISO(); macLoad(+h.slice(0, 4), +h.slice(5, 7)).then(function (d) { if (d && d.ok) macRender(); }).catch(function (e) { $('#mac-body').innerHTML = '<p class="err">' + esc(netErr(e)) + '</p>'; });
+  }
+  function perAbrir() {
+    var p = $('#per-panel');
+    if (!p.hidden) { p.hidden = true; return; }
+    $('#mac-panel').hidden = true; $('#tes-panel').hidden = true; $('#evo-panel').hidden = true;
+    var f = MACD && MACD.acesso_fim, hj = MACD && MACD.hoje, h = '';
+    h += '<div class="row2"><span class="small">Nome</span><b>' + esc(sess.nome) + '</b></div>';
+    h += '<div class="row2"><span class="small">Programa</span><b>Online training</b></div>';
+    if (f) {
+      var dias = Math.round((new Date(f + 'T00:00:00Z') - new Date(hj + 'T00:00:00Z')) / 86400000);
+      h += '<div class="row2"><span class="small">Acesso até</span><b>' + f.slice(8, 10) + '/' + f.slice(5, 7) + '/' + f.slice(0, 4) + '</b></div>';
+      if (dias >= 0 && dias <= 7) h += '<p class="mac-warn"><b>O teu acesso termina ' + (dias === 0 ? 'hoje' : dias === 1 ? 'amanhã' : 'em ' + dias + ' dias') + '.</b> Fala com o teu treinador para renovar.</p>';
+    }
+    h += '<div id="per-extra"></div><p class="small">Para mudares o PIN, usa o botão «Alterar PIN».</p>';
+    $('#per-body').innerHTML = h; p.hidden = false;
+    perCarregar();
+  }
+  function perData(s) { return s ? s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4) : ''; }
+  function perCarregar() {
+    rpc('atleta_perfil', { p_atleta: sess.id, p_pin: sess.pin }).then(function (d) {
+      if (!d || !d.ok || !$('#per-extra')) return;
+      var x = '';
+      if (d.inicio) x += '<div class="row2"><span class="small">No programa desde</span><b>' + perData(d.inicio) + '</b></div>';
+      if (d.treinos != null) x += '<div class="row2"><span class="small">Treinos registados</span><b>' + d.treinos + '</b></div>';
+      x += '<div class="field" style="margin-top:10px"><label for="pf-obj">O meu objetivo</label><input id="pf-obj" class="dt" maxlength="120" placeholder="ex.: fazer a primeira suspensão completa" value="' + esc(d.objetivo || '') + '"></div>';
+      x += '<div class="field"><label for="pf-lim">Limitações que o treinador deve ter em conta</label><textarea id="pf-lim" class="dt" rows="2" maxlength="500" placeholder="ex.: joelho esquerdo sensível, evitar saltos">' + esc(d.limitacoes || '') + '</textarea></div>';
+      x += '<button class="chip" id="pf-save" type="button">Guardar</button> <span class="small" id="pf-msg" role="status"></span>';
+      x += '<details id="les-det" style="margin-top:14px"><summary class="kicker" style="cursor:pointer">Lesões (<span id="les-n">…</span>)</summary><div id="les-box"><p class="small">A carregar…</p></div></details>';
+      $('#per-extra').innerHTML = x;
+      lesCarregar();
+    }).catch(function () {});
+  }
+  function lesCarregar() {
+    rpc('atleta_lesoes', { p_atleta: sess.id, p_pin: sess.pin }).then(function (d) {
+      var box = $('#les-box'); if (!box) return;
+      if (!d || !d.ok) { box.innerHTML = '<p class="small">Não foi possível carregar as lesões.</p>'; return; }
+      var hj = d.hoje, L = d.lesoes || [], h = '';
+      var curso = L.filter(function (l) { return !l.total; }).length;
+      if ($('#les-n')) $('#les-n').textContent = L.length ? L.length + (curso ? ' · ' + curso + ' em curso' : '') : 'nenhuma';
+      if (!L.length) h += '<p class="small">Sem lesões registadas.</p>';
+      L.forEach(function (l) {
+        var fim = l.total ? 'Regresso total a ' + perData(l.total) : (l.parcial ? 'Regresso com limitações a ' + perData(l.parcial) + ' · ainda sem regresso total' : 'Em curso');
+        h += '<div class="les"><b>' + esc(l.zona) + '</b> <span class="small">· desde ' + perData(l.inicio) + '</span><div class="small">' + esc(fim) + (l.nota ? ' · ' + esc(l.nota) : '') + '</div>';
+        if (!l.total) {
+          h += '<div class="les-ac"><input type="date" class="dt" id="ld-' + l.id + '" value="' + hj + '" min="' + l.inicio + '" max="' + hj + '">' +
+            (!l.parcial ? '<button class="chip" type="button" data-les="parcial" data-id="' + l.id + '">Voltei com limitações</button>' : '') +
+            '<button class="chip" type="button" data-les="total" data-id="' + l.id + '">Voltei a 100%</button></div>';
+        }
+        h += '<button class="chip" type="button" data-les="apagar" data-id="' + l.id + '">Apagar</button></div>';
+      });
+      h += '<button class="chip" id="les-novo" type="button">+ Registar lesão</button><div id="les-form" hidden>' +
+        '<div class="field"><label for="ln-ini">Quando começou</label><input type="date" class="dt" id="ln-ini" value="' + hj + '" max="' + hj + '"></div>' +
+        '<div class="field"><label for="ln-zona">Onde (zona do corpo)</label><input class="dt" id="ln-zona" maxlength="80" placeholder="ex.: ombro direito"></div>' +
+        '<div class="field"><label for="ln-nota">Nota (opcional)</label><input class="dt" id="ln-nota" maxlength="300" placeholder="ex.: dor ao levantar o braço"></div>' +
+        '<button class="primary" id="ln-save" type="button">Guardar lesão</button> <span class="err" id="ln-err" role="alert"></span></div>';
+      box.innerHTML = h; LESL = L; LESH = hj;
+    }).catch(function () {});
+  }
+  var LESL = [], LESH = '';
+  /* Quando um painel (Macro, Evolução, Testes, Perfil) está aberto, esconde o treino por baixo: o ecrã fica curto */
+  var PNIDS = ['mac-panel', 'evo-panel', 'tes-panel', 'per-panel'];
+  function pnSync() {
+    var app = $('#atleta-app'); if (!app) return;
+    var aberto = PNIDS.some(function (id) { var e = $('#' + id); return e && !e.hidden; });
+    app.classList.toggle('pn', aberto);
+    PNIDS.forEach(function (id) {
+      var e = $('#' + id); if (!e || e.querySelector('.pn-back')) return;
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip pn-back'; b.textContent = '‹ Voltar ao treino';
+      b.addEventListener('click', function () { PNIDS.forEach(function (x) { $('#' + x).hidden = true; }); pnSync(); window.scrollTo(0, 0); });
+      e.insertBefore(b, e.firstChild);
+    });
+    if (aberto) window.scrollTo(0, 0);
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('#mac-btn,#evo-btn,#tes-btn,#per-btn');
+    if (b) setTimeout(pnSync, 60);
+  });
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!sess || !t || !t.closest) return;
+    if (t.id === 'pf-save') {
+      $('#pf-msg').textContent = 'A guardar…';
+      rpc('atleta_perfil_guardar', { p_atleta: sess.id, p_pin: sess.pin, p_objetivo: $('#pf-obj').value, p_limitacoes: $('#pf-lim').value }).then(function (r) {
+        $('#pf-msg').textContent = r && r.ok ? 'Guardado.' : 'Não foi possível guardar.';
+      }).catch(function (er) { $('#pf-msg').textContent = netErr(er); });
+    } else if (t.id === 'les-novo') { $('#les-form').hidden = !$('#les-form').hidden; }
+    else if (t.id === 'ln-save') {
+      var z = $('#ln-zona').value.trim(); if (!z) { $('#ln-err').textContent = 'Diz onde é a lesão.'; return; }
+      $('#ln-err').textContent = '';
+      rpc('atleta_lesao_guardar', { p_atleta: sess.id, p_pin: sess.pin, p_id: null, p_inicio: $('#ln-ini').value, p_zona: z, p_nota: $('#ln-nota').value, p_parcial: null, p_total: null }).then(function (r) {
+        if (r && r.ok) lesCarregar(); else $('#ln-err').textContent = r && r.erro === 'datas' ? 'A data não pode ser no futuro.' : 'Não foi possível guardar.';
+      }).catch(function (er) { $('#ln-err').textContent = netErr(er); });
+    } else if (t.getAttribute && t.getAttribute('data-les')) {
+      var acao = t.getAttribute('data-les'), id = t.getAttribute('data-id');
+      if (acao === 'apagar') {
+        if (!window.confirm('Apagar esta lesão do registo?')) return;
+        rpc('atleta_lesao_apagar', { p_atleta: sess.id, p_pin: sess.pin, p_id: id }).then(lesCarregar).catch(function () {});
+        return;
+      }
+      var l = LESL.filter(function (x) { return x.id === id; })[0]; if (!l) return;
+      var dt = ($('#ld-' + id) || {}).value || LESH;
+      rpc('atleta_lesao_guardar', { p_atleta: sess.id, p_pin: sess.pin, p_id: id, p_inicio: l.inicio, p_zona: l.zona, p_nota: l.nota, p_parcial: acao === 'parcial' ? dt : l.parcial, p_total: acao === 'total' ? dt : null }).then(function (r) {
+        if (r && r.ok) lesCarregar(); else window.alert(r && r.erro === 'datas' ? 'A data tem de ser depois do início da lesão e não pode ser no futuro.' : 'Não foi possível guardar.');
+      }).catch(function () {});
+    }
+  });
+  $('#mac-btn').addEventListener('click', function () { if (sess) macAbrir(); });
+  $('#per-btn').addEventListener('click', function () { if (sess) perAbrir(); });
+  /* ---- Evolução: cargas, PSE e bem-estar semana a semana ---- */
+  var EVD = null, EVK = 'cargas', EVX = '', PTOK = false, WELLHI = null;
+  function liveWellScan(ws) {
+    WELLHI = null; var lim = HOJE ? isoAdd(HOJE, -1) : '';
+    (ws || []).forEach(function (w) {
+      var t = (w.sono || 0) + (w.fadiga || 0) + (w.dor || 0) + (w.stress || 0);
+      if (w.data >= lim && t >= 14 && (!WELLHI || w.data >= WELLHI.data)) WELLHI = { data: w.data, total: t };
+    });
+    liveWellAlert();
+  }
+  function liveWellAlert() {
+    var el = $('#well-alert');
+    if (!el) { el = document.createElement('div'); el.id = 'well-alert'; el.className = 'mac-warn'; el.setAttribute('role', 'alert'); var bar = document.querySelector('#atleta-app .bar'); if (!bar) return; bar.parentNode.insertBefore(el, bar.nextSibling); }
+    if (!PTOK || !WELLHI) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = '<b>Hoje não estás no teu melhor.</b> Registaste sono, cansaço, dor ou stress acima do normal. Se for dor ou algo que te preocupe, fala com o teu treinador antes de treinar.';
+  }
+  function evChart(pts, fmtV) {
+    if (!pts.length) return '<p class="small">Ainda não há dados suficientes.</p>';
+    var W = 300, H = 140, pd = 26, vs = pts.map(function (q) { return q.v; }), mx = Math.max.apply(0, vs), mn = Math.min.apply(0, vs);
+    if (mx === mn) { mx += 1; mn -= 1; }
+    var xy = pts.map(function (q, i) { return [pts.length === 1 ? W / 2 : pd + i * (W - 2 * pd) / (pts.length - 1), H - pd - (q.v - mn) / (mx - mn) * (H - 2 * pd - 6)]; });
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="ev-svg" role="img" aria-label="Gráfico semana a semana"><polyline fill="none" stroke="currentColor" stroke-width="2.5" points="' + xy.map(function (q) { return q.join(','); }).join(' ') + '"/>';
+    var many = pts.length > 12, passo = Math.ceil(pts.length / 6);
+    pts.forEach(function (q, i) {
+      var mostra = !many || q.v === mx || q.v === mn || i === pts.length - 1 || i === 0;
+      s += '<circle cx="' + xy[i][0] + '" cy="' + xy[i][1] + '" r="' + (many ? 3 : 4) + '" fill="currentColor"/>' + (mostra ? '<text x="' + xy[i][0] + '" y="' + (xy[i][1] - 8) + '" text-anchor="middle" class="ev-v">' + esc(fmtV(q.v)) + '</text>' : '') + ((!many || i % passo === 0 || i === pts.length - 1) ? '<text x="' + xy[i][0] + '" y="' + (H - 6) + '" text-anchor="middle" class="ev-l">' + esc(fmtD(q.s)) + '</text>' : '');
+    });
+    return s + '</svg>';
+  }
+  function evNum(v) { return String(Math.round(v * 10) / 10).replace('.', ','); }
+  function evHtml() {
+    var d = EVD, h = '<div class="chips"><button class="chip" data-ev="cargas" aria-pressed="' + (EVK === 'cargas') + '">Cargas</button><button class="chip" data-ev="pse" aria-pressed="' + (EVK === 'pse') + '">PSE</button><button class="chip" data-ev="bem" aria-pressed="' + (EVK === 'bem') + '">Bem-estar</button></div>';
+    if (EVK === 'cargas') {
+      var L = d.cargas || [];
+      if (!L.length) return h + '<p class="small">Ainda não registaste cargas.</p>';
+      if (!EVX || !L.some(function (x) { return x.exercicio === EVX; })) EVX = L[0].exercicio;
+      var ex = L.filter(function (x) { return x.exercicio === EVX; })[0];
+      h += '<div class="field"><label for="ev-ex">Exercício</label><select id="ev-ex" class="sel">' + L.map(function (x) { return '<option' + (x.exercicio === EVX ? ' selected' : '') + '>' + esc(x.exercicio) + '</option>'; }).join('') + '</select></div>';
+      h += '<p class="small">Carga mais alta de cada semana (kg).</p>' + evChart(ex.pontos.map(function (q) { return { s: q.semana, v: q.carga }; }), evNum);
+      h += ex.pontos.map(function (q) { return '<div class="row2"><span class="small">Semana de ' + fmtD(q.semana) + '</span><b>' + esc(evNum(q.carga)) + ' kg' + (q.reps ? ' × ' + q.reps : '') + '</b></div>'; }).join('');
+    } else if (EVK === 'pse') {
+      var P = d.pse || [];
+      h += '<p class="small">PSE de cada treino (0 a 10): o esforço que sentiste. Não é o mesmo que o bem-estar. Últimas 4 semanas.</p>' + evChart(P.map(function (q) { return { s: q.data, v: q.valor }; }), evNum);
+      h += P.slice().reverse().map(function (q) { return '<div class="row2"><span class="small">' + fmtD(q.data) + (q.treino ? ' · ' + esc(q.treino) : '') + '</span><b>PSE ' + q.valor + '</b></div>'; }).join('');
+    } else {
+      var B = d.hooper || [], ult = B.length ? B[B.length - 1].valor : null;
+      h += '<p class="small">Índice de Hooper: soma de sono, fadiga, dor e stress (4 a 20). Quanto mais baixo, melhor. Cada ponto é um registo teu das últimas 4 semanas.</p>' + evChart(B.map(function (q) { return { s: q.data, v: q.valor }; }), evNum);
+      if (ult != null) h += '<div class="row2"><span class="small">Último registo · ' + fmtD(B[B.length - 1].data) + '</span><b>' + evNum(ult) + ' · ' + (ult <= 8 ? 'Bom' : ult <= 13 ? 'Moderado' : 'Atenção') + '</b></div>';
+    }
+    return h;
+  }
+  function evRender() {
+    $('#evo-body').innerHTML = evHtml();
+    document.querySelectorAll('#evo-body [data-ev]').forEach(function (b) { b.addEventListener('click', function () { EVK = b.getAttribute('data-ev'); evRender(); }); });
+    var s = $('#ev-ex'); if (s) s.addEventListener('change', function () { EVX = s.value; evRender(); });
+  }
+  function evAbrir() {
+    var p = $('#evo-panel');
+    if (!p.hidden) { p.hidden = true; return; }
+    $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#tes-panel').hidden = true;
+    p.hidden = false; $('#evo-body').innerHTML = '<p class="small">A carregar…</p>';
+    rpc('atleta_evolucao', { p_atleta: sess.id, p_pin: sess.pin, p_semanas: 12 }).then(function (d) {
+      if (!d || !d.ok) { $('#evo-body').innerHTML = '<p class="err">Não foi possível carregar. Sai e entra outra vez.</p>'; return; }
+      EVD = d; evRender();
+    }).catch(function (e) { $('#evo-body').innerHTML = /404|PGRST202/.test(JSON.stringify(e && (e.body || e.text) || '') + (e && e.status)) ? '<p class="small">Esta função ainda não está ativa. O treinador tem de correr a parte 28 do SQL.</p>' : '<p class="err">' + esc(netErr(e)) + '</p>'; });
+  }
+  $('#evo-btn').addEventListener('click', function () { if (sess) evAbrir(); });
+  $('#tes-btn').addEventListener('click', function () { if (sess) { $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#evo-panel').hidden = true; tesAbrir(); } });
   $('#pin-alt').addEventListener('click', function () { livePinPanel($('#pin-panel').hidden, false); if (!$('#pin-panel').hidden) $('#pin-n1').focus(); });
   $('#pin-save').addEventListener('click', liveSavePin);
   $('#pin-n2').addEventListener('keydown', function (e) { if (e.key === 'Enter') liveSavePin(); });
@@ -2335,6 +2622,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     livePinPanel(false, PINPROV);
   });
   function liveSair() {
+    $('#mac-btn').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true; $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#evo-panel').hidden = true; MACD = null; EVD = null; PTOK = false; WELLHI = null; liveWellAlert();
     livePinPanel(false, false);
     lsSet('alvo.sessao', null);
     sess = null; escolhido = null;
@@ -2350,7 +2638,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     $('#h-err').textContent = '';
     rpc('atleta_wellness', { p_atleta: sess.id, p_pin: sess.pin, p_data: HOJE, p_sono: well[0], p_fadiga: well[2], p_dor: well[3], p_stress: well[1] }).then(function (r) {
       renderHooper();
-      if (r && r.ok) { wellDone = true; applyGate(); renderWork(); return; }
+      if (r && r.ok) { wellDone = true; liveWellScan([{ data: HOJE, sono: well[0], fadiga: well[2], dor: well[3], stress: well[1] }].concat(WELLHI ? [] : [])); applyGate(); renderWork(); return; }
       $('#h-err').textContent = r && r.erro === 'pin' ? 'O PIN deixou de ser válido. Sai e entra outra vez.' : 'Não foi possível guardar. Tenta outra vez.';
     }).catch(function (e) { renderHooper(); $('#h-err').textContent = netErr(e); });
   }
@@ -3087,12 +3375,33 @@ table.rt { min-width: 0; font-size: .85rem; }
       SCOPE = TAB === 'online' ? 'pt' : 'main';
       liveBuildScope();
       showTrainer(true);
+      try { liveTrainerWellAlert(); } catch (e0) { /* aviso opcional */ }
       refreshTrainerUI();
       return gLoad();
     }).catch(function (e) {
       showTrainer(false);
       $('#t-err').textContent = e && e.status === 401 ? 'A sessão expirou. Entra outra vez.' : netErr(e);
     });
+  }
+  /* aviso no painel do treinador: atletas com bem-estar (Hooper) em atenção (>= 14) hoje ou ontem */
+  function liveTrainerWellAlert() {
+    var v = $('#view-treinador'), el = $('#t-walert'); if (!v || !RAWD) return;
+    if (!el) { el = document.createElement('div'); el.id = 't-walert'; el.className = 'mac-warn'; el.setAttribute('role', 'alert'); el.style.margin = '10px 14px'; v.insertBefore(el, v.firstChild); }
+    var hj = RAWD.hoje, ont = isoAdd(hj, -1), por = {}, nomes = {};
+    (RAWD.D.atletas || []).forEach(function (a) { if (a.ativo !== false && a.grupo !== 'presencial') nomes[a.id] = a; });
+    (RAWD.D.wellness || []).forEach(function (w) {
+      var a = nomes[w.atleta_id]; if (!a || w.data < ont) return;
+      var t = (w.sono || 0) + (w.fadiga || 0) + (w.dor || 0) + (w.stress || 0);
+      if (!por[w.atleta_id] || w.data >= por[w.atleta_id].data) por[w.atleta_id] = { data: w.data, t: t, a: a };
+    });
+    var L = Object.keys(por).map(function (k) { return por[k]; }).filter(function (x) { return x.t >= 14; }).sort(function (p, q) { return q.t - p.t; });
+    var sig = hj + '|' + L.map(function (x) { return x.a.id + ':' + x.t; }).join(',');
+    if (!L.length || lsGet('alvo.walert') === sig) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = '<b>Bem-estar em atenção (' + L.length + ')</b><br>' + L.map(function (x) {
+      return esc(x.a.nome) + ' <span class="small">· ' + (x.a.grupo === 'pt' ? 'Online training' : esc(x.a.modalidade || '')) + ' · Hooper ' + x.t + ' · ' + (x.data === hj ? 'hoje' : 'ontem') + '</span>';
+    }).join('<br>') + '<br><button class="chip" id="t-walert-ok" type="button">Ok, vi</button>';
+    $('#t-walert-ok').addEventListener('click', function () { lsSet('alvo.walert', sig); el.hidden = true; });
   }
   function liveAddComp(ai, i, nome, loc) {
     var a = ATLETAS[ai];
@@ -3296,7 +3605,9 @@ table.rt { min-width: 0; font-size: .85rem; }
 
   function gLoad() {
     return Promise.all([
-      tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim,genero,ranking_visivel,email&order=nome,id').catch(function () {
+      tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim,genero,ranking_visivel,email,objetivo,limitacoes,inicio_programa&order=nome,id').catch(function () {
+        return tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim,genero,ranking_visivel,email&order=nome,id');
+      }).catch(function () {
         return tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim,genero,ranking_visivel&order=nome,id');
       }).catch(function () {
         return tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente,acesso_fim&order=nome,id');
@@ -3309,6 +3620,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       G.hasFim = !G.all.length || G.all[0].hasOwnProperty('acesso_fim');
       G.hasGen = !!G.all.length && G.all[0].hasOwnProperty('genero');
       G.hasEmail = !!G.all.length && G.all[0].hasOwnProperty('email');
+      G.hasPerfil = !!G.all.length && G.all[0].hasOwnProperty('objetivo');
       gSetScope(typeof SCOPE !== 'undefined' ? SCOPE : (G.scope || 'main'));
       if (!G.semana) G.semana = isoAdd(gMon(localISO()), 7);
       if (!G.plan) G.plan = gNewPlan();
@@ -3358,6 +3670,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var mods = gModsSug();
     var h = '<div class="gbox"><p class="kicker">' + (G.scope === 'pt' ? 'Novo aluno de online training' : 'Novo atleta') + '</p>' +
       '<div class="field"><label for="ga-nome">Nome</label><input class="dt" id="ga-nome" autocomplete="off"></div>' +
+      (G.scope === 'pt' && G.hasPerfil ? '<div class="field"><label for="ga-obj">Objetivo (o aluno vê no perfil)</label><input class="dt" id="ga-obj" maxlength="120" placeholder="ex.: fazer a primeira suspensão completa"></div><div class="field"><label for="ga-ini">Início do programa</label><input class="dt" type="date" id="ga-ini" value="' + localISO() + '"></div>' : '') +
       (G.scope === 'pt' ? (G.hasEmail ? '<div class="field"><label for="ga-email">Email do aluno (é com ele que entra na app)</label><input class="dt" id="ga-email" type="email" inputmode="email" autocomplete="off" autocapitalize="none" placeholder="nome@email.pt"></div>' : '<p class="small">Para os alunos entrarem com email, corre primeiro o SQL da parte 26.</p>') : '') +
       '<div class="field"><label for="ga-mod">Modalidade</label><input class="dt" id="ga-mod" list="ga-mods" autocomplete="off" placeholder="Ex.: Surf"' + (G.scope === 'pt' ? ' value="Online training"' : '') + '><datalist id="ga-mods">' +
       mods.map(function (m) { return '<option value="' + esc(m) + '">'; }).join('') + '</datalist></div>' +
@@ -3379,6 +3692,9 @@ table.rt { min-width: 0; font-size: .85rem; }
           '<div class="field"><label for="ge-mod">Modalidade</label><input class="dt" id="ge-mod" list="ga-mods" value="' + esc(a._mod || a.modalidade) + '"></div>' +
           gEspHtml('ge', a) +
           (G.hasEmail && a.grupo === 'pt' ? '<div class="field"><label for="ge-email">Email (entra na app com ele e o PIN)</label><input class="dt" id="ge-email" type="email" inputmode="email" autocomplete="off" autocapitalize="none" value="' + esc(a.email || '') + '" placeholder="nome@email.pt"></div>' : '') +
+          (G.hasPerfil && a.grupo === 'pt' ? '<div class="field"><label for="ge-obj">Objetivo (o aluno vê no perfil)</label><input class="dt" id="ge-obj" maxlength="120" value="' + esc(a.objetivo || '') + '" placeholder="ex.: fazer a primeira suspensão completa"></div>' +
+            '<div class="field"><label for="ge-ini">Início do programa</label><input class="dt" type="date" id="ge-ini" value="' + esc(a.inicio_programa || '') + '"></div>' +
+            '<div class="field"><label for="ge-lim">Limitações (o aluno também pode preencher)</label><textarea class="dt" id="ge-lim" rows="3" maxlength="500" placeholder="ex.: ombro direito, evitar sobrecarga acima da cabeça">' + esc(a.limitacoes || '') + '</textarea><p class="small">Dado de saúde: escreve só o que o aluno te disse e que precisas para planear.</p></div>' : '') +
           '<div class="field"><label for="ge-sem">Semanas que o atleta vê</label><select class="sel" id="ge-sem">' +
             [[0, 'Só a semana corrente'], [1, 'Semana corrente + a seguinte'], [2, 'Corrente + 2 seguintes'], [3, 'Corrente + 3 seguintes'], [4, 'Corrente + 4 seguintes']].map(function (o) { return '<option value="' + o[0] + '"' + ((a.semanas_a_frente || 0) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
           '</select></div>' +
@@ -3394,7 +3710,7 @@ table.rt { min-width: 0; font-size: .85rem; }
           '<div class="chips"><button class="primary" data-act="atl-save" data-id="' + a.id + '" style="padding:10px 18px">Guardar</button>' +
           '<button class="chip" data-act="atl-ativo" data-id="' + a.id + '">' + (a.ativo === false ? 'Reativar' : 'Arquivar') + '</button></div>' +
           '<p class="small">' + (a.ativo === false ? 'Arquivado: não aparece nas listas nem entra na app. Todos os dados continuam guardados.' : 'Arquivar tira o atleta das listas, dos dados e da entrada na app, mas guarda tudo (wellness, cargas, PSE, treinos). Podes reativar quando quiseres.') + '</p>' +
-          gPagHtml(a) + '<p class="small" id="g-msg-edit" role="status"></p></div>';
+          gLesHtml(a) + gPagHtml(a) + '<p class="small" id="g-msg-edit" role="status"></p></div>';
       }
       return row;
     }).join('');
@@ -3415,7 +3731,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     tReq('/rest/v1/rpc/criar_atleta', { method: 'POST', body: { p_nome: nome, p_modalidade: mod, p_grupo: grp, p_pin: pin } }).then(function (r) {
       if (!r || !r.ok) { gMsg('g-msg-atl', ERRS_ATL[r && r.erro] || 'Não foi possível criar.', true); return; }
       var esp = gEspLer('ga');
-      var gen = $('#ga-gen') ? $('#ga-gen').value : '', po = {}; if (emc) po.email = emc; if (esp && (esp.d.length || esp.e.length)) { po.distancias = esp.d; po.estilos = esp.e; } if (gen) po.genero = gen;
+      var gen = $('#ga-gen') ? $('#ga-gen').value : '', po = {}; if (emc) po.email = emc; if ($('#ga-obj') && $('#ga-obj').value.trim()) po.objetivo = $('#ga-obj').value.trim(); if ($('#ga-ini') && $('#ga-ini').value) po.inicio_programa = $('#ga-ini').value; if (esp && (esp.d.length || esp.e.length)) { po.distancias = esp.d; po.estilos = esp.e; } if (gen) po.genero = gen;
       return Promise.resolve(Object.keys(po).length ? tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', body: po }) : null).then(function () { return carregar(); }).then(function () { gMsg('g-msg-atl', nome + ' criado. PIN provisório: ' + pin + '. Entrega-o ao atleta: na primeira entrada ele escolhe o seu próprio PIN.'); });
     }).catch(function (e) { gMsg('g-msg-atl', gFail(e), true); });
   }
@@ -3425,7 +3741,8 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (pin && !/^\d{4}$/.test(pin)) { gMsg('g-msg-edit', 'O PIN tem de ter 4 dígitos.', true); return; }
     if ($('#ge-email')) { var ev = $('#ge-email').value.trim().toLowerCase(); if (ev && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ev)) { gMsg('g-msg-edit', 'O email não parece válido.', true); return; } if (ev && G.all.some(function (x) { return x.id !== id && (x.email || '').toLowerCase() === ev; })) { gMsg('g-msg-edit', 'Já existe um aluno com esse email.', true); return; } }
     gMsg('g-msg-edit', 'A guardar…');
-    tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: (function () { var o = { nome: nome, modalidade: mod, grupo: grp, semanas_a_frente: parseInt($('#ge-sem').value, 10) || 0 }, esp = gEspLer('ge'); if ($('#ge-fim')) o.acesso_fim = $('#ge-fim').value || null; if ($('#ge-email')) { var em2 = $('#ge-email').value.trim().toLowerCase(); o.email = em2 || null; }
+    tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: (function () { var o = { nome: nome, modalidade: mod, grupo: grp, semanas_a_frente: parseInt($('#ge-sem').value, 10) || 0 }, esp = gEspLer('ge'); if ($('#ge-fim')) o.acesso_fim = $('#ge-fim').value || null; if ($('#ge-obj')) { o.objetivo = $('#ge-obj').value.trim() || null; o.inicio_programa = $('#ge-ini').value || null; o.limitacoes = $('#ge-lim').value.trim() || null; }
+ if ($('#ge-email')) { var em2 = $('#ge-email').value.trim().toLowerCase(); o.email = em2 || null; }
  if ($('#ge-gen')) { o.genero = $('#ge-gen').value || null; o.ranking_visivel = $('#ge-rank').value !== '0'; } if (esp) { o.distancias = esp.d; o.estilos = esp.e; } return o; })() }).then(function () {
       return pin ? tReq('/rest/v1/rpc/definir_pin_treinador', { method: 'POST', body: { p_atleta: id, p_pin: pin } }) : { ok: true };
     }).then(function (r) {
@@ -3465,6 +3782,46 @@ table.rt { min-width: 0; font-size: .85rem; }
     return tGet('pagamentos', 'select=id,atleta_id,data,valor,nota,criado_em&atleta_id=eq.' + encodeURIComponent(id) + '&order=data.desc,criado_em.desc').then(function (rows) {
       G.pag = G.pag || {}; G.pag[id] = (rows || []).filter(function (r) { return r.atleta_id === id; }); G.pagErr = '';
     }).catch(function () { G.pag = G.pag || {}; G.pag[id] = []; G.pagErr = 'Para registar pagamentos, corre primeiro o SQL da parte 17.'; }).then(function () { gRenderAtl(); });
+  }
+  /* ---------- lesões (início e regresso) ---------- */
+  function gLoadLes(id) {
+    return tGet('lesoes', 'select=id,atleta_id,inicio,zona,nota,retorno_parcial,retorno_total,origem&atleta_id=eq.' + encodeURIComponent(id) + '&order=inicio.desc,criado_em.desc').then(function (rows) {
+      G.les = G.les || {}; G.les[id] = (rows || []).filter(function (r) { return r.atleta_id === id; }); G.lesErr = '';
+    }).catch(function () { G.les = G.les || {}; G.les[id] = []; G.lesErr = 'Para ver lesões, corre primeiro o SQL da parte 30.'; }).then(function () { gRenderAtl(); });
+  }
+  function gFD(s) { return s ? s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4) : ''; }
+  function gLesHtml(a) {
+    if (a.grupo !== 'pt') return '';
+    if (G.lesErr) return '<div class="field"><p class="kicker">Lesões</p><p class="small">' + esc(G.lesErr) + '</p></div>';
+    var l = (G.les && G.les[a.id]) || [], hj = localISO();
+    return '<div class="field"><p class="kicker">Lesões</p>' +
+      (l.length ? l.map(function (r) {
+        return '<div class="gbox"><b>' + esc(r.zona) + '</b> <span class="small">· desde ' + gFD(r.inicio) + ' · registada por ' + (r.origem === 'treinador' ? 'ti' : 'o aluno') + '</span>' +
+          (r.nota ? '<div class="small">' + esc(r.nota) + '</div>' : '') +
+          '<div class="inline"><div class="field"><label for="lp-' + r.id + '">Regresso com limitações</label><input class="dt" type="date" id="lp-' + r.id + '" value="' + esc(r.retorno_parcial || '') + '" min="' + esc(r.inicio) + '"></div>' +
+          '<div class="field"><label for="lt-' + r.id + '">Regresso total</label><input class="dt" type="date" id="lt-' + r.id + '" value="' + esc(r.retorno_total || '') + '" min="' + esc(r.inicio) + '"></div></div>' +
+          '<div class="chips"><button class="chip" data-act="les-save" data-id="' + r.id + '" data-a="' + a.id + '">Guardar datas</button><button class="chip" data-act="les-del" data-id="' + r.id + '" data-a="' + a.id + '">Apagar</button></div>' +
+          '<p class="small">' + (r.retorno_total ? 'Recuperada.' : 'Em curso.') + '</p></div>';
+      }).join('') : '<p class="small">Sem lesões registadas.</p>') +
+      '<div class="gbox"><p class="small"><b>Registar lesão</b></p><div class="inline"><div class="field"><label for="ln-ini">Início</label><input class="dt" type="date" id="ln-ini" value="' + hj + '" max="' + hj + '"></div>' +
+      '<div class="field"><label for="ln-zona">Zona</label><input class="dt" id="ln-zona" maxlength="80" placeholder="ex.: ombro direito"></div></div>' +
+      '<div class="field"><label for="ln-nota">Nota (opcional)</label><input class="dt" id="ln-nota" maxlength="300"></div>' +
+      '<button class="chip" data-act="les-add" data-a="' + a.id + '">Registar lesão</button><p class="small" id="g-msg-les" role="status"></p></div></div>';
+  }
+  function gLesAdd(aid) {
+    var z = $('#ln-zona').value.trim(), d = $('#ln-ini').value;
+    if (!z || !d) { gMsg('g-msg-les', 'Indica a zona e a data de início.', true); return; }
+    tReq('/rest/v1/lesoes', { method: 'POST', body: { atleta_id: aid, inicio: d, zona: z, nota: $('#ln-nota').value.trim() || null, origem: 'treinador' } })
+      .then(function () { return gLoadLes(aid); }).catch(function (e) { gMsg('g-msg-les', gFail(e), true); });
+  }
+  function gLesSave(id, aid) {
+    var p = $('#lp-' + id).value || null, t = $('#lt-' + id).value || null;
+    tReq('/rest/v1/lesoes?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: { retorno_parcial: p, retorno_total: t } })
+      .then(function () { return gLoadLes(aid); }).catch(function (e) { gMsg('g-msg-les', 'Não foi possível guardar: as datas têm de ser depois do início. ' + gFail(e), true); });
+  }
+  function gLesDel(id, aid) {
+    if (!window.confirm('Apagar esta lesão do registo?')) return;
+    tReq('/rest/v1/lesoes?id=eq.' + encodeURIComponent(id), { method: 'DELETE' }).then(function () { return gLoadLes(aid); }).catch(function (e) { gMsg('g-msg-les', gFail(e), true); });
   }
   function gPagHtml(a) {
     if (a.grupo !== 'pt') return '';
@@ -4288,6 +4645,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     }).join('');
     h += '<datalist id="g-exlist">' + G.ex.map(function (e) { return '<option value="' + esc(e.nome) + '">'; }).join('') + '</datalist>';
     var nsel = Object.keys(G.sel).filter(function (k) { return G.sel[k]; }).length;
+    if (G.scope === 'pt') h += '<div class="gbox"><div class="field"><label for="gp-fase">Fase desta semana (opcional)</label><input class="dt" id="gp-fase" maxlength="40" placeholder="ex.: Acumulação, Intensificação, Deload" value="' + esc(G.fase || '') + '"><p class="small">Aparece no calendário do aluno. Deixa vazio para não mexer; escreve - (hífen) para apagar a fase desta semana.</p></div></div>';
     h += '<div class="gbox"><button class="primary" data-act="guardar" id="g-save">Guardar plano' + (nsel ? ' para ' + nsel + (nsel === 1 ? ' atleta' : ' atletas') : '') + '</button>' +
       '<button class="chip" data-act="limpar">Limpar editor</button><p class="small" id="g-msg-plano" role="status"></p></div>';
     $('#g-plano').innerHTML = h;
@@ -4392,9 +4750,12 @@ table.rt { min-width: 0; font-size: .85rem; }
     if (!linhas.length) { gMsg('g-msg-plano', 'O plano está vazio. Escolhe o tipo de cada dia e adiciona exercícios.', true); return; }
     $('#g-save').disabled = true;
     gMsg('g-msg-plano', 'A guardar…');
-    var feitos = [], ign = {};
+    var feitos = [], ign = {}, faseTxt = ($('#gp-fase') ? $('#gp-fase').value.trim() : '');
     ids.reduce(function (p, id) {
       return p.then(function () {
+        return faseTxt ? tReq('/rest/v1/rpc/definir_fase', { method: 'POST', body: { p_atleta: id, p_semana: mon, p_fase: faseTxt === '-' ? '' : faseTxt } }) : null;
+      }).then(function (rf) {
+        if (rf && rf.ok === false) throw new Error('Não foi possível guardar a fase (corre a parte 27 do SQL).');
         return tReq('/rest/v1/rpc/importar_treinos', { method: 'POST', body: { p_atleta: id, p_linhas: linhas } }).then(function (r) {
           var a = gAtlById(id); feitos.push(a ? a.nome : id);
           if (r && r.ignorados && r.ignorados.length) ign[a ? a.nome : id] = r.ignorados;
@@ -4406,12 +4767,14 @@ table.rt { min-width: 0; font-size: .85rem; }
     }, Promise.resolve()).then(function () {
       $('#g-save').disabled = false;
       var t = 'Plano guardado para ' + feitos.join(', ') + '.';
+      if (faseTxt) t += ' Fase da semana: ' + (faseTxt === '-' ? 'apagada' : faseTxt) + '.';
       Object.keys(ign).forEach(function (n) { t += ' ' + n + ': dias não alterados porque já têm registos (' + ign[n].map(gFmt).join(', ') + ').'; });
       gMsg('g-msg-plano', t);
       return carregar();
     }).catch(function (e) { $('#g-save').disabled = false; gMsg('g-msg-plano', (feitos.length ? 'Guardado só para ' + feitos.join(', ') + '. ' : '') + gFail(e), true); });
   }
 
+  document.addEventListener('input', function (e) { if (e.target && e.target.id === 'gp-fase') G.fase = e.target.value; });
   /* ---------- eventos ---------- */
   $('#g-tabs').addEventListener('click', function (e) {
     var b = e.target.closest('[data-g]');
@@ -4428,8 +4791,11 @@ table.rt { min-width: 0; font-size: .85rem; }
     else if (a === 'atl-gerar') $('#ga-pin').value = gPinRand();
     else if (a === 'atl-gerar2') $('#ge-pin').value = gPinRand();
     else if (a === 'atl-criar') gAtlCriar();
-    else if (a === 'atl-edit') { G.edit = G.edit === id ? null : id; G.pagErr = ''; gRenderAtl(); var ed = gAtlById(G.edit); if (ed && ed.grupo === 'pt') gLoadPag(ed.id); }
+    else if (a === 'atl-edit') { G.edit = G.edit === id ? null : id; G.pagErr = ''; gRenderAtl(); var ed = gAtlById(G.edit); if (ed && ed.grupo === 'pt') { gLoadPag(ed.id); gLoadLes(ed.id); } }
     else if (a === 'pag-add') gPagAdd(id);
+    else if (a === 'les-add') gLesAdd(b.getAttribute('data-a'));
+    else if (a === 'les-save') gLesSave(id, b.getAttribute('data-a'));
+    else if (a === 'les-del') gLesDel(id, b.getAttribute('data-a'));
     else if (a === 'reg-save') gRegSave();
     else if (a === 'wod-save') gWodSave(b);
     else if (a === 'pv-prev') { PV.mon = isoAdd(PV.mon || gMon(localISO()), -7); gPvLoad(); }
