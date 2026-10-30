@@ -388,7 +388,7 @@ table.rt { min-width: 0; font-size: .85rem; }
           <div class="field" id="dia-box" hidden><label for="dia-sel">Dia em que treinaste</label><select id="dia-sel" class="sel"></select><p class="small">Se treinaste noutro dia, escolhe-o aqui antes de registares as cargas. Depois de guardares, o dia fica fixo.</p></div>
           <div id="work" style="display:grid;gap:12px"></div>
           <p class="small" id="autosave" role="status"></p>
-          <div id="skip-box" hidden><button class="chip" id="skip-go">Não vou fazer este treino</button><div id="skip-opts" hidden><p class="small">Porque não vais treinar?</p><div class="chips"><button class="chip" data-falta="doente">Doente</button><button class="chip" data-falta="lesao">Lesão</button><button class="chip" data-falta="outro">Outro</button><button class="chip" id="skip-x">Cancelar</button></div></div><button class="chip" id="skip-undo" hidden>Anular "não treinou"</button><p class="small" id="skip-msg" role="alert"></p></div>
+          <div id="skip-box" hidden><button class="chip" id="skip-go">Não vou fazer este treino</button><div id="skip-opts" hidden><p class="small">Porque não vais treinar?</p><div class="chips"><button class="chip" data-falta="doente">Doente</button><button class="chip" data-falta="lesao">Lesão</button><button class="chip" data-falta="outro">Outro</button><button class="chip" id="skip-x">Cancelar</button></div></div><button class="chip" id="skip-undo" hidden>Afinal vou fazer este treino</button><p class="small" id="skip-msg" role="alert"></p></div>
         </div>
 
         <div class="panel" id="pse-panel">
@@ -1008,7 +1008,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     var el = $('#work');
     if (typeof liveSkipBox === 'function') liveSkipBox();
     if (p.bloq || p.saltado) {
-      el.innerHTML = '<p class="note">' + (typeof liveSkipNote === 'function' ? esc(liveSkipNote(p)) : esc(p.bloq || '')) + '</p>';
+      el.innerHTML = '<p class="note">' + (typeof liveSkipNote === 'function' ? esc(liveSkipNote(p)) : esc(p.bloq || '')) + '</p>' + (typeof liveActBtn === 'function' ? liveActBtn(p) : '');
     } else if (p.tipo === 'rest') {
       el.innerHTML = '<p class="note">Dia de descanso. Não há exercícios nem esforço para registar. Aproveita para recuperar.</p>';
     } else if (p.tipo === 'none') {
@@ -1989,6 +1989,9 @@ table.rt { min-width: 0; font-size: .85rem; }
   var MOTIVO_TXT = { doente: 'doente', lesao: 'lesão', outro: 'outro motivo' };
   function liveNeedsPse(p) { return !!(p && p.id && p.tipo === 'gym' && p.feito && p.feito < HOJE && !PSEOK[p.id] && !p.saltado); }
   function liveFirstPend() { var k = -1; PLAN.forEach(function (p, i) { if (k < 0 && liveNeedsPse(p)) k = i; }); return k; }
+  var LIB = {};
+  function libLoad() { try { LIB = JSON.parse(lsGet('alvo.lib.' + (sess && sess.id)) || '{}') || {}; } catch (e) { LIB = {}; } }
+  function libSave() { try { lsSet('alvo.lib.' + sess.id, JSON.stringify(LIB)); } catch (e) { /* sem armazenamento */ } }
   function liveLocks() {
     var open = null;
     PLAN.forEach(function (p) {
@@ -1996,6 +1999,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       if (!p.id || p.tipo !== 'gym') return;
       if (FALT[p.id]) { p.saltado = true; p.falta = FALT[p.id]; return; }
       if (p.feito && PSEOK[p.id]) return;
+      if (LIB[p.id]) return;
       if (!open) { open = p; return; }
       p.bloq = open.feito
         ? 'Este treino ainda não está disponível. Falta registar o esforço (PSE) de "' + open.nome + '". Depois fica livre.'
@@ -2018,8 +2022,20 @@ table.rt { min-width: 0; font-size: .85rem; }
     if ($('#dia-sel').value) TDIA[p.id] = $('#dia-sel').value;
   }
   if ($('#dia-sel')) $('#dia-sel').addEventListener('change', function () { var p = PLAN[day]; if (p && p.id) TDIA[p.id] = this.value; });
+  function liveActBtn(p) {
+    if (p.bloq) return '<button class="chip" data-lib="1">Fazer este treino primeiro (trocar a ordem)</button>';
+    if (p.saltado) return '<button class="chip" data-undo="1">Afinal vou fazer este treino</button>';
+    return '';
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('#work [data-lib],#work [data-undo]');
+    if (!b || !sess) return;
+    var p = PLAN[day]; if (!p || !p.id) return;
+    if (b.hasAttribute('data-undo')) { var u = $('#skip-undo'); if (u) u.click(); return; }
+    LIB[p.id] = true; libSave(); liveLocks(); liveRenderDays(); renderWork(); livePseFor();
+  });
   function liveSkipNote(p) {
-    if (p.saltado) return 'Marcaste que não treinaste (' + (MOTIVO_TXT[p.falta && p.falta.motivo] || 'outro motivo') + '). Já podes fazer o seguinte. Se foi engano, anula aqui em baixo.';
+    if (p.saltado) return 'Marcaste que não treinaste (' + (MOTIVO_TXT[p.falta && p.falta.motivo] || 'outro motivo') + '). Já podes fazer o seguinte. Se afinal vais fazer este treino, carrega em "Afinal vou fazer este treino".';
     return p.bloq || '';
   }
   function liveSkipBox() {
@@ -2126,6 +2142,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     PLAN = list.map(buildDay);
     if (!PLAN.length) PLAN = [{ nome: 'Sem treino definido', tipo: 'none', iso: null, feito: null }];
     FALT = {}; (r.faltas || []).forEach(function (f) { FALT[f.treino_id] = f; });
+    libLoad();
     PSEOK = {}; (r.sessoes || []).forEach(function (x) { if (x.treino_id) PSEOK[x.treino_id] = true; });
     liveLocks();
     day = 0;
@@ -2391,7 +2408,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       $('#save').disabled = false;
       if (r && r.ok) {
         $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.';
-        PSEOK[tid] = true;
+        PSEOK[tid] = true; liveCelebrate(r.ua, pse, m);
         SESMAP[tid] = { pse: pse, minutos: m }; SESDIAS[r.data || HOJE] = tid; if (!p.feito) p.feito = r.data || HOJE;
         if (!late) { liveLocks(); liveRenderDays(); liveSkipBox(); }
         else { liveLocks(); liveNextOpen(); applyGate(); liveRenderDays(); renderWork(); livePseFor(); $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.'; }
@@ -2408,10 +2425,40 @@ table.rt { min-width: 0; font-size: .85rem; }
       else $('#status').textContent = 'Não foi possível guardar. Tenta outra vez.';
     }).catch(function (e) { $('#save').disabled = false; $('#status').textContent = netErr(e); });
   }
+  /* ---------- confirmação bem visível quando a sessão fica guardada ---------- */
+  function liveCelebrate(ua, pse, min) {
+    try {
+      var old = document.getElementById('cele'); if (old) old.remove();
+      if (!document.getElementById('cele-css')) {
+        var st = document.createElement('style'); st.id = 'cele-css';
+        st.textContent = '#cele{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.55);animation:celeIn .2s ease-out}' +
+          '#cele .cc{background:var(--surface,#fff);color:var(--ink,#111);border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}' +
+          '#cele .ck{width:84px;height:84px;border-radius:50%;background:var(--accent,#1f9d55);display:flex;align-items:center;justify-content:center;animation:celePop .45s cubic-bezier(.2,1.4,.4,1)}' +
+          '#cele .ck svg{width:48px;height:48px;stroke:#fff;stroke-width:5;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:60;stroke-dashoffset:60;animation:celeDraw .5s .15s ease-out forwards}' +
+          '#cele{font-family:inherit}#cele h2{font-family:inherit;margin:0;font-size:26px;line-height:1.1}#cele .big{font-size:34px;font-weight:800}#cele p{margin:0}' +
+          '#cele button{margin-top:6px;width:100%}' +
+          '@keyframes celeIn{from{opacity:0}to{opacity:1}}@keyframes celePop{0%{transform:scale(.3)}100%{transform:scale(1)}}@keyframes celeDraw{to{stroke-dashoffset:0}}' +
+          '@media (prefers-reduced-motion:reduce){#cele,#cele .ck,#cele .ck svg{animation:none}#cele .ck svg{stroke-dashoffset:0}}';
+        document.head.appendChild(st);
+      }
+      var nome = (sess && sess.nome ? String(sess.nome).split(' ')[0] : '');
+      var el = document.createElement('div'); el.id = 'cele'; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-live', 'assertive'); el.setAttribute('aria-label', 'Sessão guardada');
+      el.innerHTML = '<div class="cc"><div class="ck"><svg viewBox="0 0 48 48"><path d="M10 25 L20 35 L38 13"/></svg></div>' +
+        '<h2>Sessão guardada!</h2><p class="big">' + (ua != null ? esc(String(ua)) + ' UA' : '') + '</p>' +
+        '<p class="small">PSE ' + esc(String(pse)) + ' · ' + esc(String(min)) + ' min</p>' +
+        '<p>Bom trabalho' + (nome ? ', ' + esc(nome) : '') + '! Já está tudo registado.</p><button class="primary" id="cele-ok">Fechar</button></div>';
+      document.body.appendChild(el);
+      var close = function () { var x = document.getElementById('cele'); if (x) x.remove(); };
+      el.addEventListener('click', function (e) { if (e.target === el || e.target.id === 'cele-ok') close(); });
+      setTimeout(close, 12000);
+      try { if (navigator.vibrate) navigator.vibrate(60); } catch (e2) { /* sem vibração */ }
+      var ok = document.getElementById('cele-ok'); if (ok) ok.focus();
+    } catch (e3) { /* a confirmação é só visual */ }
+  }
   function liveAfterRender() {
     var edit = liveCanEdit(), p = PLAN[day], msg = '';
     liveWarn(false);
-    $('#work').querySelectorAll('input,textarea,button').forEach(function (el) { el.disabled = !edit; });
+    $('#work').querySelectorAll('input,textarea,button').forEach(function (el) { el.disabled = !edit && !el.hasAttribute('data-lib') && !el.hasAttribute('data-undo'); });
     if (!edit && p && p.tipo === 'gym' && p.feito) msg = 'Este treino foi feito a ' + fmtD(p.feito) + '. Aqui vês o que ficou guardado.';
     $('#autosave').textContent = edit ? autoMsg : msg;
     if (edit && p && p.tipo === 'gym' && !p.feito && liveRecordable(p) && !$('#status').textContent) $('#status').textContent = 'Primeiro regista as cargas do treino. Só depois podes guardar o PSE.';
@@ -3289,11 +3336,21 @@ table.rt { min-width: 0; font-size: .85rem; }
     var y = parseInt(iso.slice(0, 4), 10), m = parseInt(iso.slice(5, 7), 10);
     return new Date(Date.UTC(y, m - 1 + n, 0)).toISOString().slice(0, 10);
   }
+  /* mesmo dia, n meses depois (30/10 + 1 mês = 30/11; se o mês não tem esse dia, usa o último dia do mês) */
+  function gMaisMeses(iso, n) {
+    var y = parseInt(iso.slice(0, 4), 10), m = parseInt(iso.slice(5, 7), 10), d = parseInt(iso.slice(8, 10), 10);
+    var ult = new Date(Date.UTC(y, m - 1 + n + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(y, m - 1 + n, Math.min(d, ult))).toISOString().slice(0, 10);
+  }
+  function gRenovaFim(data, n, atual) {
+    var base = atual && atual > data ? atual : data;   // se ainda tem acesso, soma a partir do fim atual
+    return gMaisMeses(base, n);
+  }
   function gFimAdd(n) { $('#ge-fim').value = gFimMes(localISO(), n); }
   function gPagPrev() {
     var el = $('#gp-prev'); if (!el) return;
     var n = $('#gp-ren') ? parseInt($('#gp-ren').value, 10) : 0, dt = $('#gp-data') ? $('#gp-data').value : '';
-    el.textContent = n && dt ? 'O acesso fica válido até ' + gFmtD(gFimMes(dt, n)) + ' (último dia do mês).' : '';
+    var at = G.edit ? gAtlById(G.edit) : null; el.textContent = n && dt ? 'O acesso fica válido até ' + gFmtD(gRenovaFim(dt, n, at && at.acesso_fim)) + ' (' + n + (n === 1 ? ' mês' : ' meses') + ' a contar da data do pagamento' + (at && at.acesso_fim && at.acesso_fim > dt ? ' ou do fim do acesso atual, se for mais tarde' : '') + ').' : '';
   }
   function gEur(n) { return Number(n).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
   function gLoadPag(id) {
@@ -3310,7 +3367,7 @@ table.rt { min-width: 0; font-size: .85rem; }
       '<div class="inline"><div class="field"><label for="gp-data">Data</label><input class="dt" type="date" id="gp-data" value="' + localISO() + '"></div>' +
       '<div class="field"><label for="gp-val">Valor (€)</label><input class="dt" id="gp-val" inputmode="decimal" placeholder="ex.: 60"></div></div>' +
       '<div class="field"><label for="gp-nota">Nota (opcional)</label><input class="dt" id="gp-nota" placeholder="ex.: mensalidade de novembro"></div>' +
-      (G.hasFim ? '<div class="field"><label for="gp-ren">Renovar o acesso</label><select class="sel" id="gp-ren"><option value="0">Não alterar o acesso</option><option value="1">1 mês (até ao fim do mês do pagamento)</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select><p class="small" id="gp-prev"></p></div>' : '') +
+      (G.hasFim ? '<div class="field"><label for="gp-ren">Renovar o acesso</label><select class="sel" id="gp-ren"><option value="0">Não alterar o acesso</option><option value="1">1 mês (a contar da data do pagamento)</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select><p class="small" id="gp-prev"></p></div>' : '') +
       '<div class="chips"><button class="chip" data-act="pag-add" data-id="' + a.id + '">Registar pagamento</button></div><p class="small" id="g-msg-pag" role="status"></p></div>';
   }
   function gPagAdd(id) {
@@ -3321,8 +3378,7 @@ table.rt { min-width: 0; font-size: .85rem; }
     gMsg('g-msg-pag', 'A guardar…');
     tReq('/rest/v1/pagamentos', { method: 'POST', body: { atleta_id: id, data: data, valor: Math.round(v * 100) / 100, nota: nota || null } }).then(function () {
       if (!ren) return null;
-      var novo = gFimMes(data, ren);
-      if (a.acesso_fim && a.acesso_fim > novo) novo = a.acesso_fim;   // nunca encurta um acesso que já vai mais longe
+      var novo = gRenovaFim(data, ren, a.acesso_fim);   // mesmo dia do mês seguinte; nunca encurta um acesso que já vai mais longe
       return tReq('/rest/v1/atletas?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: { acesso_fim: novo } });
     }).then(function () { return carregar(); }).then(function () { return gLoadPag(id); }).then(function () { gMsg('g-msg-pag', 'Pagamento registado.'); }).catch(function (e) { gMsg('g-msg-pag', gFail(e), true); });
   }
