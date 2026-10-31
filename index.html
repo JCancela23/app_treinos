@@ -351,6 +351,12 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 #g-macro .inline .field { flex: 1 1 100%; }
 #g-macro .inline input.dt { width: 100%; }
 .mac-nota { background: var(--surface-2, #f1efe8); border-left: 3px solid var(--accent, #0b6e8a); border-radius: 8px; padding: 8px 10px; margin: 4px 0 8px; font-size: .92em; }
+.gdias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; position: sticky; top: 0; z-index: 3; background: var(--bg, #fff); padding: 6px 0; }
+.gdia { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font: inherit; cursor: pointer; min-width: 0; }
+.gdia b { font-size: .82rem; } .gdia span { font-size: .8rem; } .gdia small { font-size: .66rem; color: var(--muted); white-space: nowrap; }
+.gdia[data-t="gym"] small { color: var(--accent, #1f9d55); font-weight: 700; } .gdia[data-t="rest"] { background: var(--surface-2, #f1efe8); }
+.gdia[aria-pressed="true"] { background: var(--ink, #111); color: #fff; border-color: var(--ink, #111); } .gdia[aria-pressed="true"] small { color: #fff; }
+.gday[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -4376,7 +4382,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var mon = PV.mon || gMon(localISO());
     gFetchPlan(aid, mon).then(function (r) {
       if (onlyIso) { var k = isoDow(onlyIso); r.plan.forEach(function (d, i) { if (i !== k) { d.tipo = 'none'; d.nome = ''; d.itens = []; d.circ = {}; } }); }
-      G.plan = r.plan; G.planMod = a.modalidade; G.sel = {}; G.sel[aid] = true; G.semana = mon; G.srcAtl = aid; G.srcSem = mon;
+      G.plan = r.plan; G.dia = null; G.planMod = a.modalidade; G.sel = {}; G.sel[aid] = true; G.semana = mon; G.srcAtl = aid; G.srcSem = mon;
       G.tab = 'plano'; if (typeof liveOnSet === 'function') liveOnSet('plano'); gRender(); window.scrollTo(0, 0);
       gMsg('g-msg-plano', (onlyIso ? 'A editar ' + gFmt(onlyIso) + ' de ' + a.nome + '. Os outros dias ficam como estão.' : 'A editar a semana de ' + a.nome + '. Os dias que já têm registos não são alterados.') + ' Altera o que precisas e toca em "Guardar plano".');
     }).catch(function (e) { PV.err = gFail(e); gRenderPlanos(); });
@@ -4881,10 +4887,17 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       '<button class="chip" data-act="carregar">Carregar no editor</button><p class="small" id="g-msg-src" role="status"></p></details>';
 
     h += '<p class="kicker">3 · Dias</p>';
+    var DC = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    function nIt(d) { return d.itens.length; }
+    if (G.dia == null || G.dia < 0 || G.dia > 6) { G.dia = 0; for (var q0 = 0; q0 < 7; q0++) { if (G.plan[q0].tipo !== 'none') { G.dia = q0; break; } } }
+    h += '<div class="gdias" role="tablist" aria-label="Dia da semana">' + G.plan.map(function (d, i) {
+      var st = d.tipo === 'rest' ? 'Desc.' : d.tipo === 'gym' ? (nIt(d) ? nIt(d) + ' ex.' : 'vazio') : '–';
+      return '<button class="gdia" role="tab" data-act="dia" data-d="' + i + '" aria-pressed="' + (G.dia === i) + '" aria-selected="' + (G.dia === i) + '" data-t="' + d.tipo + '"><b>' + DC[i] + '</b><span>' + gFmt(isoAdd(mon, i)).slice(0, 2) + '</span><small>' + st + '</small></button>';
+    }).join('') + '</div>';
     h += G.plan.map(function (d, i) {
       var date = isoAdd(mon, i);
       var tipos = [['none', 'Vazio'], ['gym', 'Ginásio'], ['rest', 'Descanso']];
-      var x = '<section class="gday"><header><b>' + DIASL[i] + ' · ' + gFmt(date) + '</b><div class="chips">' + tipos.map(function (t) {
+      var x = '<section class="gday"' + (G.dia === i ? '' : ' hidden') + '><header><b>' + DIASL[i] + ' · ' + gFmt(date) + '</b><div class="chips">' + tipos.map(function (t) {
         return '<button class="chip" data-act="tipo" data-d="' + i + '" data-v="' + t[0] + '" aria-pressed="' + (d.tipo === t[0]) + '">' + t[1] + '</button>';
       }).join('') + '</div></header>';
       if (d.tipo === 'none') x += '<p class="small">Vazio: não altera nada neste dia.</p>';
@@ -4952,7 +4965,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     G.srcAtl = ids[0]; G.srcSem = G.semana;
     gFetchPlan(ids[0], gMon(G.semana)).then(function (r) {
       if (!r.rows.length) { gMsg('g-msg-sel', 'Ainda não há treinos planeados para este atleta nesta semana.', true); return; }
-      G.plan = r.plan; gRenderPlano();
+      G.plan = r.plan; G.dia = null; gRenderPlano();
       gMsg('g-msg-plano', 'Plano carregado (' + r.n + ' exercícios). Altera o que precisas e toca em "Guardar plano". Os dias que já têm registos não são alterados.');
     }).catch(function (e) { gMsg('g-msg-sel', gFail(e), true); });
   }
@@ -4964,7 +4977,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     gMsg('g-msg-src', 'A carregar…');
     gFetchPlan(aid, mon).then(function (r) {
       if (!r.rows.length) { gMsg('g-msg-src', 'Esse atleta não tem treinos nessa semana.', true); return; }
-      G.plan = r.plan; gRenderPlano();
+      G.plan = r.plan; G.dia = null; gRenderPlano();
       gMsg('g-msg-plano', 'Plano carregado (' + r.n + ' exercícios). Ajusta o que quiseres e guarda para os atletas e a semana escolhidos acima.');
     }).catch(function (e) { gMsg('g-msg-src', gFail(e), true); });
   }
@@ -5123,6 +5136,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       ids.forEach(function (x) { G.sel[x.id] = !all; });
       gRenderPlano();
     }
+    else if (a === 'dia') { G.dia = parseInt(b.getAttribute('data-d'), 10); gRenderPlano(); }
     else if (a === 'tipo') { G.plan[d].tipo = b.getAttribute('data-v'); gRenderPlano(); }
     else if (a === 'add') {
       var cc = +(b.getAttribute('data-c') || 0);
@@ -5154,7 +5168,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     else if (a === 'carregar') gLoadPlan();
     else if (a === 'carregar-sel') gLoadSel();
     else if (a === 'guardar') gSavePlan();
-    else if (a === 'limpar') { G.plan = gNewPlan(); gRenderPlano(); gMsg('g-msg-plano', 'Editor limpo.'); }
+    else if (a === 'limpar') { G.plan = gNewPlan(); G.dia = null; gRenderPlano(); gMsg('g-msg-plano', 'Editor limpo.'); }
   });
   $('#g-panel').addEventListener('change', function (e) {
     var t = e.target;
