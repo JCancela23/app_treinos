@@ -405,7 +405,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         <p class="err" id="pin-err" role="alert"></p>
       </div>
 
-      <div class="panel" id="mac-panel" hidden><header><h2>Macro</h2><span class="kicker">Mês</span></header><div id="mac-body"></div></div>
+      <div class="panel" id="mac-panel" hidden><header><h2>Macro</h2><span class="kicker">Mês</span></header><div id="mac-body"></div><div id="aul-box"></div></div>
 
       <div class="panel" id="evo-panel" hidden><header><h2>Evolução</h2><span class="kicker">Semana a semana</span></header><div id="evo-body"></div></div>
 
@@ -817,7 +817,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   }
 
   var PADROES = { squat: 'Squat', hinge: 'Hip hinge', push: 'Push', pull: 'Pull', plyo: 'Plyo', olympic: 'Olympic weightlifting' };
-  var COREC = { ext: 'Core extension', flex: 'Core flexion', lat: 'Core lateral flexion', rot: 'Core rotation' };
+  var COREC = { ext: 'Core extensão', flex: 'Core flexão', lat: 'Core flexão lateral', rot: 'Core rotação', aext: 'Core anti-extensão', aflex: 'Core anti-flexão', alat: 'Core anti-flexão lateral', arot: 'Core anti-rotação' };
+  var CORE_KEYS = ['ext', 'flex', 'lat', 'rot', 'aext', 'aflex', 'alat', 'arot'];
   /* exercícios com carga: pad = padrão de movimento, lat = lateralidade (uni conta os dois lados na tonelagem) */
   var EXS = [
     { n: 'Back squat', dia: 0, base: 70, reps: 6, s: 4, pad: 'squat', lat: 'bi' },
@@ -862,7 +863,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   ATLETAS.forEach(function (a) {
     var r = rng(a.seed);
     a.rec = []; a.loads = {}; a.cmj = []; a.bj = []; a.vbt = [];
-    a.core = { ext: [], flex: [], lat: [], rot: [] };
+    a.core = { ext: [], flex: [], lat: [], rot: [], aext: [], aflex: [], alat: [], arot: [] };
     EXS.forEach(function (e) { a.loads[e.n] = []; });
     for (var i = 0; i <= TODAY_I; i++) {
       var d = dow(i), ramp = clamp((i - 29) / 14, 0, 1), rec = { w: null, ses: [], ton: 0, tu: 0, tp: {}, core: {}, falta: null };
@@ -1691,7 +1692,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     $('#t-met').innerHTML = tableOrEmpty(['Data', 'Teste', 'Melhor valor'], mrows);
 
     /* core: tempo por série e tempo total */
-    var ck = ['ext', 'flex', 'lat', 'rot'];
+    var ck = CORE_KEYS.filter(function (q) { return !/^a/.test(q) || (a.core[q] || []).length || (a.core['r_' + q] || []).length; });
     function cR(q) { return (a.core['r_' + q] || []).filter(inR).length > 0; }
     var coreItems = ck.map(function (q, j) {
       return {
@@ -1828,7 +1829,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var motivos = $('#rep-motivos').checked;
     var periodo = fmtDate(range.i0) + ' a ' + fmtDate(range.i1);
     var td = '<td>';
-    var pk = ['squat', 'hinge', 'push', 'pull', 'olympic', 'plyo'], ck = ['ext', 'flex', 'lat', 'rot'];
+    var pk = ['squat', 'hinge', 'push', 'pull', 'olympic', 'plyo'], ck = CORE_KEYS;
     var rows = '', secs = '', txt = ['Relatório de acompanhamento · ' + periodo, ''];
     idx.forEach(function (ai) {
       var a = ATLETAS[ai], st = stats(a, range.i0, range.i1), nw = st.order.length || 1;
@@ -1853,7 +1854,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       var ctotM = Math.round(sum(ck.map(function (q) { return st.core[q] || 0; })) / 60), ctotR = sum(crp);
       var ctot = ctotR ? (ctotM ? ctotM + ' min · ' : '') + ctotR + ' reps' : ctotM + ' min';
       function cv(j) { return (crp[j] ? crp[j] + ' reps' : '') + (crp[j] && cmin[j] ? ' + ' : '') + (cmin[j] || !crp[j] ? cmin[j] + ' min' : ''); }
-      var cSub = 'extensão ' + cv(0) + ' · flexão ' + cv(1) + ' · flexão lateral ' + cv(2) + ' · rotação ' + cv(3);
+      var cSub = 'extensão ' + cv(0) + ' · flexão ' + cv(1) + ' · flexão lateral ' + cv(2) + ' · rotação ' + cv(3) + ' · anti-extensão ' + cv(4) + ' · anti-flexão ' + cv(5) + ' · anti-flexão lateral ' + cv(6) + ' · anti-rotação ' + cv(7);
       var upct = st.ton ? Math.round(100 * st.tu / st.ton) : 0;
       secs += '<section class="ra"><h3>' + esc(a.n) + '<small>' + esc(a.m) + '</small></h3><div class="rgrid">' +
         kv('Presença', pres, st.done + ' de ' + st.plan + ' sessões') +
@@ -2444,7 +2445,49 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     $('#mac-body').innerHTML = macHtml();
     $('#mac-prev').addEventListener('click', function () { macMove(-1); });
     $('#mac-next').addEventListener('click', function () { macMove(1); });
+    aulCarregar();
   }
+
+  /* ---------- aulas fora do plano (ex.: box de CrossFit): o aluno regista a duração e a PSE ---------- */
+  var AUL = null, AULMSG = '';
+  var PSEDESC = ['Repouso', 'Muito leve', 'Leve', 'Moderado', 'Um pouco intenso', 'Intenso', 'Intenso', 'Muito intenso', 'Muito intenso', 'Quase máximo', 'Máximo'];
+  function aulCarregar() {
+    if (!sess) return;
+    rpc('atleta_aulas', { p_atleta: sess.id, p_pin: sess.pin }).then(function (d) { if (d && d.ok) { AUL = d; aulRender(); } })
+      .catch(function () { var b = $('#aul-box'); if (b) b.innerHTML = '<p class="small">Para registares aulas, o treinador tem de ativar esta função (SQL da parte 33).</p>'; });
+  }
+  function aulRender() {
+    var b = $('#aul-box'); if (!b || !AUL) return;
+    var hj = AUL.hoje, L = (AUL.aulas || []).slice().reverse(), ab = $('#aul-det') && $('#aul-det').open;
+    var h = '<details id="aul-det"' + (ab ? ' open' : '') + '><summary><b>Aulas fora do plano</b> <span class="small">(box, outras aulas) · ' + L.length + ' nas últimas 4 semanas</span></summary>' +
+      '<p class="small">Fizeste uma aula (por exemplo na box)? Escolhe o tipo e regista a duração e o esforço (PSE). Conta para a tua carga de treino.</p>' +
+      '<div class="field"><label for="au-nome">Tipo de aula</label><select class="sel" id="au-nome">' + ['WOD', 'HYROX', 'Ginástica', 'Força', 'Outra'].map(function (n) { return '<option>' + n + '</option>'; }).join('') + '</select></div>' +
+      '<div class="inline"><div class="field"><label for="au-data">Dia</label><input class="dt" type="date" id="au-data" value="' + hj + '" min="' + isoAdd(hj, -7) + '" max="' + hj + '"></div>' +
+      '<div class="field"><label for="au-min">Duração (min)</label><input class="dt" id="au-min" inputmode="numeric" maxlength="3" value="60"></div></div>' +
+      '<div class="field"><label for="au-pse">PSE: que esforço sentiste?</label><select class="sel" id="au-pse"><option value="">Escolhe…</option>' + PSEDESC.map(function (t, i) { return '<option value="' + i + '">' + i + ' · ' + t + '</option>'; }).join('') + '</select></div>' +
+      '<button class="chip" id="au-save" type="button">Registar aula</button> <span class="small" id="au-msg" role="status">' + esc(AULMSG) + '</span>';
+    h += L.map(function (a) { return '<div class="row2"><span class="small">' + fmtD(a.data) + ' · ' + esc(a.nome) + ' · ' + a.minutos + ' min</span><b>PSE ' + a.pse + ' <button class="chip" data-au-del="' + a.id + '" type="button" aria-label="Apagar aula">×</button></b></div>'; }).join('');
+    b.innerHTML = h + '</details>';
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var del = t.closest('[data-au-del]');
+    if (del && sess) {
+      rpc('atleta_aula_apagar', { p_atleta: sess.id, p_pin: sess.pin, p_id: del.getAttribute('data-au-del') }).then(function () { AULMSG = 'Aula apagada.'; aulCarregar(); });
+      return;
+    }
+    if (t.id === 'au-save' && sess) {
+      var pse = $('#au-pse').value, min = parseInt($('#au-min').value, 10), msg = $('#au-msg');
+      if (pse === '') { msg.textContent = 'Escolhe a PSE.'; return; }
+      if (!(min >= 1 && min <= 300)) { msg.textContent = 'Indica a duração em minutos (1 a 300).'; return; }
+      t.disabled = true; msg.textContent = 'A guardar…';
+      rpc('atleta_aula_guardar', { p_atleta: sess.id, p_pin: sess.pin, p_data: $('#au-data').value, p_nome: $('#au-nome').value, p_pse: parseInt(pse, 10), p_minutos: min }).then(function (r) {
+        t.disabled = false;
+        if (r && r.ok) { AULMSG = 'Aula registada. Bom trabalho!'; aulCarregar(); return; }
+        msg.textContent = r && r.erro === 'data' ? 'Só podes registar aulas dos últimos 7 dias.' : r && r.erro === 'limite' ? 'Já registaste 3 aulas nesse dia.' : 'Não foi possível guardar.';
+      }).catch(function (er) { t.disabled = false; msg.textContent = netErr(er); });
+    }
+  });
   function macMove(n) {
     var y = MACY, m = MACM + n; if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
     $('#mac-body').insertAdjacentHTML('afterbegin', '');
@@ -2606,7 +2649,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       h += '<p class="small">Carga mais alta de cada semana (kg).</p>' + evChart(ex.pontos.map(function (q) { return { s: q.semana, v: q.carga }; }), evNum);
       h += ex.pontos.map(function (q) { return '<div class="row2"><span class="small">Semana de ' + fmtD(q.semana) + '</span><b>' + esc(evNum(q.carga)) + ' kg' + (q.reps ? ' × ' + q.reps : '') + '</b></div>'; }).join('');
     } else if (EVK === 'pse') {
-      var P = d.pse || [];
+      var P = (d.pse || []).concat((AUL && AUL.aulas || []).map(function (a) { return { data: a.data, valor: a.pse, treino: a.nome }; })).sort(function (x, y) { return x.data < y.data ? -1 : x.data > y.data ? 1 : 0; });
       h += '<p class="small">PSE de cada treino (0 a 10): o esforço que sentiste. Não é o mesmo que o bem-estar. Últimas 4 semanas.</p>' + evChart(P.map(function (q) { return { s: q.data, v: q.valor }; }), evNum);
       h += P.slice().reverse().map(function (q) { return '<div class="row2"><span class="small">' + fmtD(q.data) + (q.treino ? ' · ' + esc(q.treino) : '') + '</span><b>PSE ' + q.valor + '</b></div>'; }).join('');
     } else {
@@ -2629,6 +2672,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     rpc('atleta_evolucao', { p_atleta: sess.id, p_pin: sess.pin, p_semanas: 12 }).then(function (d) {
       if (!d || !d.ok) { $('#evo-body').innerHTML = '<p class="err">Não foi possível carregar. Sai e entra outra vez.</p>'; return; }
       EVD = d; evRender();
+      rpc('atleta_aulas', { p_atleta: sess.id, p_pin: sess.pin }).then(function (a) { if (a && a.ok) { AUL = a; if (!$('#evo-panel').hidden) evRender(); } }).catch(function () {});
     }).catch(function (e) { $('#evo-body').innerHTML = /404|PGRST202/.test(JSON.stringify(e && (e.body || e.text) || '') + (e && e.status)) ? '<p class="small">Esta função ainda não está ativa. O treinador tem de correr a parte 28 do SQL.</p>' : '<p class="err">' + esc(netErr(e)) + '</p>'; });
   }
   $('#evo-btn').addEventListener('click', function () { if (sess) evAbrir(); });
@@ -2641,7 +2685,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     livePinPanel(false, PINPROV);
   });
   function liveSair() {
-    $('#mac-btn').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true; $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#evo-panel').hidden = true; MACD = null; EVD = null; PTOK = false; WELLHI = null; liveWellAlert();
+    $('#mac-btn').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true; $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#evo-panel').hidden = true; MACD = null; EVD = null; AUL = null; PTOK = false; WELLHI = null; liveWellAlert();
     livePinPanel(false, false);
     lsSet('alvo.sessao', null);
     sess = null; escolhido = null;
@@ -3020,7 +3064,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       idx[a.id] = k;
       var rec = [];
       for (var i = 0; i <= TODAY_I; i++) rec.push({ w: null, ses: [], ton: 0, tu: 0, tp: {}, core: {}, falta: null });
-      return { id: a.id, n: a.nome, m: a.modalidade, g: a.grupo === 'pt' ? 'pt' : 'atleta', pres: a.grupo === 'presencial', rec: rec, cdias: {}, faltas: [], loads: {}, cmj: [], bj: [], vbt: [], core: { ext: [], flex: [], lat: [], rot: [], r_ext: [], r_flex: [], r_lat: [], r_rot: [] }, plan: {} };
+      return { id: a.id, n: a.nome, m: a.modalidade, g: a.grupo === 'pt' ? 'pt' : 'atleta', pres: a.grupo === 'presencial', rec: rec, cdias: {}, faltas: [], loads: {}, cmj: [], bj: [], vbt: [], core: (function () { var o = {}; CORE_KEYS.forEach(function (k) { o[k] = []; o['r_' + k] = []; }); return o; })(), plan: {} };
     });
     function at(id, iso) {
       var k = idx[id], i = fromISO(iso);
@@ -3487,7 +3531,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     if (/^plyo/.test(s)) return { padrao: 'plyo' };
     if (/olymp|weightlift|halter/.test(s)) return { padrao: 'olympic' };
     if (/^core/.test(s)) {
-      var t = /later|lat\b/.test(s) ? 'lat' : /exten/.test(s) ? 'ext' : /flex|flec/.test(s) ? 'flex' : /rot/.test(s) ? 'rot' : null;
+      var t = /later|lat\b/.test(s) ? 'lat' : /exten/.test(s) ? 'ext' : /flex|flec/.test(s) ? 'flex' : /rot/.test(s) ? 'rot' : null; if (t && /anti/.test(s)) t = 'a' + t;
       return t ? { padrao: 'core', core_tipo: t } : null;
     }
     return null;
@@ -3594,7 +3638,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   /* ====================== GESTÃO (treinador): atletas, exercícios, planear semana ====================== */
   var G = { atl: [], ex: [], tab: 'plano', sel: {}, semana: '', plan: null, edit: null, exEdit: null, exQ: '', srcAtl: '', srcSem: '' };
   var GBL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
-  var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['olympic', 'Olympic weightlifting'], ['core:ext', 'Core extension'], ['core:flex', 'Core flexion'], ['core:lat', 'Core lateral flexion'], ['core:rot', 'Core rotation']];
+  var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['olympic', 'Olympic weightlifting'], ['core:ext', 'Core extensão'], ['core:flex', 'Core flexão'], ['core:lat', 'Core flexão lateral'], ['core:rot', 'Core rotação'], ['core:aext', 'Core anti-extensão'], ['core:aflex', 'Core anti-flexão'], ['core:alat', 'Core anti-flexão lateral'], ['core:arot', 'Core anti-rotação']];
   var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'Carga + VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Broad jump (cm)'], ['feito', 'Só "feito"']];
   var DIASL = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
@@ -3943,6 +3987,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       tGet('treinos', 'select=id,atleta_id,data,nome,tipo&atleta_id=eq.' + aid + '&data=gte.' + de + '&data=lte.' + r.b + '&order=data'),
       tGet('sessoes', 'select=atleta_id,data,pse,treino_id&atleta_id=eq.' + aid + '&data=gte.' + de + '&data=lte.' + isoAdd(r.b, 7)).catch(function () { return []; }),
       tGet('faltas', 'select=atleta_id,treino_id,motivo&atleta_id=eq.' + aid).catch(function () { return []; }),
+      tGet('aulas_externas', 'select=atleta_id,data,nome,pse,minutos,ua&atleta_id=eq.' + aid + '&data=gte.' + de + '&data=lte.' + r.b + '&order=data').catch(function () { return []; }),
       tGet('fases_semana', 'select=atleta_id,semana,fase,objetivo,nota&atleta_id=eq.' + aid + '&semana=gte.' + de + '&semana=lte.' + r.b).catch(function () { return tGet('fases_semana', 'select=atleta_id,semana,fase,objetivo&atleta_id=eq.' + aid + '&semana=gte.' + de + '&semana=lte.' + r.b); }).catch(function () { MC.err = 'Para planear a macro, corre primeiro o SQL das partes 27 e 31.'; return []; })
     ]).then(function (x) {
       var id = MC.aid;
@@ -3951,7 +3996,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         t: x[0].filter(function (t) { return t.atleta_id === id && t.tipo !== 'rest'; }),
         s: x[1].filter(function (s) { return s.atleta_id === id; }),
         f: x[2].filter(function (f) { return f.atleta_id === id; }),
-        w: x[3].filter(function (w) { return w.atleta_id === id; })
+        w: x[4].filter(function (w) { return w.atleta_id === id; }),
+        a: x[3].filter(function (a) { return a.atleta_id === id; })
       };
       gRenderMacro();
     }).catch(function (e) { MC.err = gFail(e); MC.rows = null; gRenderMacro(); });
@@ -3981,6 +4027,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         '<div class="inline"><div class="field"><label for="mf-' + w + '">Fase</label><input class="dt" id="mf-' + w + '" data-mc="sem" data-w="' + w + '" maxlength="40" placeholder="ex.: Acumulação" value="' + esc(f.fase || '') + '"></div></div>' +
         '<div class="field"><label for="mo-' + w + '">Objetivo da semana</label><input class="dt" id="mo-' + w + '" data-mc="sem" data-w="' + w + '" maxlength="120" placeholder="ex.: aumentar volume na suspensão" value="' + esc(f.objetivo || '') + '"></div>' +
         '<div class="field"><label for="mt-' + w + '">Nota para o aluno (opcional)</label><textarea class="dt" id="mt-' + w + '" data-mc="nota" data-w="' + w + '" rows="2" maxlength="400" placeholder="ex.: Esta semana foca-te na respiração">' + esc(f.nota || '') + '</textarea></div>';
+      var au = MC.rows.a.filter(function (a) { return a.data >= w && a.data <= fim; });
+      if (au.length) h += '<div class="mac-nota"><b>Aulas fora do plano</b> <span class="small">· ' + au.length + ' · ' + au.reduce(function (s, a) { return s + (a.ua || 0); }, 0) + ' UA</span><br>' + au.map(function (a) { return gFmt(a.data) + ' · ' + esc(a.nome) + ' · ' + a.minutos + ' min · PSE ' + a.pse; }).join('<br>') + '</div>';
       ts.forEach(function (t) {
         var dow = isoDow(t.data);
         h += '<div class="mac-tr"><input class="dt" data-mc="tn" data-id="' + t.id + '" maxlength="80" value="' + esc(t.nome) + '" aria-label="Tema do treino">' +
@@ -5110,7 +5158,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   });
   $('#g-panel').addEventListener('change', function (e) {
     var t = e.target;
-    if (t.id === 'gx-pad' && /^core:/.test(t.value)) { var rg = $('#gx-reg'); if (rg && rg.value !== 'reps') rg.value = 'reps'; }
+    if (t.id === 'gx-pad' && /^core:/.test(t.value)) { var rg = $('#gx-reg'); if (rg && rg.value === 'carga') rg.value = 'tempo'; }
   });
   $('#g-panel').addEventListener('input', function (e) {
     var t = e.target;
