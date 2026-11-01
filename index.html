@@ -6,7 +6,8 @@
 <meta name="theme-color" content="#0D120F">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="robots" content="noindex">
-<title>App Treinos</title>
+<meta name="apple-mobile-web-app-title" content="1%">
+<title>1%</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
 /* Layout: uma coluna estreita, pensada para telemóvel. Duas vistas (Atleta / Treinador) com a mesma identidade: verde, preto e branco, números grandes e condensados. Nos gráficos, a única cor de dados é o verde da marca; tudo o resto é tinta e linhas finas. */
@@ -358,6 +359,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .gdia[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); } .gdia[aria-pressed="true"] small { color: var(--bg); }
 .gday[hidden] { display: none; }
 .mac-tl { display: grid; gap: 2px; font-size: .88rem; margin: 2px 0 10px; }
+.brand-t { display: flex; flex-direction: column; gap: 3px; }
+.brand-t small { font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 500; line-height: 1; }
 </style>
 </head>
 <body>
@@ -365,14 +368,14 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 <div class="wrap">
   <div class="top">
     <div class="brand">
-      <svg viewBox="0 0 40 40" role="img" aria-label="Logótipo App Treinos">
+      <svg viewBox="0 0 40 40" role="img" aria-label="Logótipo 1%">
         <circle cx="20" cy="20" r="18" fill="var(--fg)"/>
         <circle cx="20" cy="20" r="14" fill="var(--bg)"/>
         <circle cx="20" cy="20" r="10" fill="var(--fg)"/>
         <circle cx="20" cy="20" r="6" fill="var(--bg)"/>
-        <circle cx="20" cy="20" r="2.8" fill="var(--accent)"/>
+        <circle cx="20" cy="20" r="2.8" fill="var(--fg)"/>
       </svg>
-      <b>App Treinos</b>
+      <span class="brand-t"><b>1%</b><small>better every day</small></span>
     </div>
     <p class="demo" id="demo-note">Protótipo com dados de exemplo. Nada é guardado.</p>
   </div>
@@ -1883,7 +1886,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       if (exTxt.length) txt.push('Cargas: ' + exTxt.join('; '));
       txt.push('');
     });
-    out.innerHTML = '<article class="paper"><header><p class="kicker">App Treinos · Relatório de acompanhamento</p><h2>' + periodo + '</h2><p class="small">' + idx.length + (idx.length === 1 ? ' atleta' : ' atletas') + (LIVE ? '' : ' · dados de exemplo') + '</p></header>' +
+    out.innerHTML = '<article class="paper"><header><p class="kicker">1% · Relatório de acompanhamento</p><h2>' + periodo + '</h2><p class="small">' + idx.length + (idx.length === 1 ? ' atleta' : ' atletas') + (LIVE ? '' : ' · dados de exemplo') + '</p></header>' +
       '<div class="scroll"><table class="rt sum"><thead><tr><th>Atleta</th><th>Pres.</th><th>Hooper</th><th>PSE</th><th>UA</th><th>Ton.</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + secs + '</article>';
     lastText = txt.join('\n');
     $('#rep-actions').hidden = false;
