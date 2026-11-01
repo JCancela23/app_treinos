@@ -350,12 +350,12 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .mac-tr .small { grid-column: 1; }
 #g-macro .inline .field { flex: 1 1 100%; }
 #g-macro .inline input.dt { width: 100%; }
-.mac-nota { background: var(--surface-2, #f1efe8); border-left: 3px solid var(--accent, #0b6e8a); border-radius: 8px; padding: 8px 10px; margin: 4px 0 8px; font-size: .92em; }
+.mac-nota { background: var(--accent-soft); border-left: 3px solid var(--accent, #0b6e8a); border-radius: 8px; padding: 8px 10px; margin: 4px 0 8px; font-size: .92em; }
 .gdias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; position: sticky; top: 0; z-index: 3; background: var(--bg, #fff); padding: 6px 0; }
 .gdia { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font: inherit; cursor: pointer; min-width: 0; }
 .gdia b { font-size: .82rem; } .gdia span { font-size: .8rem; } .gdia small { font-size: .66rem; color: var(--muted); white-space: nowrap; }
-.gdia[data-t="gym"] small { color: var(--accent, #1f9d55); font-weight: 700; } .gdia[data-t="rest"] { background: var(--surface-2, #f1efe8); }
-.gdia[aria-pressed="true"] { background: var(--ink, #111); color: #fff; border-color: var(--ink, #111); } .gdia[aria-pressed="true"] small { color: #fff; }
+.gdia[data-t="gym"] small { color: var(--accent, #1f9d55); font-weight: 700; } .gdia[data-t="rest"] { background: var(--accent-soft); }
+.gdia[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); } .gdia[aria-pressed="true"] small { color: var(--bg); }
 .gday[hidden] { display: none; }
 .mac-tl { display: grid; gap: 2px; font-size: .88rem; margin: 2px 0 10px; }
 </style>
@@ -2832,7 +2832,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       if (!document.getElementById('cele-css')) {
         var st = document.createElement('style'); st.id = 'cele-css';
         st.textContent = '#cele{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.55);animation:celeIn .2s ease-out}' +
-          '#cele .cc{background:var(--surface,#fff);color:var(--ink,#111);border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}' +
+          '#cele .cc{background:var(--surface,#fff);color:var(--fg);border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}' +
           '#cele .ck{width:84px;height:84px;border-radius:50%;background:var(--accent,#1f9d55);display:flex;align-items:center;justify-content:center;animation:celePop .45s cubic-bezier(.2,1.4,.4,1)}' +
           '#cele .ck svg{width:48px;height:48px;stroke:#fff;stroke-width:5;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:60;stroke-dashoffset:60;animation:celeDraw .5s .15s ease-out forwards}' +
           '#cele{font-family:inherit}#cele h2{font-family:inherit;margin:0;font-size:26px;line-height:1.1}#cele .big{font-size:34px;font-weight:800}#cele p{margin:0}' +
@@ -3490,7 +3490,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     function fim() { lsSet(k, '1'); el.remove(); }
     function draw() {
       var s = S[i], ult = i === S.length - 1;
-      el.innerHTML = '<div style="background:var(--surface,#fff);color:var(--ink,#111);border-radius:20px;padding:24px 22px;max-width:360px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 60px rgba(0,0,0,.4)">' +
+      el.innerHTML = '<div style="background:var(--surface,#fff);color:var(--fg);border-radius:20px;padding:24px 22px;max-width:360px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 60px rgba(0,0,0,.4)">' +
         '<p class="small" style="margin:0">' + (i + 1) + ' de ' + S.length + '</p><h2 style="margin:0;font-size:24px;line-height:1.15">' + esc(s[0]) + '</h2><p style="margin:0">' + esc(s[1]) + '</p>' +
         '<div style="display:flex;gap:8px;margin-top:6px"><button class="chip" id="tour-skip" type="button" style="flex:0 0 auto">' + (ult ? 'Fechar' : 'Saltar') + '</button>' +
         '<button class="primary" id="tour-next" type="button" style="flex:1">' + (ult ? 'Começar' : 'Seguinte') + '</button></div></div>';
