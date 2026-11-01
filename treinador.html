@@ -357,6 +357,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .gdia[data-t="gym"] small { color: var(--accent, #1f9d55); font-weight: 700; } .gdia[data-t="rest"] { background: var(--surface-2, #f1efe8); }
 .gdia[aria-pressed="true"] { background: var(--ink, #111); color: #fff; border-color: var(--ink, #111); } .gdia[aria-pressed="true"] small { color: #fff; }
 .gday[hidden] { display: none; }
+.mac-tl { display: grid; gap: 2px; font-size: .88rem; margin: 2px 0 10px; }
 </style>
 </head>
 <body>
@@ -2276,7 +2277,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       hydrate(r);
       lsSet('alvo.sessao', JSON.stringify(sess));
       livePinPanel(!!r.pin_provisorio && !lsGet('alvo.skip.' + id), !!r.pin_provisorio);
-      liveMacProbe(); liveBday();
+      liveMacProbe(); liveBday(); liveTourSoon();
       return { ok: true };
     });
   }
@@ -2427,7 +2428,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         var dia = macAdd(w, i), fora = dia.slice(0, 7) !== first.slice(0, 7), c = '', t = '';
         var fs = feitosEm[dia] || [], ps = porData[dia] || [];
         if (fs.length) { c = ' f'; t = fs.map(function (x) { return esc(macAb(x.nome)); }).join('<br>') + ' ✓'; }
-        else if (!futura) {
+        else {
           var pend = ps.filter(function (x) { return !x.feito_em; });
           if (pend.length) { var faltou = pend.every(function (x) { return x.falta; }); c = faltou ? ' x' : (dia < hoje ? ' x' : ' p'); t = pend.map(function (x) { return esc(macAb(x.nome)); }).join('<br>'); }
         }
@@ -2438,13 +2439,17 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       (d.treinos || []).forEach(function (x) { if (x.data >= w && x.data <= macAdd(w, 6)) { nt++; if (x.feito_em) nf++; } });
       var ph = fase[w] ? '<span class="mac-ph">' + esc(fase[w]) + '</span>' : '';
       var ob = (obj[w] ? '<div class="small mac-ob">' + esc(obj[w]) + '</div>' : '') + (nota[w] ? '<div class="mac-nota"><b>Nota do treinador</b><br>' + esc(nota[w]) + '</div>' : '');
-      if (futura && !fut[w]) h += '<div class="mac-l"><span>Sem treinos planeados</span>' + ph + '</div>' + ob;
-      else if (futura) h += '<div class="mac-l fut"><span>' + (fut[w] || 0) + ' treino' + ((fut[w] || 0) === 1 ? '' : 's') + ' planeado' + ((fut[w] || 0) === 1 ? '' : 's') + '</span>' + (ph || '<span>só resumo</span>') + '</div>';
-      else h += '<div class="mac-l"><span>' + (atual ? 'Esta semana' : fmtD(w) + ' – ' + fmtD(macAdd(w, 6))) + ' ' + ph + '</span><span>' + nf + '/' + nt + ' feitos</span></div>' + ob;
+      var DS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+      var tl = (d.treinos || []).filter(function (x) { return x.data >= w && x.data <= macAdd(w, 6); }).map(function (x) { var dw = (new Date(x.data + 'T00:00:00Z').getUTCDay() + 6) % 7; return '<span><b>' + DS[dw] + ' ' + (+x.data.slice(8, 10)) + '</b> · ' + esc(x.nome) + (x.feito_em ? ' ✓' : '') + '</span>'; }).join('');
+      tl = tl ? '<div class="mac-tl">' + tl + '</div>' : '';
+      var nplan = nt || fut[w] || 0;
+      if (futura && !nplan) h += '<div class="mac-l"><span>Sem treinos planeados</span>' + ph + '</div>' + ob;
+      else if (futura) h += '<div class="mac-l fut"><span>' + nplan + ' treino' + (nplan === 1 ? '' : 's') + ' planeado' + (nplan === 1 ? '' : 's') + '</span>' + ph + '</div>' + ob + tl;
+      else h += '<div class="mac-l"><span>' + (atual ? 'Esta semana' : fmtD(w) + ' – ' + fmtD(macAdd(w, 6))) + ' ' + ph + '</span><span>' + nf + '/' + nt + ' feitos</span></div>' + ob + tl;
       w = macAdd(w, 7);
     }
     h += '<div class="mac-lg"><span><i class="dot f"></i>Feito</span><span><i class="dot p"></i>Planeado</span><span><i class="dot x"></i>Por fazer / não fiz</span></div>';
-    h += '<p class="small">Cada treino aparece no dia em que o fizeste. Só consegues abrir os treinos da semana atual, no ecrã principal.</p>';
+    h += '<p class="small">Cada treino aparece no dia em que o fizeste. Das semanas seguintes vês o tema de cada treino; só consegues abrir os treinos da semana atual, no ecrã principal.</p>';
     return (tot ? '<p class="mac-sum"><b>' + ok + '</b> de ' + tot + ' treinos feitos em ' + MESES[MACM - 1].toLowerCase() + '</p>' : '') + h;
   }
   function macRender() {
@@ -2519,7 +2524,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       h += '<div class="row2"><span class="small">Acesso até</span><b>' + f.slice(8, 10) + '/' + f.slice(5, 7) + '/' + f.slice(0, 4) + '</b></div>';
       if (dias >= 0 && dias <= 7) h += '<p class="mac-warn"><b>O teu acesso termina ' + (dias === 0 ? 'hoje' : dias === 1 ? 'amanhã' : 'em ' + dias + ' dias') + '.</b> Fala com o teu treinador para renovar.</p>';
     }
-    h += '<div id="per-extra"></div><p class="small">Para mudares o PIN, usa o botão «Alterar PIN».</p>';
+    h += '<p><button class="chip" id="per-tour" type="button">Ver guia da app</button></p><div id="per-extra"></div><p class="small">Para mudares o PIN, usa o botão «Alterar PIN».</p>';
     $('#per-body').innerHTML = h; p.hidden = false;
     perCarregar();
   }
@@ -2571,6 +2576,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var app = $('#atleta-app'); if (!app) return;
     var aberto = PNIDS.some(function (id) { var e = $('#' + id); return e && !e.hidden; });
     app.classList.toggle('pn', aberto);
+    [['mac-btn', 'mac-panel'], ['evo-btn', 'evo-panel'], ['tes-btn', 'tes-panel'], ['per-btn', 'per-panel']].forEach(function (p) { var bt = $('#' + p[0]), pn = $('#' + p[1]); if (bt && pn) bt.setAttribute('aria-pressed', String(!pn.hidden)); });
     PNIDS.forEach(function (id) {
       var e = $('#' + id); if (!e || e.querySelector('.pn-back')) return;
       var b = document.createElement('button'); b.type = 'button'; b.className = 'chip pn-back'; b.textContent = '‹ Voltar ao treino';
@@ -2613,6 +2619,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   });
   $('#mac-btn').addEventListener('click', function () { if (sess) macAbrir(); });
   $('#per-btn').addEventListener('click', function () { if (sess) perAbrir(); });
+  document.addEventListener('click', function (e) { if (e.target && e.target.id === 'per-tour' && sess) liveTour(true); });
   /* ---- Evolução: cargas, PSE e bem-estar semana a semana ---- */
   var EVD = null, EVK = 'cargas', EVX = '', PTOK = false, WELLHI = null;
   function liveWellScan(ws) {
@@ -3454,6 +3461,46 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     });
   }
   /* aviso no painel do treinador: atletas com bem-estar (Hooper) em atenção (>= 14) hoje ou ontem */
+  /* ---------- pequeno guia na primeira entrada (só uma vez por atleta neste telemóvel) ---------- */
+  function tourSlides() {
+    var nome = sess && sess.nome ? String(sess.nome).split(' ')[0] : '';
+    var S = [
+      ['Bem-vindo' + (nome ? ', ' + nome : '') + '!', 'Esta app é o teu caderno de treino. Em menos de um minuto mostramos como funciona.'],
+      ['O teu treino', 'No ecrã principal vês os dias da semana. Toca no dia para abrir o treino e ver os exercícios. Só abres os treinos da semana atual. Se precisares de trocar a ordem, usa «Fazer este treino primeiro».'],
+      ['Como estás hoje?', 'Antes de treinar, responde às 4 perguntas rápidas (sono, cansaço, dor e stress) e carrega em «Guardar e ver o treino». Ajuda o teu treinador a ajustar a carga.'],
+      ['Registar o treino', 'Em cada exercício, escreve a carga, as repetições ou o tempo de cada série. Nos exercícios só de «feito», basta marcar.'],
+      ['No fim: a PSE', 'Escolhe a PSE (0 a 10), que é o esforço que sentiste na sessão, indica os minutos e carrega em «Guardar sessão». Fica tudo registado.']
+    ];
+    if (PTOK) {
+      S.push(['Macro, Evolução e Perfil', 'No topo tens a Macro (o calendário do mês e o tema dos treinos das próximas semanas), a Evolução (cargas, PSE e bem-estar das últimas semanas) e o Perfil (objetivo, limitações e lesões). O botão do menu fica destacado quando está aberto.']);
+      S.push(['Aulas fora do plano', 'Fizeste uma aula, por exemplo na box? Na Macro, no fim do ecrã, regista o tipo de aula, a duração e a PSE. Conta para a tua carga.']);
+    }
+    S.push(['Pronto!', 'Escolhe um PIN só teu (botão «Alterar PIN») e não o partilhes.' + (PTOK ? ' Podes rever este guia em Perfil → Ver guia da app.' : '') + ' Bom treino!']);
+    return S;
+  }
+  function liveTour(force) {
+    if (!sess) return;
+    var k = 'alvo.tour.' + sess.id;
+    if (!force && lsGet(k)) return;
+    var old = document.getElementById('tour'); if (old) old.remove();
+    var S = tourSlides(), i = 0;
+    var el = document.createElement('div'); el.id = 'tour'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Guia da app');
+    el.style.cssText = 'position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.55)';
+    document.body.appendChild(el);
+    function fim() { lsSet(k, '1'); el.remove(); }
+    function draw() {
+      var s = S[i], ult = i === S.length - 1;
+      el.innerHTML = '<div style="background:var(--surface,#fff);color:var(--ink,#111);border-radius:20px;padding:24px 22px;max-width:360px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 60px rgba(0,0,0,.4)">' +
+        '<p class="small" style="margin:0">' + (i + 1) + ' de ' + S.length + '</p><h2 style="margin:0;font-size:24px;line-height:1.15">' + esc(s[0]) + '</h2><p style="margin:0">' + esc(s[1]) + '</p>' +
+        '<div style="display:flex;gap:8px;margin-top:6px"><button class="chip" id="tour-skip" type="button" style="flex:0 0 auto">' + (ult ? 'Fechar' : 'Saltar') + '</button>' +
+        '<button class="primary" id="tour-next" type="button" style="flex:1">' + (ult ? 'Começar' : 'Seguinte') + '</button></div></div>';
+      $('#tour-skip').addEventListener('click', fim);
+      $('#tour-next').addEventListener('click', function () { if (ult) fim(); else { i++; draw(); } });
+      $('#tour-next').focus();
+    }
+    draw();
+  }
+  function liveTourSoon() { setTimeout(function () { if (sess && !document.getElementById('cele')) liveTour(false); }, 1600); }
   /* ---------- parabéns no dia de anos ---------- */
   function liveBday() {
     if (!sess) return;
