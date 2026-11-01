@@ -3512,7 +3512,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       var old = document.getElementById('bday'); if (old) old.remove();
       var el = document.createElement('div'); el.id = 'bday'; el.className = 'mac-warn'; el.setAttribute('role', 'status');
       el.style.cssText = 'margin:10px 14px;text-align:center';
-      el.innerHTML = '<b>Parabéns, ' + esc(sess.nome.split(' ')[0]) + '! 🎉</b><br>Tenhas um dia fantástico. Um abraço do teu treinador.<br><button class="chip" type="button" id="bday-ok">Obrigado</button>';
+      el.innerHTML = '<b>Parabéns, ' + esc(sess.nome.split(' ')[0]) + '!</b> Hoje podes comer bolo à vontade: o treinador autoriza (só hoje). Bom dia e bom treino!<br><button class="chip" type="button" id="bday-ok">Obrigado</button>';
       var app = $('#atleta-app'); app.insertBefore(el, app.firstChild);
       $('#bday-ok').addEventListener('click', function () { el.remove(); });
     }).catch(function () {});
