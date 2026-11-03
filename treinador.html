@@ -376,6 +376,28 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .cbar.h i{background:var(--warn,#c47f00)}
 .cbar.p i{background:var(--crit,#b3261e)}
 .cbar.t i{background:var(--muted)}
+/* modo bloco */
+#pag-tg{margin-right:8px}
+#pag-tg[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+#pag-dots{display:grid;gap:4px;margin-bottom:8px}
+#pag-dots .pag-bar{display:flex;gap:4px;border:0;background:none;padding:6px 0;width:100%}
+#pag-dots .pag-bar i{flex:1;height:7px;border-radius:4px;background:var(--line)}
+#pag-dots .pag-bar i.on{background:var(--accent)}
+#pag-dots .pag-bar i.cur{background:var(--fg)}
+#pag-dots p{margin:0}
+#pag-ov{display:grid;gap:8px;margin-bottom:10px}
+.pag-row{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:12px;padding:12px}
+.pag-row small{display:block;color:var(--muted)}
+.pag-row.cur{border:2px solid var(--fg)}
+#pag-nav{position:sticky;bottom:0;display:flex;gap:8px;padding:10px 0;background:var(--surface,var(--bg));border-top:1px solid var(--line);margin-top:8px;z-index:3}
+#pag-nav button{flex:1;padding:14px 8px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font-weight:700}
+#pag-nav button.p{flex:2;background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+#pag-nav button:disabled{opacity:.4}
+.pag-on #work > .block{display:none}
+.pag-on #work > .block.pag-cur{display:grid}
+.pag-on:not(.pag-end) #pse-panel{display:none}
+.pag-on.pag-ov #pse-panel{display:none}
+.pag-on.pag-ov #work{display:none}
 </style>
 </head>
 <body>
@@ -3664,6 +3686,68 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var b = $('#comp-body'); if (!b) return;
     b.innerHTML = '<p class="small">Por semana, lado a lado: bem-estar (Hooper, 4 a 20, menor é melhor), esforço percebido (PSE, 0 a 10), carga (PSE × minutos) e tonelagem levantada. Serve para ver se o corpo responde à carga: por exemplo, a carga sobe e o Hooper sobe também.</p>' + compHtml(a, range.i0, range.i1, 0);
   }
+  /* ---------- modo bloco: uma página por bloco (opcional) ---------- */
+  var PAGON = lsGet('alvo.pag') === '1', PAGI = {}, PAGOV = false;
+  function pagBlocks() { return Array.prototype.slice.call(document.querySelectorAll('#work > .block')); }
+  function pagDone(sec) {
+    var ins = sec.querySelectorAll('input[data-k]'), n = 0, t = 0;
+    ins.forEach(function (i) { if (i.type === 'checkbox') { t++; if (i.checked) n++; } else if (/_a$/.test(i.getAttribute('data-k') || '')) { t++; if (String(i.value).trim()) n++; } });
+    return t > 0 && n === t;
+  }
+  function pagGo(n) {
+    var B = pagBlocks(), max = B.length;
+    PAGI[day] = Math.max(0, Math.min(max, n)); PAGOV = false;
+    livePagApply(true);
+  }
+  function livePagApply(scroll) {
+    var af = $('#after'), tg = $('#pag-tg'), dots = $('#pag-dots'), nav = $('#pag-nav'), ov = $('#pag-ov');
+    if (!af || !tg || !dots || !nav) return;
+    var p = PLAN[day], B = pagBlocks(), ok = !!(p && p.tipo === 'gym' && B.length > 0);
+    tg.hidden = !ok; tg.setAttribute('aria-pressed', String(PAGON));
+    var on = ok && PAGON;
+    af.classList.toggle('pag-on', on);
+    if (!on) { dots.hidden = true; nav.hidden = true; ov.hidden = true; af.classList.remove('pag-end'); B.forEach(function (b) { b.classList.remove('pag-cur'); }); return; }
+    if (PAGI[day] == null) { var f = 0; for (var k = 0; k < B.length; k++) { if (!pagDone(B[k])) { f = k; break; } f = k + 1; } PAGI[day] = Math.min(f, B.length); }
+    var cur = PAGI[day], end = cur >= B.length;
+    B.forEach(function (b, i) { b.classList.toggle('pag-cur', i === cur && !PAGOV); });
+    af.classList.toggle('pag-end', end && !PAGOV);
+    af.classList.toggle('pag-ov', PAGOV);
+    var names = B.map(function (b) { var k = b.querySelector('.kicker'); return k ? k.textContent : 'Bloco'; });
+    dots.hidden = false;
+    dots.innerHTML = '<button type="button" class="pag-bar" id="pag-bar" aria-label="Ver o treino todo">' + B.concat([null]).map(function (b, i) { return '<i class="' + (i === cur && !PAGOV ? 'cur' : (b && pagDone(b) ? 'on' : '')) + '"></i>'; }).join('') + '</button><p class="small"><b>' + (PAGOV ? 'Visão geral' : (end ? 'Fim · PSE e guardar' : 'Bloco ' + (cur + 1) + ' de ' + B.length + ' · ' + esc(names[cur]))) + '</b> · toca nas barras para ver o treino todo</p>';
+    ov.hidden = !PAGOV;
+    if (PAGOV) ov.innerHTML = B.map(function (b, i) { var n = b.querySelectorAll('article.ex').length; return '<button type="button" class="pag-row' + (i === cur ? ' cur' : '') + '" data-pg="' + i + '"><span><b>' + (i + 1) + ' · ' + esc(names[i]) + '</b><small>' + n + (n === 1 ? ' exercício' : ' exercícios') + '</small></span><span>' + (pagDone(b) ? '✓ feito' : (i === cur ? 'a fazer' : '')) + '</span></button>'; }).join('') + '<button type="button" class="pag-row' + (end ? ' cur' : '') + '" data-pg="' + B.length + '"><span><b>' + (B.length + 1) + ' · Fim</b><small>PSE e guardar</small></span><span></span></button>';
+    nav.hidden = PAGOV;
+    nav.innerHTML = '<button type="button" data-pgn="-1"' + (cur === 0 ? ' disabled' : '') + '>← Anterior</button>' + (end ? '' : '<button type="button" class="p" data-pgn="1">Seguinte: ' + (cur + 1 < B.length ? esc(names[cur + 1]) : 'Fim e PSE') + ' →</button>');
+    if (scroll) { var h = $('#work-kicker'); if (h && h.scrollIntoView) h.scrollIntoView({ block: 'start' }); }
+  }
+  (function livePagInit() {
+    var w = $('#work'), pr = $('#prog');
+    if (!w || !pr || typeof renderWork !== 'function') return;
+    var d = document.createElement('div'); d.id = 'pag-dots'; d.hidden = true; w.parentNode.insertBefore(d, w);
+    var ov = document.createElement('div'); ov.id = 'pag-ov'; ov.hidden = true; w.parentNode.insertBefore(ov, w);
+    var nv = document.createElement('div'); nv.id = 'pag-nav'; nv.hidden = true; w.parentNode.insertBefore(nv, w.nextSibling);
+    var tg = document.createElement('button'); tg.type = 'button'; tg.id = 'pag-tg'; tg.className = 'chip'; tg.hidden = true; tg.textContent = 'Modo bloco';
+    tg.setAttribute('aria-pressed', String(PAGON)); pr.parentNode.insertBefore(tg, pr);
+    tg.addEventListener('click', function () { PAGON = !PAGON; lsSet('alvo.pag', PAGON ? '1' : '0'); PAGOV = false; livePagApply(true); });
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('#pag-nav [data-pgn],#pag-ov [data-pg],#pag-bar');
+      if (!b) return;
+      if (b.id === 'pag-bar') { PAGOV = !PAGOV; livePagApply(); return; }
+      if (b.hasAttribute('data-pg')) { pagGo(+b.getAttribute('data-pg')); return; }
+      pagGo((PAGI[day] || 0) + (+b.getAttribute('data-pgn')));
+    });
+    var sx = 0, sy = 0, ok = false;
+    w.addEventListener('touchstart', function (e) { var t = e.touches[0]; sx = t.clientX; sy = t.clientY; ok = PAGON && !(e.target.closest && e.target.closest('input,textarea,select,button,a,label')); }, { passive: true });
+    w.addEventListener('touchend', function (e) {
+      if (!ok) return; ok = false;
+      var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) > 70 && Math.abs(dy) < 45) pagGo((PAGI[day] || 0) + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+    var _rw = renderWork;
+    renderWork = function () { _rw.apply(this, arguments); livePagApply(); };
+    $('#work').addEventListener('input', function () { if (PAGON) { var dd = $('#pag-dots'); if (dd && !dd.hidden && !PAGOV) { var B = pagBlocks(); dd.querySelectorAll('.pag-bar i').forEach(function (i, k) { if (B[k] && k !== PAGI[day]) i.className = pagDone(B[k]) ? 'on' : ''; }); } } });
+  })();
   /* ---------- parabéns no dia de anos ---------- */
   function liveBday() {
     if (!sess) return;
