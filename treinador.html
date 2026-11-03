@@ -337,7 +337,7 @@ table.rt { min-width: 0; font-size: .85rem; }
 .les-ac { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .les-ac .dt { width: auto; }
 textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
-#atleta-app.pn > *:not(.bar):not(#well-alert):not(#pin-panel):not(#mac-panel):not(#evo-panel):not(#per-panel):not(#tes-panel) { display: none !important; }
+#atleta-app.pn > *:not(.bar):not(#well-alert):not(#pin-panel):not(#mac-panel):not(#evo-panel):not(#per-panel):not(#tes-panel):not(#sem-panel) { display: none !important; }
 .pn-back { margin-bottom: 8px; }
 #atleta-app.pn > #wsum { display: none !important; }
 .mac-wh { display: flex; justify-content: space-between; align-items: center; }
@@ -398,6 +398,13 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .pag-on:not(.pag-end) #pse-panel{display:none}
 .pag-on.pag-ov #pse-panel{display:none}
 .pag-on.pag-ov #work{display:none}
+/* treinos da semana */
+.sem-d{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0;background:var(--bg)}
+.sem-d summary{display:flex;justify-content:space-between;gap:10px;align-items:center;cursor:pointer;list-style:none}
+.sem-d summary small{display:block;color:var(--muted)}
+.sem-st{font-size:.8rem;color:var(--muted);white-space:nowrap}
+.sem-ul{margin:4px 0 8px;padding-left:18px;display:grid;gap:6px}
+.sem-ul li.sem-g{list-style:none;margin-left:-18px;font-weight:700;font-size:.85rem;background:var(--accent-soft);border-left:4px solid var(--accent);border-radius:6px;padding:4px 8px}
 </style>
 </head>
 <body>
@@ -2472,10 +2479,10 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     });
   }
   function liveMacProbe() {
-    $('#mac-btn').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true;
+    $('#mac-btn').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true; if ($('#sem-btn')) $('#sem-btn').hidden = true;
     var h = HOJE || localISO(), y = +h.slice(0, 4), m = +h.slice(5, 7);
     macLoad(y, m).then(function (d) {
-      if (d && d.ok) { $('#mac-btn').hidden = false; $('#per-btn').hidden = false; $('#evo-btn').hidden = false; PTOK = true; liveWellAlert(); liveLocks(); liveRenderDays(); renderWork(); livePseFor(); }
+      if (d && d.ok) { $('#mac-btn').hidden = false; $('#per-btn').hidden = false; $('#evo-btn').hidden = false; if ($('#sem-btn')) $('#sem-btn').hidden = false; PTOK = true; liveWellAlert(); liveLocks(); liveRenderDays(); renderWork(); livePseFor(); }
     }).catch(function () {});
   }
   function macAb(n) { var w = String(n || '').trim().split(/\s+/)[0]; return w.length > 5 ? w.slice(0, 4) + '.' : w; }
@@ -2644,7 +2651,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var app = $('#atleta-app'); if (!app) return;
     var aberto = PNIDS.some(function (id) { var e = $('#' + id); return e && !e.hidden; });
     app.classList.toggle('pn', aberto);
-    [['mac-btn', 'mac-panel'], ['evo-btn', 'evo-panel'], ['tes-btn', 'tes-panel'], ['per-btn', 'per-panel']].forEach(function (p) { var bt = $('#' + p[0]), pn = $('#' + p[1]); if (bt && pn) bt.setAttribute('aria-pressed', String(!pn.hidden)); });
+    [['mac-btn', 'mac-panel'], ['evo-btn', 'evo-panel'], ['tes-btn', 'tes-panel'], ['per-btn', 'per-panel'], ['sem-btn', 'sem-panel']].forEach(function (p) { var bt = $('#' + p[0]), pn = $('#' + p[1]); if (bt && pn) bt.setAttribute('aria-pressed', String(!pn.hidden)); });
     PNIDS.forEach(function (id) {
       var e = $('#' + id); if (!e || e.querySelector('.pn-back')) return;
       var b = document.createElement('button'); b.type = 'button'; b.className = 'chip pn-back'; b.textContent = '‹ Voltar ao treino';
@@ -2766,7 +2773,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     livePinPanel(false, PINPROV);
   });
   function liveSair() {
-    $('#mac-btn').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true; $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#evo-panel').hidden = true; MACD = null; EVD = null; AUL = null; PTOK = false; WELLHI = null; liveWellAlert();
+    $('#mac-btn').hidden = true; if ($('#sem-btn')) $('#sem-btn').hidden = true; if ($('#sem-panel')) $('#sem-panel').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true; $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#evo-panel').hidden = true; MACD = null; EVD = null; AUL = null; PTOK = false; WELLHI = null; liveWellAlert();
     livePinPanel(false, false);
     lsSet('alvo.sessao', null);
     sess = null; escolhido = null;
@@ -3747,6 +3754,55 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var _rw = renderWork;
     renderWork = function () { _rw.apply(this, arguments); livePagApply(); };
     $('#work').addEventListener('input', function () { if (PAGON) { var dd = $('#pag-dots'); if (dd && !dd.hidden && !PAGOV) { var B = pagBlocks(); dd.querySelectorAll('.pag-bar i').forEach(function (i, k) { if (B[k] && k !== PAGI[day]) i.className = pagDone(B[k]) ? 'on' : ''; }); } } });
+  })();
+  /* ---------- aba "Treinos da semana" (Online training), ao lado da Macro ---------- */
+  function semRender() {
+    var b = $('#sem-body'); if (!b) return;
+    var h = '<p class="small">Semana de ' + fmtL(WK0) + ' a ' + fmtL(isoAdd(WK0, 6)) + '. Aqui vês os treinos todos da semana para a planeares. Toca num treino para o abrires e registares.</p>', n = 0;
+    PLAN.forEach(function (p, i) {
+      if (!p || !p.id) return;
+      n++;
+      var st = p.saltado ? 'Não treinou' : p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito ' + fmtL(p.feito)) : 'Por fazer';
+      h += '<details class="sem-d"' + (p.feito || p.saltado ? '' : ' open') + '><summary><span><b>' + esc(p.nome) + '</b><small>' + (p.tipo === 'agua' ? 'Água' : p.tipo === 'rest' ? 'Descanso' : 'Ginásio') + (p.feito ? '' : ' · previsto ' + fmtL(p.iso)) + '</small></span><span class="sem-st">' + st + '</span></summary>';
+      if (p.tipo === 'gym' && p.blocos && p.blocos.length) {
+        p.blocos.forEach(function (bl) {
+          h += '<p class="kicker">' + esc(bl.b) + '</p><ul class="sem-ul">';
+          bl.ex.forEach(function (e, k) {
+            var tag = e.g ? '<span class="gtag">' + grpLetter(bl, k) + (grpSize(bl, k).pos + 1) + '</span> ' : '';
+            var gi = e.g && (k === 0 || bl.ex[k - 1].g !== e.g) ? '<li class="sem-g">Bloco ' + grpLetter(bl, k) + ': ' + grpSize(bl, k).n + ' exercícios seguidos, ' + e.series + ' voltas</li>' : '';
+            h += gi + '<li>' + tag + '<b>' + esc(e.n) + '</b> <span class="small">' + esc(e.pres) + (e.rest ? ' · descanso ' + fmtRest(e.rest) : '') + '</span>' + (e.h ? '<br><span class="small">' + esc(e.h) + '</span>' : '') + '</li>';
+          });
+          h += '</ul>';
+        });
+      } else if (p.tipo === 'agua') h += '<p class="small">Sessão na água. Só registas o esforço no fim.</p>';
+      else if (p.tipo === 'rest') h += '<p class="small">Dia de descanso.</p>';
+      if (p.tipo !== 'rest') h += '<button type="button" class="chip" data-sem="' + i + '">Abrir este treino</button>';
+      h += '</details>';
+    });
+    if (!n) h += '<p class="small">Ainda não há treinos planeados para esta semana.</p>';
+    b.innerHTML = h;
+  }
+  function semAbrir() {
+    var p = $('#sem-panel'); if (!p) return;
+    if (!p.hidden) { p.hidden = true; return; }
+    ['mac-panel', 'per-panel', 'tes-panel', 'evo-panel'].forEach(function (id) { var e = $('#' + id); if (e) e.hidden = true; });
+    p.hidden = false; semRender();
+  }
+  (function semInit() {
+    var mb = $('#mac-btn'), mp = $('#mac-panel'); if (!mb || !mp) return;
+    var bt = document.createElement('button'); bt.type = 'button'; bt.className = 'chip'; bt.id = 'sem-btn'; bt.hidden = true; bt.textContent = 'Treinos da semana';
+    mb.parentNode.insertBefore(bt, mb.nextSibling);
+    var pn = document.createElement('div'); pn.className = 'panel'; pn.id = 'sem-panel'; pn.hidden = true;
+    pn.innerHTML = '<header><h2>Treinos da semana</h2><span class="kicker">Planear</span></header><div id="sem-body"></div>';
+    mp.parentNode.insertBefore(pn, mp.nextSibling);
+    PNIDS.push('sem-panel');
+    bt.addEventListener('click', function () { if (sess) { semAbrir(); setTimeout(pnSync, 60); } });
+    document.addEventListener('click', function (e) {
+      var o = e.target && e.target.closest && e.target.closest('#mac-btn,#evo-btn,#tes-btn,#per-btn');
+      if (o) { pn.hidden = true; setTimeout(pnSync, 60); }
+      var g = e.target && e.target.closest && e.target.closest('[data-sem]');
+      if (g) { var i = +g.getAttribute('data-sem'); pn.hidden = true; if (LIVE) liveFlush(); day = i; livePseFor(); renderDays(); renderWork(); pnSync(); }
+    });
   })();
   /* ---------- parabéns no dia de anos ---------- */
   function liveBday() {
