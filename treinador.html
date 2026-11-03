@@ -361,6 +361,21 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .mac-tl { display: grid; gap: 2px; font-size: .88rem; margin: 2px 0 10px; }
 .brand-t { display: flex; flex-direction: column; gap: 3px; }
 .brand-t small { font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 500; line-height: 1; }
+/* blocos com vários exercícios (voltas) */
+.gbox{border:2px solid var(--accent);border-radius:16px;padding:10px;display:grid;gap:10px;background:var(--accent-soft);margin:8px 0}
+.gbox .grp{margin:0;padding:8px 10px;background:var(--bg);border:0;border-left:5px solid var(--accent);border-radius:8px;font-size:.9rem;display:grid;gap:2px}
+.gbox .gseq{color:var(--fg);font-size:.85rem}
+.gbox .ex{background:var(--bg)}
+.gbox .rest{margin:0}
+.gbox .gend{margin:0;font-weight:700;text-align:center;font-size:.85rem;color:var(--fg)}
+.gtag{display:inline-block;background:var(--accent);color:var(--accent-fg);border-radius:6px;padding:1px 7px;font-size:.8rem;margin-right:6px;font-weight:700;vertical-align:middle}
+.rt.comp td{white-space:nowrap}
+.rt.comp td b{display:block;font-variant-numeric:tabular-nums}
+.cbar{display:block;height:6px;border-radius:3px;background:var(--line);margin-top:3px;min-width:44px;overflow:hidden}
+.cbar i{display:block;height:100%;background:var(--accent)}
+.cbar.h i{background:var(--warn,#c47f00)}
+.cbar.p i{background:var(--crit,#b3261e)}
+.cbar.t i{background:var(--muted)}
 </style>
 </head>
 <body>
@@ -646,6 +661,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       <div id="op-out"></div>
     </div>
 
+    <div class="panel" id="p-comp"><header><div><p class="kicker">Semana a semana</p><h2>Hooper, PSE, carga e tonelagem</h2></div></header><div id="comp-body"></div></div>
+
     <div class="panel" id="p-hooper">
       <header>
         <div>
@@ -684,6 +701,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       <div class="cwrap" id="c-carga"></div>
       <div class="tscroll" id="t-carga" hidden></div>
     </div>
+
+    <div class="panel" id="p-acwr"><header><div><p class="kicker">Carga</p><h2>ACWR</h2></div></header><div id="acwr-body"></div></div>
 
     <div class="panel" id="p-ton">
       <header>
@@ -1125,7 +1144,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
           var vurl = e.href ? (/^https?:\/\//i.test(e.href) ? e.href : '') : (e.v ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(e.v) : '');
           var vid = vurl ? '<a class="vid" href="' + esc(vurl) + '" target="_blank" rel="noopener">Ver vídeo</a>' : '';
           var last = e.last ? '<span class="last">Última sessão: ' + e.last + '</span>' : '';
-          return (typeof liveCircHead === 'function' ? liveCircHead(PLAN[day], bl, i) : '') + grpHead(bl, i) + '<article class="ex' + (e.g ? ' ing' : '') + '"><header><h3>' + e.n + '</h3><span class="pres">' + e.pres + '</span></header>' +
+          return (typeof liveCircHead === 'function' ? liveCircHead(PLAN[day], bl, i) : '') + grpHead(bl, i) + '<article class="ex' + (e.g ? ' ing' : '') + '"><header><h3>' + grpTag(bl, i) + e.n + '</h3><span class="pres">' + e.pres + '</span></header>' +
             (tags ? '<div class="tags">' + tags + '</div>' : '') +
             (e.hn ? '<p class="hint hoje"><b>Neste treino:</b> ' + esc(e.hn) + '</p>' : '') +
             (e.h ? '<p class="hint">' + esc(e.h) + '</p>' : '') +
@@ -1649,6 +1668,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       })
     });
     $('#t-carga').innerHTML = tableOrEmpty(['Semana de', 'UA', 'Sessões'], st.order.map(function (w) { return [fmtDate(w), st.wk[w].ua, st.wk[w].n]; }));
+    if (typeof acwrRender === 'function') acwrRender(a);
+    if (typeof compRender === 'function') compRender(a);
 
     /* tonelagem semanal */
     var mt = 0;
@@ -1866,6 +1887,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       function cv(j) { return (crp[j] ? crp[j] + ' reps' : '') + (crp[j] && cmin[j] ? ' + ' : '') + (cmin[j] || !crp[j] ? cmin[j] + ' min' : ''); }
       var cSub = 'extensão ' + cv(0) + ' · flexão ' + cv(1) + ' · flexão lateral ' + cv(2) + ' · rotação ' + cv(3) + ' · anti-extensão ' + cv(4) + ' · anti-flexão ' + cv(5) + ' · anti-flexão lateral ' + cv(6) + ' · anti-rotação ' + cv(7);
       var upct = st.ton ? Math.round(100 * st.tu / st.ton) : 0;
+      var awc = acwrCalc(a, range.i1), awz = awc.ult && awc.ult.acwr != null ? acwrZona(awc.ult.acwr) : null;
       secs += '<section class="ra"><h3>' + esc(a.n) + '<small>' + esc(a.m) + '</small></h3><div class="rgrid">' +
         kv('Presença', pres, st.done + ' de ' + st.plan + ' sessões') +
         kv('Wellness', st.ph == null ? '–' : num(st.ph), 'Hooper médio · ' + st.att + (st.att === 1 ? ' dia' : ' dias') + ' em atenção') +
@@ -1873,7 +1895,9 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         kv('Tonelagem', num(st.ton / 1000) + ' t', num(st.ton / 1000 / nw) + ' t por semana') +
         kv('Core', ctot, cSub) +
         kv('Unilateral', upct + '%', 'da tonelagem') +
+        kv('ACWR', awz ? acwrFmt(awc.ult.acwr) : '–', awz ? awz[2] + ' · semana de ' + fmtDate(awc.ult.k) : 'dados insuficientes') +
         '</div><p class="small">' + faltas + '</p>' +
+        '<p class="kicker">Semana a semana: Hooper, PSE, carga e tonelagem</p>' + compHtml(a, range.i0, range.i1, 12) +
         '<p class="kicker">Tonelagem por padrão</p><div class="scroll"><table class="rt"><thead><tr><th>Padrão</th><th>Tonelagem</th><th>%</th></tr></thead><tbody>' + pr + '</tbody></table></div>' +
         (ex ? '<p class="kicker">Cargas por exercício</p><div class="scroll"><table class="rt"><thead><tr><th>Exercício</th><th>Evolução</th><th>Variação</th></tr></thead><tbody>' + ex + '</tbody></table></div>' : '<p class="small">Sem cargas registadas neste período.</p>') + '</section>';
       txt.push(a.n + ' (' + a.m + ')');
@@ -1882,6 +1906,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       txt.push('PSE média ' + (st.pm == null ? '–' : num(st.pm)) + ' · carga ' + fmtN(st.ua) + ' UA (' + fmtN(st.ua / nw) + ' UA por semana)');
       txt.push('Tonelagem: ' + num(st.ton / 1000) + ' t (' + num(st.ton / 1000 / nw) + ' t por semana). Unilaterais: ' + upct + '%');
       txt.push('Por padrão: ' + prTxt);
+      compSemanas(a, range.i0, range.i1).slice(-12).forEach(function (x) { txt.push('  Semana de ' + fmtDate(x.k) + ': Hooper ' + (x.h == null ? '–' : num(x.h)) + ' · PSE ' + (x.pse == null ? '–' : num(x.pse)) + ' · carga ' + fmtN(x.ua) + ' UA · tonelagem ' + num(x.ton / 1000) + ' t'); });
+      txt.push('ACWR (carga da semana / média das 4 anteriores): ' + acwrFrase(awc));
       txt.push('Core: ' + ctot + ' (' + cSub + ')');
       if (exTxt.length) txt.push('Cargas: ' + exTxt.join('; '));
       txt.push('');
@@ -2037,19 +2063,35 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     };
   }
   function fmtRest(n) { return n < 60 ? n + ' s' : Math.floor(n / 60) + ' min' + (n % 60 ? ' ' + (n % 60) + ' s' : ''); }
+  function grpLetter(bl, i) {
+    var seen = [], k, g = bl.ex[i].g;
+    for (k = 0; k < bl.ex.length; k++) { if (bl.ex[k].g && seen.indexOf(bl.ex[k].g) < 0) seen.push(bl.ex[k].g); if (bl.ex[k].g === g) break; }
+    return String.fromCharCode(64 + seen.length);
+  }
+  function grpSize(bl, i) {
+    var s = i, j = i, g = bl.ex[i].g;
+    while (s > 0 && bl.ex[s - 1].g === g) s--;
+    while (j < bl.ex.length && bl.ex[j].g === g) j++;
+    return { s: s, n: j - s, pos: i - s };
+  }
   function grpHead(bl, i) {
     var e = bl.ex[i];
     if (!e.g || (i > 0 && bl.ex[i - 1].g === e.g)) return '';
-    var j = i, k, seen = [], L;
-    while (j < bl.ex.length && bl.ex[j].g === e.g) j++;
-    for (k = 0; k < i; k++) if (bl.ex[k].g && seen.indexOf(bl.ex[k].g) < 0) seen.push(bl.ex[k].g);
-    L = String.fromCharCode(65 + seen.length);
-    return '<p class="grp"><b>Grupo ' + L + '</b> · ' + (j - i) + ' exercícios seguidos · ' + e.series + ' voltas</p>';
+    var z = grpSize(bl, i), L = grpLetter(bl, i), v = e.series, names = [], k;
+    for (k = 0; k < z.n; k++) names.push(L + (k + 1));
+    return '<div class="gbox"><div class="grp"><b>BLOCO ' + L + ' · ' + z.n + ' exercícios · ' + v + (v === 1 ? ' volta' : ' voltas') + '</b>' +
+      '<span class="gseq">' + names.join(' → ') + ' → repete <b>' + v + 'x</b>. Só depois passas ao bloco seguinte.</span></div>';
+  }
+  function grpTag(bl, i) {
+    var e = bl.ex[i];
+    if (!e.g) return '';
+    return '<span class="gtag">' + grpLetter(bl, i) + (grpSize(bl, i).pos + 1) + '</span> ';
   }
   function restTxt(bl, i) {
-    var e = bl.ex[i], nx = bl.ex[i + 1];
-    if (!e.rest || (e.g && nx && nx.g === e.g)) return '';
-    return '<p class="rest">Descanso: ' + fmtRest(e.rest) + (e.g ? ' entre voltas' : ' entre séries') + '</p>';
+    var e = bl.ex[i], nx = bl.ex[i + 1], last = e.g && !(nx && nx.g === e.g), h = '';
+    if (e.rest && !(e.g && !last)) h = '<p class="rest">Descanso: ' + fmtRest(e.rest) + (e.g ? ' entre voltas' : ' entre séries') + '</p>';
+    if (last) h += '<p class="gend">Fim do bloco ' + grpLetter(bl, i) + ': repete tudo ' + e.series + 'x e passa ao seguinte.</p></div>';
+    return h;
   }
   function buildDay(t) {
     var p = { id: t.id, iso: t.data, feito: t.feito_em || null, nome: t.nome, tipo: t.tipo };
@@ -2081,6 +2123,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       if (FALT[p.id]) { p.saltado = true; p.falta = FALT[p.id]; return; }
       if (p.feito && PSEOK[p.id]) return;
       if (LIB[p.id]) return;
+      if (ONL || PTOK) return;   /* Online training: vê e faz os treinos da semana em qualquer ordem */
       if (!open) { open = p; return; }
       p.bloq = open.feito
         ? 'Este treino ainda não está disponível. Falta registar o esforço (PSE) de "' + open.nome + '". Depois fica livre.'
@@ -2135,7 +2178,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     PLAN.forEach(function (x, i) { if (ni < 0 && x.id && !x.feito && !x.bloq && !x.saltado) ni = i; });
     if (ni >= 0) day = ni;
   }
-  function liveAfterFalta() { liveLocks(); liveNextOpen(); liveRenderDays(); renderWork(); livePseFor(); }
+  function liveAfterFalta() { liveLocks(); liveRenderDays(); renderWork(); livePseFor(); }
   if ($('#skip-go')) {
     $('#skip-go').addEventListener('click', function () { $('#skip-opts').hidden = false; $('#skip-go').hidden = true; });
     $('#skip-x').addEventListener('click', function () { liveSkipBox(); });
@@ -2186,7 +2229,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var el = $('#days');
     el.className = 'days sess';
     $('#sess-help').hidden = !PLAN[0] || !PLAN[0].id;
-    if (PLAN[0] && PLAN[0].id) $('#sess-help').textContent = 'Semana de ' + fmtL(WK0) + ' a ' + fmtL(isoAdd(WK0, 6)) + '. Faz os treinos pela ordem. Podes treinar em qualquer dia da semana: fica registado o dia em que treinas.';
+    if (PLAN[0] && PLAN[0].id) $('#sess-help').textContent = 'Semana de ' + fmtL(WK0) + ' a ' + fmtL(isoAdd(WK0, 6)) + '. ' + ((ONL || PTOK) ? 'Vês toda a semana para a planeares e podes fazer os treinos pela ordem que te der mais jeito. Fica registado o dia em que treinas.' : 'Faz os treinos pela ordem. Podes treinar em qualquer dia da semana: fica registado o dia em que treinas.');
     el.innerHTML = PLAN.map(function (p, i) {
       if (!p.id) return '';
       var st = p.saltado ? 'Não treinou' : liveNeedsPse(p) ? 'Falta o PSE' : p.feito ? (p.feito === HOJE ? 'Feito hoje' : 'Feito ' + fmtL(p.feito)) : p.bloq ? 'Por ordem' : 'Por fazer';
@@ -2410,7 +2453,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     $('#mac-btn').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true;
     var h = HOJE || localISO(), y = +h.slice(0, 4), m = +h.slice(5, 7);
     macLoad(y, m).then(function (d) {
-      if (d && d.ok) { $('#mac-btn').hidden = false; $('#per-btn').hidden = false; $('#evo-btn').hidden = false; PTOK = true; liveWellAlert(); }
+      if (d && d.ok) { $('#mac-btn').hidden = false; $('#per-btn').hidden = false; $('#evo-btn').hidden = false; PTOK = true; liveWellAlert(); liveLocks(); liveRenderDays(); renderWork(); livePseFor(); }
     }).catch(function () {});
   }
   function macAb(n) { var w = String(n || '').trim().split(/\s+/)[0]; return w.length > 5 ? w.slice(0, 4) + '.' : w; }
@@ -3253,7 +3296,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   $('#f-atleta').addEventListener('change', function () { if (OBS) opRender(); });
   /* ---------- separadores do treinador + quem preencheu esta semana ---------- */
   var DSUB = lsGet('alvo.dsub') || 'resumo';
-  var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-hooper', 'Hooper'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-rep', 'Relatório']];
+  var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-comp', 'Comparar'], ['p-hooper', 'Hooper'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-acwr', 'ACWR'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-rep', 'Relatório']];
   var TAB = lsGet('alvo.tab') || 'semana';
   if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados' && TAB !== 'online') TAB = 'semana';
   var ONSUB = lsGet('alvo.osub') || 'alunos';
@@ -3456,6 +3499,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       showTrainer(true);
       try { liveTrainerWellAlert(); } catch (e0) { /* aviso opcional */ }
       try { liveTrainerBday(); } catch (e0b) { /* opcional */ }
+      try { liveTrainerAcwrAlert(); } catch (e0c) { /* opcional */ }
       refreshTrainerUI();
       return gLoad();
     }).catch(function (e) {
@@ -3504,6 +3548,122 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     draw();
   }
   function liveTourSoon() { setTimeout(function () { if (sess && !document.getElementById('cele')) liveTour(false); }, 1600); }
+
+  /* ---------- ACWR: carga da semana a dividir pela média das 4 semanas anteriores (PSE × minutos) ---------- */
+  var ACWR_Z = [[0.8, 'baixo', 'Abaixo do habitual'], [1.3, 'ok', 'Zona adequada'], [1.5, 'atencao', 'Atenção'], [99, 'risco', 'Risco: subida brusca']];
+  function acwrZona(v) { for (var k = 0; k < ACWR_Z.length; k++) if (v < ACWR_Z[k][0] || (k === 1 && v <= 1.3) || (k === 2 && v <= 1.5) || k === 3) { if (k === 0 && v >= 0.8) continue; if (k === 1 && v > 1.3) continue; if (k === 2 && v > 1.5) continue; return ACWR_Z[k]; } return ACWR_Z[3]; }
+  /* semanas (segunda a domingo) completas até 'ate' (índice de dia); devolve [{k, ua, n, cron, acwr}] */
+  function acwrCalc(a, ate) {
+    var wk = {}, first = null, i;
+    for (i = 0; i <= Math.min(ate, a.rec.length - 1); i++) {
+      var r = a.rec[i]; if (!r) continue;
+      var key = i - dow(i);
+      (r.ses || []).forEach(function (s) { var w = wk[key] || (wk[key] = { ua: 0, n: 0 }); w.ua += (s.ua || 0); w.n++; if (first == null || key < first) first = key; });
+    }
+    var out = [];
+    if (first == null) return { rows: out, ult: null };
+    var kmax = (ate - dow(ate)) - ((ate - dow(ate) + 6) <= ate ? 0 : 7);   // última semana que já terminou
+    for (var k = first; k <= kmax; k += 7) {
+      var w = wk[k] || { ua: 0, n: 0 }, row = { k: k, ua: w.ua, n: w.n, cron: null, acwr: null };
+      if (k - 28 >= first) {
+        var s = 0; for (var m = 1; m <= 4; m++) s += (wk[k - 7 * m] ? wk[k - 7 * m].ua : 0);
+        row.cron = s / 4;
+        if (row.cron > 0) row.acwr = w.ua / row.cron;
+      }
+      out.push(row);
+    }
+    return { rows: out, ult: out.length ? out[out.length - 1] : null };
+  }
+  function acwrFmt(v) { return String(Math.round(v * 100) / 100).replace('.', ','); }
+  function acwrChart(rows) {
+    var P = rows.filter(function (r) { return r.acwr != null; });
+    if (!P.length) return '';
+    var W = 320, H = 190, pl = 30, pr = 10, pt = 14, pb = 26, mx = Math.max(2, Math.ceil(Math.max.apply(0, P.map(function (r) { return r.acwr; })) * 5) / 5 + 0.1);
+    function Y(v) { return pt + (H - pt - pb) * (1 - v / mx); }
+    function X(i) { return P.length === 1 ? (pl + W - pr) / 2 : pl + i * (W - pl - pr) / (P.length - 1); }
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="ev-svg" role="img" aria-label="ACWR semana a semana">';
+    s += '<rect x="' + pl + '" y="' + Y(Math.min(mx, 1.3)) + '" width="' + (W - pl - pr) + '" height="' + (Y(0.8) - Y(Math.min(mx, 1.3))) + '" fill="var(--accent-soft)"/>';
+    if (mx > 1.5) s += '<rect x="' + pl + '" y="' + Y(mx) + '" width="' + (W - pl - pr) + '" height="' + (Y(1.5) - Y(mx)) + '" fill="var(--crit-soft)"/>';
+    [0, 0.8, 1.3, 1.5, 2].forEach(function (v) { if (v <= mx) s += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="var(--line)" stroke-width="1"/><text x="' + (pl - 4) + '" y="' + (Y(v) + 3) + '" text-anchor="end" class="ev-v" style="font-size:9px">' + acwrFmt(v) + '</text>'; });
+    s += '<polyline fill="none" stroke="currentColor" stroke-width="2.5" points="' + P.map(function (r, i) { return X(i) + ',' + Y(r.acwr); }).join(' ') + '"/>';
+    P.forEach(function (r, i) {
+      var z = acwrZona(r.acwr)[1];
+      s += '<circle cx="' + X(i) + '" cy="' + Y(r.acwr) + '" r="4" fill="' + (z === 'risco' ? 'var(--crit)' : z === 'ok' ? 'var(--accent)' : 'var(--warn)') + '"/><text x="' + X(i) + '" y="' + (Y(r.acwr) - 8) + '" text-anchor="middle" class="ev-v">' + acwrFmt(r.acwr) + '</text>';
+      if (P.length <= 8 || i % 2 === 0 || i === P.length - 1) s += '<text x="' + X(i) + '" y="' + (H - 8) + '" text-anchor="middle" class="ev-v" style="font-size:9px">' + fmtDate(r.k) + '</text>';
+    });
+    return s + '</svg>';
+  }
+  function acwrFrase(c) {
+    if (!c.ult) return 'Ainda não há sessões registadas.';
+    var u = c.ult, ini = u.k, fim = u.k + 6;
+    if (u.acwr == null) return 'Dados insuficientes: o ACWR precisa de 4 semanas de histórico antes da semana avaliada (' + fmtDate(ini) + ' a ' + fmtDate(fim) + ').';
+    return 'Última semana completa (' + fmtDate(ini) + ' a ' + fmtDate(fim) + '): ' + fmtN(u.ua) + ' UA; média das 4 anteriores ' + fmtN(Math.round(u.cron)) + ' UA; ACWR ' + acwrFmt(u.acwr) + ' · ' + acwrZona(u.acwr)[2] + '.';
+  }
+  function acwrRender(a) {
+    var p = $('#p-acwr'); if (!p) return;
+    var c = acwrCalc(a, TODAY_I), z = c.ult && c.ult.acwr != null ? acwrZona(c.ult.acwr) : null;
+    var h = '<p class="small">ACWR = carga da semana (PSE × minutos, em UA) a dividir pela média das 4 semanas anteriores. Entre 0,8 e 1,3 é a zona adequada; acima de 1,5 é uma subida brusca; abaixo de 0,8 está a treinar menos do que o habitual. É um sinal para olhares com a PSE, o bem-estar e a conversa com o atleta; só conta as sessões registadas na app.</p>';
+    h += '<p class="mac-sum' + (z && (z[1] === 'risco' || z[1] === 'baixo') ? ' mac-warn' : '') + '"><b>' + esc(acwrFrase(c)) + '</b></p>';
+    h += '<div class="cwrap">' + acwrChart(c.rows) + '</div>';
+    var rows = c.rows.slice().reverse().slice(0, 12).map(function (r) { return '<tr><td>' + fmtDate(r.k) + '</td><td>' + fmtN(r.ua) + '</td><td>' + (r.cron == null ? '–' : fmtN(Math.round(r.cron))) + '</td><td>' + (r.acwr == null ? '–' : '<b>' + acwrFmt(r.acwr) + '</b><br><span class="small">' + acwrZona(r.acwr)[2] + '</span>') + '</td></tr>'; }).join('');
+    h += '<div class="scroll"><table class="rt"><thead><tr><th>Semana de</th><th>UA</th><th>Média 4</th><th>ACWR</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    $('#acwr-body').innerHTML = h;
+  }
+  function liveTrainerAcwrAlert() {
+    var v = $('#view-treinador'); if (!v || typeof ATLETAS === 'undefined') return;
+    var L = [], ref = '';
+    ATLETAS.forEach(function (a) {
+      if (!a || !a.rec || a.pres) return;
+      var c = acwrCalc(a, TODAY_I); if (!c.ult || c.ult.acwr == null) return;
+      ref = c.ult.k;
+      var zz = acwrZona(c.ult.acwr)[1];
+      if (zz === 'risco' || zz === 'baixo') L.push({ a: a, v: c.ult.acwr, z: zz });
+    });
+    var el = $('#t-acwr'); if (el) el.remove();
+    var sig = ref + '|' + L.map(function (x) { return x.a.id + ':' + acwrFmt(x.v); }).join(',');
+    if (!L.length || lsGet('alvo.acwr') === sig) return;
+    el = document.createElement('div'); el.id = 't-acwr'; el.className = 'mac-warn'; el.setAttribute('role', 'alert'); el.style.margin = '10px 14px';
+    el.innerHTML = '<b>Carga em atenção (ACWR) · ' + L.length + '</b><br>' + L.sort(function (p, q) { return q.v - p.v; }).map(function (x) {
+      return esc(x.a.n) + ' <span class="small">· ' + (x.a.g === 'pt' ? 'Online training' : esc(x.a.m || '')) + ' · ACWR ' + acwrFmt(x.v) + ' · ' + (x.z === 'risco' ? 'subida brusca' : 'abaixo do habitual') + '</span>';
+    }).join('<br>') + '<br><span class="small">Semana de ' + fmtDate(ref) + '. Vê o separador ACWR em Dados.</span><br><button class="chip" id="t-acwr-ok" type="button">Ok, vi</button>';
+    v.insertBefore(el, v.firstChild);
+    $('#t-acwr-ok').addEventListener('click', function () { lsSet('alvo.acwr', sig); el.remove(); });
+  }
+  /* ---------- comparação semanal: Hooper, PSE, carga (UA) e tonelagem ---------- */
+  function compSemanas(a, i0, i1) {
+    var wk = {}, i;
+    for (i = i0; i <= Math.min(i1, a.rec.length - 1); i++) {
+      var r = a.rec[i]; if (!r) continue;
+      var k = i - dow(i), w = wk[k] || (wk[k] = { k: k, hs: 0, hn: 0, ps: 0, pn: 0, ua: 0, ton: 0, n: 0 });
+      if (r.w) { w.hs += sum(r.w); w.hn++; }
+      (r.ses || []).forEach(function (x) { if (x.pse) { w.ps += x.pse; w.pn++; } w.ua += (x.ua || 0); w.n++; });
+      w.ton += (r.ton || 0);
+    }
+    return Object.keys(wk).map(Number).filter(function (k) { var w = wk[k]; return w.hn || w.n || w.ton; }).sort(function (x, y) { return x - y; }).map(function (k) {
+      var w = wk[k]; return { k: k, h: w.hn ? w.hs / w.hn : null, pse: w.pn ? w.ps / w.pn : null, ua: w.ua, ton: w.ton, n: w.n };
+    });
+  }
+  function compBar(v, max, cls) {
+    return '<span class="cbar ' + cls + '"><i style="width:' + (max > 0 && v != null ? Math.max(3, Math.round(100 * v / max)) : 0) + '%"></i></span>';
+  }
+  function compHtml(a, i0, i1, lim) {
+    var L = compSemanas(a, i0, i1);
+    if (!L.length) return '<p class="small">Sem dados neste período.</p>';
+    if (lim) L = L.slice(-lim);
+    var mh = 20, mp = 10, mu = Math.max.apply(null, L.map(function (x) { return x.ua; })), mt = Math.max.apply(null, L.map(function (x) { return x.ton; }));
+    var rows = L.map(function (x) {
+      return '<tr><th scope="row">' + fmtDate(x.k) + '</th>' +
+        '<td>' + (x.h == null ? '–' : '<b>' + num(x.h) + '</b>' + compBar(x.h, mh, 'h')) + '</td>' +
+        '<td>' + (x.pse == null ? '–' : '<b>' + num(x.pse) + '</b>' + compBar(x.pse, mp, 'p')) + '</td>' +
+        '<td><b>' + fmtN(x.ua) + '</b>' + compBar(x.ua, mu, 'u') + '</td>' +
+        '<td><b>' + num(x.ton / 1000) + ' t</b>' + compBar(x.ton, mt, 't') + '</td></tr>';
+    }).join('');
+    return '<div class="scroll"><table class="rt comp"><thead><tr><th>Semana de</th><th>Hooper<br><span class="small">médio</span></th><th>PSE<br><span class="small">média</span></th><th>Carga<br><span class="small">UA</span></th><th>Tonelagem</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+  function compRender(a) {
+    var b = $('#comp-body'); if (!b) return;
+    b.innerHTML = '<p class="small">Por semana, lado a lado: bem-estar (Hooper, 4 a 20, menor é melhor), esforço percebido (PSE, 0 a 10), carga (PSE × minutos) e tonelagem levantada. Serve para ver se o corpo responde à carga: por exemplo, a carga sobe e o Hooper sobe também.</p>' + compHtml(a, range.i0, range.i1, 0);
+  }
   /* ---------- parabéns no dia de anos ---------- */
   function liveBday() {
     if (!sess) return;
