@@ -422,6 +422,10 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .cbarr{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}
 .cbarr h3{margin:0;font-size:1rem}
 .cbarr p{margin:0 0 2px}
+/* PSE do exercício */
+.pse-ex{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:.85rem;font-weight:600}
+.pse-ex small{display:block;font-weight:400;color:var(--muted)}
+.pse-ex select{width:auto;min-width:72px}
 </style>
 </head>
 <body>
@@ -1198,7 +1202,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
             (e.hn ? '<p class="hint hoje"><b>Neste treino:</b> ' + esc(e.hn) + '</p>' : '') +
             (e.h ? '<p class="hint">' + esc(e.h) + '</p>' : '') +
             ((last || vid) ? '<div class="meta">' + last + vid + '</div>' : '') +
-            '<div style="display:grid;gap:6px">' + body + '</div>' + (typeof liveAltBar === 'function' ? liveAltBar(bl, mainE, i, altOn) : '') + '</article>' + restTxt(bl, i) + (typeof liveCircBox === 'function' ? liveCircBox(PLAN[day], bl, i) : '');
+            '<div style="display:grid;gap:6px">' + body + (typeof livePseEx === 'function' ? livePseEx(e, base, T) : '') + '</div>' + (typeof liveAltBar === 'function' ? liveAltBar(bl, mainE, i, altOn) : '') + '</article>' + restTxt(bl, i) + (typeof liveCircBox === 'function' ? liveCircBox(PLAN[day], bl, i) : '');
         }).join('');
         var nk = day + '_' + bi;
         var chips = MOTIVOS.map(function (m) {
@@ -1750,14 +1754,14 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       return {
         id: 'sm-' + j, title: e.n, unit: 'kg', step: 5, pts: a.loads[e.n].filter(inR),
         label: e.n + ' de ' + a.n + ', melhor série por sessão',
-        tipv: function (p) { return num(p.y) + ' kg × ' + p.reps + (e.lat === 'uni' ? ' por lado' : ''); },
+        tipv: function (p) { return num(p.y) + ' kg × ' + p.reps + (e.lat === 'uni' ? ' por lado' : '') + (p.pse != null ? ' · PSE ' + num(p.pse) : ''); },
         tipl: function (p) { return fmtDate(p.x); }
       };
     });
     multiples($('#c-ex'), exItems);
     var rows = [];
-    exItems.forEach(function (it) { it.pts.forEach(function (p) { rows.push([fmtDate(p.x), it.title, num(p.y) + ' kg × ' + p.reps]); }); });
-    $('#t-ex').innerHTML = tableOrEmpty(['Data', 'Exercício', 'Melhor série'], rows);
+    exItems.forEach(function (it) { it.pts.forEach(function (p) { rows.push([fmtDate(p.x), it.title, num(p.y) + ' kg × ' + p.reps, p.pse != null ? num(p.pse) : '–']); }); });
+    $('#t-ex').innerHTML = tableOrEmpty(['Data', 'Exercício', 'Melhor série', 'PSE do exercício'], rows);
 
     /* CMJ, broad jump e VBT */
     var metItems = [
@@ -1922,9 +1926,9 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       EXS.forEach(function (e) {
         var pts = a.loads[e.n].filter(inR);
         if (!pts.length) return;
-        var f = pts[0].y, l = pts[pts.length - 1].y;
-        ex += '<tr>' + td + esc(e.n) + '</td>' + td + num(f) + ' → ' + num(l) + ' kg</td>' + td + sgn(l - f) + ' kg</td></tr>';
-        exTxt.push(e.n + ' ' + num(f) + ' → ' + num(l) + ' kg');
+        var f = pts[0].y, l = pts[pts.length - 1].y, pp = pts.filter(function (z) { return z.pse != null; }), pm2 = pp.length ? sum(pp.map(function (z) { return z.pse; })) / pp.length : null;
+        ex += '<tr>' + td + esc(e.n) + '</td>' + td + num(f) + ' → ' + num(l) + ' kg</td>' + td + sgn(l - f) + ' kg</td>' + td + (pm2 == null ? '–' : num(pm2)) + '</td></tr>';
+        exTxt.push(e.n + ' ' + num(f) + ' → ' + num(l) + ' kg' + (pm2 == null ? '' : ' (PSE ' + num(pm2) + ')'));
       });
       var pr = pk.map(function (q) {
         var v = st.tp[q] || 0;
@@ -1950,7 +1954,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         '</div><p class="small">' + faltas + '</p>' +
         '<p class="kicker">Semana a semana: Hooper, PSE, carga e tonelagem</p>' + compHtml(a, range.i0, range.i1, 12) + (function () { var kk = compSemKeys(a); return kk.length ? '<p class="kicker">Última semana, dia a dia (' + fmtDate(kk[kk.length - 1]) + ')</p>' + compGraficos(a, kk[kk.length - 1]) : ''; })() +
         '<p class="kicker">Tonelagem por padrão</p><div class="scroll"><table class="rt"><thead><tr><th>Padrão</th><th>Tonelagem</th><th>%</th></tr></thead><tbody>' + pr + '</tbody></table></div>' +
-        (ex ? '<p class="kicker">Cargas por exercício</p><div class="scroll"><table class="rt"><thead><tr><th>Exercício</th><th>Evolução</th><th>Variação</th></tr></thead><tbody>' + ex + '</tbody></table></div>' : '<p class="small">Sem cargas registadas neste período.</p>') + '</section>';
+        (ex ? '<p class="kicker">Cargas por exercício</p><div class="scroll"><table class="rt"><thead><tr><th>Exercício</th><th>Evolução</th><th>Variação</th><th>PSE média</th></tr></thead><tbody>' + ex + '</tbody></table></div>' : '<p class="small">Sem cargas registadas neste período.</p>') + '</section>';
       txt.push(a.n + ' (' + a.m + ')');
       txt.push('Presença: ' + pres + ' (' + st.done + ' de ' + st.plan + ' sessões). ' + faltas);
       txt.push('Wellness: Hooper médio ' + (st.ph == null ? '–' : num(st.ph)) + ', dias em atenção ' + st.att);
@@ -2346,6 +2350,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       if (!q) return;
       var base = q.d + '_' + q.bi + '_' + q.i, T = q.e.t || 'feito', s = x.serie - 1, a = null, b = null;
       if (T === 'feito') { if (x.feito != null) reg[base + '_f'] = !!x.feito; return; }
+      if (x.pse_ex != null && (T === 'carga' || T === 'vbt')) reg[base + '_p'] = String(x.pse_ex);
       if (T === 'carga') { a = x.carga_kg; b = x.reps; }
       else if (T === 'vbt') { a = x.carga_kg; b = x.vbt_ms; }
       else if (T === 'reps') a = x.reps;
@@ -2838,6 +2843,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
           if (reg[base + '_f'] !== undefined) series.push({ item_id: e.id, serie: 1, feito: !!reg[base + '_f'] });
           return;
         }
+        var pe = (T === 'carga' || T === 'vbt') ? toNum(reg[base + '_p']) : '';
         for (var s = 0; s < e.series; s++) {
           var a = toNum(reg[base + '_' + s + '_a']), b = toNum(reg[base + '_' + s + '_b']);
           var row = { item_id: e.id, serie: s + 1 };
@@ -2847,6 +2853,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
           else if (T === 'tempo') row.tempo_s = a === '' ? '' : Math.round(a);
           else if (T === 'cmj') row.cmj_cm = a;
           else row.bj_cm = a;
+          if (T === 'carga' || T === 'vbt') row.pse_ex = pe;
           if (a !== '' || b !== '' || savedRows[e.id + '_' + s]) series.push(row);
         }
       });
@@ -3213,6 +3220,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       if (!x || !ex) return;
       var uni = ex.lateralidade === 'uni', k = x.a.id + '|' + x.i + '|' + ex.nome;
       var g = agg[k] || (agg[k] = { a: x.a, i: x.i, ex: ex, kgMax: null, repsAtMax: null, vs: [], cm: null, bj: null, ts: [], rs: [] });
+      if (row.pse_ex != null) g.pse = +row.pse_ex;
       if (row.carga_kg != null) {
         var kg = +row.carga_kg, reps = row.reps != null ? +row.reps : (row.vbt_ms != null ? (parseInt(row.item.reps, 10) || 0) : 0);
         if (g.kgMax == null || kg > g.kgMax) { g.kgMax = kg; g.repsAtMax = reps; }
@@ -3237,7 +3245,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     });
     Object.keys(agg).sort(function (u, v) { return agg[u].i - agg[v].i; }).forEach(function (k) {
       var g = agg[k], a = g.a, nome = g.ex.nome;
-      if (g.kgMax != null) { (a.loads[nome] = a.loads[nome] || []).push({ x: g.i, y: g.kgMax, reps: g.repsAtMax }); }
+      if (g.kgMax != null) { (a.loads[nome] = a.loads[nome] || []).push({ x: g.i, y: g.kgMax, reps: g.repsAtMax, pse: g.pse != null ? g.pse : null }); }
       if (g.vs.length) a.vbt.push({ x: g.i, kg: g.kgMax || 0, y: Math.round(sum(g.vs) / g.vs.length * 100) / 100, n: nome });
       if (g.cm != null) a.cmj.push({ x: g.i, y: g.cm });
       if (g.bj != null) a.bj.push({ x: g.i, y: g.bj });
@@ -3293,7 +3301,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       return Promise.all([
         tGet('atletas_obs', 'select=id,nome,modalidade,grupo,ativo&order=nome,id'),
         o.ver_wellness ? tGet('wellness', 'select=atleta_id,data,sono,fadiga,dor,stress&order=data,id') : Promise.resolve([]),
-        o.ver_cargas ? tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id') : Promise.resolve([])
+        o.ver_cargas ? tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,pse_ex,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id') : Promise.resolve([])
       ]).then(function (r) {
         buildLive({ atletas: r[0], wellness: r[1], sessoes: [], treinos: [], registos: r[2], notas: [], competicoes: [] }, hojeISO);
         showTrainer(true);
@@ -3549,7 +3557,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       tGet('wellness', 'select=atleta_id,data,sono,fadiga,dor,stress&order=data,id'),
       tGet('sessoes', 'select=atleta_id,data,pse,minutos&order=data,id'),
       tGet('treinos', 'select=atleta_id,data,tipo&order=data,id'),
-      tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id'),
+      tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,pse_ex,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id'),
       tGet('notas_bloco', 'select=atleta_id,data,bloco,motivo,nota&order=data,id'),
       tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id'),
       tGet('faltas', 'select=atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id').catch(function () { return []; }),
@@ -3937,6 +3945,13 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     altMap()[p[0]] = p[1] === '1'; altSave();
     renderWork();
   });
+  /* PSE de cada exercício com carga (0 a 10) */
+  function livePseEx(e, base, T) {
+    if (T !== 'carga' && T !== 'vbt') return '';
+    var v = String(reg[base + '_p'] == null ? '' : reg[base + '_p']), o = '<option value="">–</option>', i;
+    for (i = 1; i <= 10; i++) o += '<option value="' + i + '"' + (v === String(i) ? ' selected' : '') + '>' + i + '</option>';
+    return '<label class="pse-ex"><span>PSE deste exercício <small>(0 a 10, o quão duro foi com esta carga)</small></span><select class="sel" data-k="' + base + '_p" aria-label="PSE do exercício">' + o + '</select></label>';
+  }
   /* ---------- parabéns no dia de anos ---------- */
   function liveBday() {
     if (!sess) return;
