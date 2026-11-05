@@ -415,6 +415,13 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .alt-tag{display:inline-block;background:var(--warn-soft);color:var(--fg);border-radius:6px;padding:1px 7px;font-size:.78rem;font-weight:700;margin-right:6px}
 .galt .gctl label:first-child{flex:1 1 100%}
 .galt .gctl label:first-child input{width:100%}
+/* barras verticais por dia */
+.cb-nav{display:flex;justify-content:space-between;align-items:center;margin:10px 0}
+.cb-nav .chip{min-width:44px}
+.cb-hd{margin:6px 0}
+.cbarr{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}
+.cbarr h3{margin:0;font-size:1rem}
+.cbarr p{margin:0 0 2px}
 </style>
 </head>
 <body>
@@ -1941,7 +1948,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         kv('Unilateral', upct + '%', 'da tonelagem') +
         kv('ACWR', awz ? acwrFmt(awc.ult.acwr) : '–', awz ? awz[2] + ' · semana de ' + fmtDate(awc.ult.k) : 'dados insuficientes') +
         '</div><p class="small">' + faltas + '</p>' +
-        '<p class="kicker">Semana a semana: Hooper, PSE, carga e tonelagem</p>' + compHtml(a, range.i0, range.i1, 12) +
+        '<p class="kicker">Semana a semana: Hooper, PSE, carga e tonelagem</p>' + compHtml(a, range.i0, range.i1, 12) + (function () { var kk = compSemKeys(a); return kk.length ? '<p class="kicker">Última semana, dia a dia (' + fmtDate(kk[kk.length - 1]) + ')</p>' + compGraficos(a, kk[kk.length - 1]) : ''; })() +
         '<p class="kicker">Tonelagem por padrão</p><div class="scroll"><table class="rt"><thead><tr><th>Padrão</th><th>Tonelagem</th><th>%</th></tr></thead><tbody>' + pr + '</tbody></table></div>' +
         (ex ? '<p class="kicker">Cargas por exercício</p><div class="scroll"><table class="rt"><thead><tr><th>Exercício</th><th>Evolução</th><th>Variação</th></tr></thead><tbody>' + ex + '</tbody></table></div>' : '<p class="small">Sem cargas registadas neste período.</p>') + '</section>';
       txt.push(a.n + ' (' + a.m + ')');
@@ -3716,10 +3723,72 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     }).join('');
     return '<div class="scroll"><table class="rt comp"><thead><tr><th>Semana de</th><th>Hooper<br><span class="small">médio</span></th><th>PSE<br><span class="small">média</span></th><th>Carga<br><span class="small">UA</span></th><th>Tonelagem</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
+  /* gráficos de barras verticais, um dia por barra, cor pelo ACWR da semana */
+  var COMPW = { id: null, k: null };
+  var DIAS7 = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  function compCor(row) {
+    if (!row || row.acwr == null) return 'var(--accent)';
+    var z = acwrZona(row.acwr)[1];
+    return z === 'risco' ? 'var(--crit)' : z === 'atencao' ? 'var(--warn)' : z === 'baixo' ? '#3b6fb5' : 'var(--accent)';
+  }
+  function compDia(a, k) {
+    var o = { h: [], p: [], u: [], t: [] }, d;
+    for (d = 0; d < 7; d++) {
+      var r = a.rec[k + d];
+      if (!r) { o.h.push(null); o.p.push(null); o.u.push(null); o.t.push(null); continue; }
+      var ps = 0, pn = 0, ua = 0, ns = 0;
+      (r.ses || []).forEach(function (x) { if (x.pse) { ps += x.pse; pn++; } ua += (x.ua || 0); ns++; });
+      o.h.push(r.w ? sum(r.w) : null); o.p.push(pn ? ps / pn : null); o.u.push(ns ? ua : null); o.t.push(r.ton ? r.ton / 1000 : null);
+    }
+    return o;
+  }
+  function compBarras(tit, sub, vals, mx, fmt, cor, ref) {
+    var W = 350, H = 150, L = 8, B = 22, T = 18, bw = 34, gap = (W - 2 * L - 7 * bw) / 6, svg = '', i;
+    [0.5, 1].forEach(function (f) { var y = T + (H - T - B) * (1 - f); svg += '<line x1="0" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="var(--line)"/>'; });
+    if (ref != null && ref > 0) { var yr = T + (H - T - B) * (1 - Math.min(1, ref / mx)); svg += '<line x1="0" x2="' + W + '" y1="' + yr + '" y2="' + yr + '" stroke="var(--muted)" stroke-dasharray="4 3"/><text x="' + (W - 2) + '" y="' + (yr - 3) + '" font-size="9" text-anchor="end" fill="var(--muted)">média 4 sem.</text>'; }
+    for (i = 0; i < 7; i++) {
+      var x = L + i * (bw + gap), v = vals[i];
+      if (v == null) svg += '<text x="' + (x + bw / 2) + '" y="' + (H - B - 4) + '" font-size="10" text-anchor="middle" fill="var(--muted)">–</text>';
+      else { var h = Math.max(2, (H - T - B) * Math.min(1, v / mx)), y = H - B - h; svg += '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" rx="4" fill="' + cor + '"/><text x="' + (x + bw / 2) + '" y="' + (y - 4) + '" font-size="10" font-weight="700" text-anchor="middle" fill="var(--fg)">' + fmt(v) + '</text>'; }
+      svg += '<text x="' + (x + bw / 2) + '" y="' + (H - 6) + '" font-size="10" text-anchor="middle" fill="var(--muted)">' + DIAS7[i] + '</text>';
+    }
+    return '<div class="cbarr"><h3>' + tit + '</h3><p class="small">' + sub + '</p><svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="' + esc(tit) + ' por dia">' + svg + '</svg></div>';
+  }
+  function compGraficos(a, k) {
+    var c = acwrCalc(a, TODAY_I), row = null;
+    c.rows.forEach(function (r) { if (r.k === k) row = r; });
+    var cor = compCor(row), o = compDia(a, k), z = row && row.acwr != null ? acwrZona(row.acwr) : null;
+    var mu = Math.max(300, Math.max.apply(null, o.u.map(function (v) { return v || 0; })) * 1.15), mt = Math.max(6, Math.max.apply(null, o.t.map(function (v) { return v || 0; })) * 1.15);
+    var n1 = function (v) { return num(v); };
+    return '<div class="cb-hd"><span class="chip cb-z" style="background:' + cor + ';color:#fff;border-color:' + cor + '">' + (z ? 'ACWR ' + acwrFmt(row.acwr) + ' · ' + z[2] : 'ACWR sem dados suficientes') + '</span></div>' +
+      compBarras('Wellness (Hooper)', '4 a 20 · menor é melhor', o.h, 20, function (v) { return String(v); }, cor) +
+      compBarras('PSE', '0 a 10', o.p, 10, n1, cor) +
+      compBarras('Carga (UA)', 'PSE × minutos', o.u, mu, function (v) { return fmtN(v); }, cor, row && row.cron ? row.cron / 7 : null) +
+      compBarras('Tonelagem', 'toneladas levantadas', o.t, mt, n1, cor);
+  }
+  function compSemKeys(a) {
+    var ks = {}, i; for (i = range.i0; i <= Math.min(range.i1, a.rec.length - 1); i++) { var r = a.rec[i]; if (r && ((r.ses && r.ses.length) || r.w || r.ton)) ks[i - dow(i)] = true; }
+    return Object.keys(ks).map(Number).sort(function (x, y) { return x - y; });
+  }
   function compRender(a) {
     var b = $('#comp-body'); if (!b) return;
-    b.innerHTML = '<p class="small">Por semana, lado a lado: bem-estar (Hooper, 4 a 20, menor é melhor), esforço percebido (PSE, 0 a 10), carga (PSE × minutos) e tonelagem levantada. Serve para ver se o corpo responde à carga: por exemplo, a carga sobe e o Hooper sobe também.</p>' + compHtml(a, range.i0, range.i1, 0);
+    var ks = compSemKeys(a);
+    if (COMPW.id !== a.id || ks.indexOf(COMPW.k) < 0) { COMPW.id = a.id; COMPW.k = ks.length ? ks[ks.length - 1] : null; }
+    var h = '<p class="small">Por semana, lado a lado: bem-estar (Hooper, 4 a 20, menor é melhor), esforço percebido (PSE, 0 a 10), carga (PSE × minutos) e tonelagem levantada. A cor das barras mostra o ACWR da semana (verde adequado, laranja atenção, vermelho risco, azul abaixo do habitual).</p>';
+    if (COMPW.k != null) {
+      var ix = ks.indexOf(COMPW.k);
+      h += '<div class="cb-nav"><button type="button" class="chip" data-cw="-1"' + (ix <= 0 ? ' disabled' : '') + '>‹</button><b>Semana de ' + fmtDate(COMPW.k) + '</b><button type="button" class="chip" data-cw="1"' + (ix >= ks.length - 1 ? ' disabled' : '') + '>›</button></div>' + compGraficos(a, COMPW.k);
+    }
+    h += '<p class="kicker">Todas as semanas</p>' + compHtml(a, range.i0, range.i1, 0);
+    b.innerHTML = h;
+    b._a = a;
   }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('[data-cw]'); if (!t) return;
+    var b = $('#comp-body'), a = b && b._a; if (!a) return;
+    var ks = compSemKeys(a), ix = ks.indexOf(COMPW.k) + (+t.getAttribute('data-cw'));
+    if (ix >= 0 && ix < ks.length) { COMPW.k = ks[ix]; compRender(a); }
+  });
   /* ---------- modo bloco: uma página por bloco (opcional) ---------- */
   var PAGON = lsGet('alvo.pag') === '1', PAGI = {}, PAGOV = false;
   function pagBlocks() { return Array.prototype.slice.call(document.querySelectorAll('#work > .block')); }
