@@ -3183,6 +3183,36 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     ATLETAS = []; COMP = [];
   });
 
+  /* ---------- exportar dados (cópia de segurança) ---------- */
+  var EXP_TAB = ['atletas', 'exercicios', 'treinos', 'treino_blocos', 'treino_itens', 'registos_serie', 'sessoes', 'wellness', 'notas_bloco', 'resultados_bloco', 'faltas', 'lesoes', 'competicoes', 'testes', 'teste_categorias', 'perfis_fv', 'fases_semana', 'aulas_externas', 'pagamentos', 'acessos_leitura'];
+  function expTabela(t) {
+    return tGet(t, 'select=*&order=id').catch(function () { return tGet(t, 'select=*'); }).then(function (rows) {
+      rows = rows || [];
+      rows.forEach(function (r) { Object.keys(r).forEach(function (k) { if (/pin|hash|token/i.test(k)) delete r[k]; }); });
+      return { t: t, rows: rows };
+    }).catch(function () { return { t: t, rows: null }; });
+  }
+  function liveExport(b) {
+    var out = {}, falhou = [], i = 0;
+    b.disabled = true;
+    function seg() {
+      if (i >= EXP_TAB.length) return Promise.resolve();
+      b.textContent = 'A exportar… ' + (i + 1) + '/' + EXP_TAB.length;
+      return expTabela(EXP_TAB[i++]).then(function (r) { if (r.rows) out[r.t] = r.rows; else falhou.push(r.t); return seg(); });
+    }
+    seg().then(function () {
+      var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; };
+      var nome = '1pc-backup-' + d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + '.json';
+      var tot = 0; Object.keys(out).forEach(function (k) { tot += out[k].length; });
+      var blob = new Blob([JSON.stringify({ exportado_em: d.toISOString(), tabelas: out }, null, 1)], { type: 'application/json' });
+      var u = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = u; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+      b.textContent = 'Exportar dados'; b.disabled = false;
+      alert('Exportação feita: ' + tot + ' linhas em ' + Object.keys(out).length + ' tabelas (' + nome + ').' + (falhou.length ? '\nNão foi possível ler: ' + falhou.join(', ') + '.' : '') + '\nOs PINs não são incluídos.');
+    }).catch(function () { b.textContent = 'Exportar dados'; b.disabled = false; alert('A exportação falhou. Tenta outra vez.'); });
+  }
+
   var TREIN = {};   /* atleta_id|data -> tipo */
   function buildLive(D, hojeISO) {
     var p = SUPA.epoca.split('-');
@@ -3383,7 +3413,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var nav = document.createElement('div'); nav.className = 'panel'; nav.id = 't-nav'; nav.hidden = true;
     nav.innerHTML = '<div class="chips" id="t-tabs" role="group" aria-label="Secções">' +
       [['semana', 'Esta semana'], ['gestao', 'Planear e gerir'], ['dados', 'Dados dos atletas'], ['online', 'Online training']].map(function (t) { return '<button class="chip" data-t2="' + t[0] + '" aria-pressed="false">' + t[1] + '</button>'; }).join('') +
-      '<button class="chip" id="t-sair2">Sair</button></div>';
+      '<button class="chip" id="t-exp2">Exportar dados</button><button class="chip" id="t-sair2">Sair</button></div>';
     var sm = document.createElement('div'); sm.className = 'panel'; sm.id = 'p-semana'; sm.hidden = true;
     sm.innerHTML = '<header><div><p class="kicker">Semana corrente</p><h2>Quem preencheu</h2></div></header><div id="sem-out"></div>';
     v.insertBefore(nav, ref); v.insertBefore(sm, ref);
@@ -3404,6 +3434,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     nav.addEventListener('click', function (e) {
       var b = e.target.closest('[data-t2]');
       if (b) { TAB = b.getAttribute('data-t2'); lsSet('alvo.tab', TAB); applyTab(); window.scrollTo(0, 0); return; }
+      if (e.target.closest('#t-exp2')) liveExport(e.target.closest('#t-exp2'));
       if (e.target.closest('#t-sair2')) $('#t-sair').click();
     });
   })();
