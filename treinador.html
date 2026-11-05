@@ -362,20 +362,22 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .brand-t { display: flex; flex-direction: column; gap: 3px; }
 .brand-t small { font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 500; line-height: 1; }
 /* blocos com vários exercícios (voltas) */
-.gbox{border:2px solid var(--accent);border-radius:16px;padding:10px;display:grid;gap:10px;background:var(--accent-soft);margin:8px 0}
-.gbox .grp{margin:0;padding:8px 10px;background:var(--bg);border:0;border-left:5px solid var(--accent);border-radius:8px;font-size:.9rem;display:grid;gap:2px}
-.gbox .gseq{color:var(--fg);font-size:.85rem}
-.gbox .ex{background:var(--bg)}
-.gbox .rest{margin:0}
-.gbox .gend{margin:0;font-weight:700;text-align:center;font-size:.85rem;color:var(--fg)}
-.gtag{display:inline-block;background:var(--accent);color:var(--accent-fg);border-radius:6px;padding:1px 7px;font-size:.8rem;margin-right:6px;font-weight:700;vertical-align:middle}
-.rt.comp td{white-space:nowrap}
-.rt.comp td b{display:block;font-variant-numeric:tabular-nums}
-.cbar{display:block;height:6px;border-radius:3px;background:var(--line);margin-top:3px;min-width:44px;overflow:hidden}
-.cbar i{display:block;height:100%;background:var(--accent)}
-.cbar.h i{background:var(--warn,#c47f00)}
-.cbar.p i{background:var(--crit,#b3261e)}
-.cbar.t i{background:var(--muted)}
+.sg-box{border:3px solid var(--accent);border-radius:18px;overflow:hidden;background:var(--accent-soft);margin:12px 0}
+.sg-hd{background:var(--accent);color:var(--accent-fg);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sg-hd b{display:block;font-size:.95rem;letter-spacing:.03em}
+.sg-hd small{display:block;opacity:.9;font-size:.78rem;margin-top:2px}
+.sg-big{background:var(--bg);color:var(--fg);border-radius:12px;padding:5px 11px;text-align:center;line-height:1;flex:none}
+.sg-big b{display:block;font-size:1.7rem;letter-spacing:0;color:var(--fg)}
+.sg-big span{font-size:.58rem;font-weight:800;letter-spacing:.06em}
+.sg-bd{padding:10px;display:grid;gap:8px}
+.sg-bd .ex{background:var(--bg);margin:0}
+.sg-bd .rest{margin:0;text-align:center}
+.sg-plus{text-align:center;font-weight:800;font-size:1.2rem;line-height:1;color:var(--fg);margin:-2px 0}
+.sg-ft{background:var(--accent);color:var(--accent-fg);padding:10px 12px;font-weight:700;font-size:.85rem}
+.sg-tag{display:inline-block;background:var(--accent);color:var(--accent-fg);border-radius:50%;min-width:28px;height:28px;line-height:28px;text-align:center;font-size:.8rem;margin-right:8px;font-weight:800;vertical-align:middle}
+.sg-bd .sn{min-width:3.4rem;white-space:nowrap}
+.sg-bd .set{grid-template-columns:3.6rem 1fr 1fr}
+.sg-bd .set.single{grid-template-columns:3.6rem 1fr}
 /* modo bloco */
 #pag-tg{margin-right:8px}
 #pag-tg[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
@@ -1165,13 +1167,13 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
             for (var s = 0; s < e.series; s++) {
               var k = base + '_' + s;
               if (T === 'carga') {
-                body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + (e.pu ? '<span class="small">' + esc(e.pu) + ' (prescrito)</span>' : e.pr ? '<span class="small">' + e.pr + (uni ? ' reps/side' : ' reps') + ' (prescrito)</span>' : field(k + '_b', uni ? 'reps/side' : 'reps', 'numeric', '0')) + '</div>';
+                body += '<div class="set"><span class="sn">' + (e.g ? 'Volta ' : 'S') + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + (e.pu ? '<span class="small">' + esc(e.pu) + ' (prescrito)</span>' : e.pr ? '<span class="small">' + e.pr + (uni ? ' reps/side' : ' reps') + ' (prescrito)</span>' : field(k + '_b', uni ? 'reps/side' : 'reps', 'numeric', '0')) + '</div>';
               } else if (T === 'vbt') {
-                body += '<div class="set"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + field(k + '_b', 'm/s', 'decimal', '0,00') + '</div>';
+                body += '<div class="set"><span class="sn">' + (e.g ? 'Volta ' : 'S') + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + field(k + '_b', 'm/s', 'decimal', '0,00') + '</div>';
               } else if (T === 'reps') {
-                body += '<div class="set single"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', uni ? 'reps/side' : 'reps', 'numeric', '0') + '</div>';
+                body += '<div class="set single"><span class="sn">' + (e.g ? 'Volta ' : 'S') + (s + 1) + '</span>' + field(k + '_a', uni ? 'reps/side' : 'reps', 'numeric', '0') + '</div>';
               } else if (T === 'tempo') {
-                body += '<div class="set single"><span class="sn">S' + (s + 1) + '</span>' + field(k + '_a', uni ? 's/side' : 's', 'numeric', '0') + '</div>';
+                body += '<div class="set single"><span class="sn">' + (e.g ? 'Volta ' : 'S') + (s + 1) + '</span>' + field(k + '_a', uni ? 's/side' : 's', 'numeric', '0') + '</div>';
               } else {
                 body += '<div class="set single"><span class="sn">T' + (s + 1) + '</span>' + field(k + '_a', 'cm', 'decimal', '0') + '</div>';
               }
@@ -2121,18 +2123,23 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     if (!e.g || (i > 0 && bl.ex[i - 1].g === e.g)) return '';
     var z = grpSize(bl, i), L = grpLetter(bl, i), v = e.series, names = [], k;
     for (k = 0; k < z.n; k++) names.push(L + (k + 1));
-    return '<div class="gbox"><div class="grp"><b>BLOCO ' + L + ' · ' + z.n + ' exercícios · ' + v + (v === 1 ? ' volta' : ' voltas') + '</b>' +
-      '<span class="gseq">' + names.join(' → ') + ' → repete <b>' + v + 'x</b>. Só depois passas ao bloco seguinte.</span></div>';
+    return '<div class="sg-box"><div class="sg-hd"><div><b>BLOCO ' + L + ' · FAZ EM SEGUIDA</b><small>' + names.join(' → ') + ', sem parar entre ' + (z.n === 2 ? 'os dois' : 'eles') + '</small></div>' +
+      '<div class="sg-big"><b>' + v + '×</b><span>' + (v === 1 ? 'VOLTA' : 'VOLTAS') + '</span></div></div><div class="sg-bd">';
   }
   function grpTag(bl, i) {
     var e = bl.ex[i];
     if (!e.g) return '';
-    return '<span class="gtag">' + grpLetter(bl, i) + (grpSize(bl, i).pos + 1) + '</span> ';
+    return '<span class="sg-tag">' + grpLetter(bl, i) + (grpSize(bl, i).pos + 1) + '</span> ';
   }
   function restTxt(bl, i) {
     var e = bl.ex[i], nx = bl.ex[i + 1], last = e.g && !(nx && nx.g === e.g), h = '';
-    if (e.rest && !(e.g && !last)) h = '<p class="rest">Descanso: ' + fmtRest(e.rest) + (e.g ? ' entre voltas' : ' entre séries') + '</p>';
-    if (last) h += '<p class="gend">Fim do bloco ' + grpLetter(bl, i) + ': repete tudo ' + e.series + 'x e passa ao seguinte.</p></div>';
+    if (e.g && !last) return '<div class="sg-plus" aria-hidden="true">+</div>';
+    if (e.rest) h = '<p class="rest">Descanso: ' + fmtRest(e.rest) + (e.g ? ' entre voltas' : ' entre séries') + '</p>';
+    if (last) {
+      var z = grpSize(bl, i), L = grpLetter(bl, i), nm = [], k;
+      for (k = 0; k < z.n; k++) nm.push(L + (k + 1));
+      h += '</div><div class="sg-ft"><span aria-hidden="true">↻</span> Repete ' + nm.join(' + ') + ', ' + e.series + (e.series === 1 ? ' vez' : ' vezes') + '. Só depois passas ao exercício seguinte.</div></div>';
+    }
     return h;
   }
   function buildDay(t) {
@@ -3319,7 +3326,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       rows = (rows || []).filter(function (t) { return t.tipo === 'gym' || t.tipo === 'rest'; });
       if (!rows.length) { out.innerHTML = '<p class="note">Sem treinos planeados nesta semana.</p>'; return; }
       out.innerHTML = rows.map(function (t) {
-        var h = '<div class="gbox"><p class="kicker">' + esc(DAYS[isoDow(t.data)] + ' ' + parseInt(t.data.slice(8, 10), 10) + ' ' + MESES[parseInt(t.data.slice(5, 7), 10) - 1]) + '</p><b>' + esc(t.nome || (t.tipo === 'rest' ? 'Descanso' : 'Treino')) + '</b>';
+        var h = '<div class="sg-box"><p class="kicker">' + esc(DAYS[isoDow(t.data)] + ' ' + parseInt(t.data.slice(8, 10), 10) + ' ' + MESES[parseInt(t.data.slice(5, 7), 10) - 1]) + '</p><b>' + esc(t.nome || (t.tipo === 'rest' ? 'Descanso' : 'Treino')) + '</b>';
         if (t.tipo === 'rest') return h + '</div>';
         var its = (t.treino_itens || []).slice().sort(function (x, y) { return x.ordem - y.ordem; });
         GBL.forEach(function (b) {
@@ -3789,7 +3796,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
           h += '<p class="kicker">' + esc(bl.b) + '</p><ul class="sem-ul">';
           bl.ex.forEach(function (e, k) {
             if (e.ad) return;
-            var tag = e.g ? '<span class="gtag">' + grpLetter(bl, k) + (grpSize(bl, k).pos + 1) + '</span> ' : '';
+            var tag = e.g ? '<span class="sg-tag">' + grpLetter(bl, k) + (grpSize(bl, k).pos + 1) + '</span> ' : '';
             var gi = e.g && (k === 0 || bl.ex[k - 1].g !== e.g) ? '<li class="sem-g">Bloco ' + grpLetter(bl, k) + ': ' + grpSize(bl, k).n + ' exercícios seguidos, ' + e.series + ' voltas</li>' : '';
             h += gi + '<li>' + tag + '<b>' + esc(e.n) + '</b> <span class="small">' + esc(e.pres) + (e.rest ? ' · descanso ' + fmtRest(e.rest) : '') + '</span>' + (e.h ? '<br><span class="small">' + esc(e.h) + '</span>' : '') + (e.alt != null ? '<br><span class="small"><span class="alt-tag">Adaptação</span>' + esc(bl.ex[e.alt].n) + ' · ' + esc(bl.ex[e.alt].pres) + '</span>' : '') + '</li>';
           });
