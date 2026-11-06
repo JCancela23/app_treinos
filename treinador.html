@@ -429,6 +429,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .nota-it{border-left:3px solid var(--line);padding:4px 0 4px 10px;margin:8px 0}.nota-it.n{border-left-color:var(--crit)}.nota-it .nh{font-size:13px;color:var(--muted)}.nota-it .nt{margin-top:2px}
 .ntag{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:1px 8px;margin-right:6px;background:var(--accent-soft);color:var(--fg)}.ntag.dor{background:var(--crit-soft);color:var(--crit)}.ntag.falta{background:var(--warn-soft);color:var(--fg)}
 .nnew{font-size:10px;font-weight:800;background:var(--crit);color:#fff;border-radius:4px;padding:1px 5px;margin-left:6px}
+.pse-alvo{background:var(--accent-soft);border-radius:10px;padding:7px 11px;font-size:14px}.pse-alvo span{color:var(--muted);font-weight:400}
 </style>
 </head>
 <body>
@@ -1207,7 +1208,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
             (e.hn ? '<p class="hint hoje"><b>Neste treino:</b> ' + esc(e.hn) + '</p>' : '') +
             (e.h ? '<p class="hint">' + esc(e.h) + '</p>' : '') +
             ((last || vid) ? '<div class="meta">' + last + vid + '</div>' : '') +
-            '<div style="display:grid;gap:6px">' + body + (typeof livePseEx === 'function' ? livePseEx(e, base, T) : '') + '</div>' + (typeof liveAltBar === 'function' ? liveAltBar(bl, mainE, i, altOn) : '') + '</article>' + restTxt(bl, i) + (typeof liveCircBox === 'function' ? liveCircBox(PLAN[day], bl, i) : '');
+            '<div style="display:grid;gap:6px">' + (typeof livePseEx === 'function' ? livePseEx(e) : '') + body + '</div>' + (typeof liveAltBar === 'function' ? liveAltBar(bl, mainE, i, altOn) : '') + '</article>' + restTxt(bl, i) + (typeof liveCircBox === 'function' ? liveCircBox(PLAN[day], bl, i) : '');
         }).join('');
         var nk = day + '_' + bi;
         var chips = MOTIVOS.map(function (m) {
@@ -1760,14 +1761,14 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       return {
         id: 'sm-' + j, title: e.n, unit: 'kg', step: 5, pts: a.loads[e.n].filter(inR),
         label: e.n + ' de ' + a.n + ', melhor série por sessão',
-        tipv: function (p) { return num(p.y) + ' kg × ' + p.reps + (e.lat === 'uni' ? ' por lado' : '') + (p.pse != null ? ' · PSE ' + num(p.pse) : ''); },
+        tipv: function (p) { return num(p.y) + ' kg × ' + p.reps + (e.lat === 'uni' ? ' por lado' : ''); },
         tipl: function (p) { return fmtDate(p.x); }
       };
     });
     multiples($('#c-ex'), exItems);
     var rows = [];
-    exItems.forEach(function (it) { it.pts.forEach(function (p) { rows.push([fmtDate(p.x), it.title, num(p.y) + ' kg × ' + p.reps, p.pse != null ? num(p.pse) : '–']); }); });
-    $('#t-ex').innerHTML = tableOrEmpty(['Data', 'Exercício', 'Melhor série', 'PSE do exercício'], rows);
+    exItems.forEach(function (it) { it.pts.forEach(function (p) { rows.push([fmtDate(p.x), it.title, num(p.y) + ' kg × ' + p.reps]); }); });
+    $('#t-ex').innerHTML = tableOrEmpty(['Data', 'Exercício', 'Melhor série'], rows);
 
     /* CMJ, broad jump e VBT */
     var metItems = [
@@ -1932,9 +1933,9 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       EXS.forEach(function (e) {
         var pts = a.loads[e.n].filter(inR);
         if (!pts.length) return;
-        var f = pts[0].y, l = pts[pts.length - 1].y, pp = pts.filter(function (z) { return z.pse != null; }), pm2 = pp.length ? sum(pp.map(function (z) { return z.pse; })) / pp.length : null;
-        ex += '<tr>' + td + esc(e.n) + '</td>' + td + num(f) + ' → ' + num(l) + ' kg</td>' + td + sgn(l - f) + ' kg</td>' + td + (pm2 == null ? '–' : num(pm2)) + '</td></tr>';
-        exTxt.push(e.n + ' ' + num(f) + ' → ' + num(l) + ' kg' + (pm2 == null ? '' : ' (PSE ' + num(pm2) + ')'));
+        var f = pts[0].y, l = pts[pts.length - 1].y;
+        ex += '<tr>' + td + esc(e.n) + '</td>' + td + num(f) + ' → ' + num(l) + ' kg</td>' + td + sgn(l - f) + ' kg</td></tr>';
+        exTxt.push(e.n + ' ' + num(f) + ' → ' + num(l) + ' kg');
       });
       var pr = pk.map(function (q) {
         var v = st.tp[q] || 0;
@@ -1960,7 +1961,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         '</div><p class="small">' + faltas + '</p>' + notasRel(a, toISO(range.i0), toISO(range.i1)) +
         '<p class="kicker">Semana a semana: Hooper, PSE, carga e tonelagem</p>' + compHtml(a, range.i0, range.i1, 12) + (function () { var kk = compSemKeys(a); return kk.length ? '<p class="kicker">Última semana, dia a dia (' + fmtDate(kk[kk.length - 1]) + ')</p>' + compGraficos(a, kk[kk.length - 1]) : ''; })() +
         '<p class="kicker">Tonelagem por padrão</p><div class="scroll"><table class="rt"><thead><tr><th>Padrão</th><th>Tonelagem</th><th>%</th></tr></thead><tbody>' + pr + '</tbody></table></div>' +
-        (ex ? '<p class="kicker">Cargas por exercício</p><div class="scroll"><table class="rt"><thead><tr><th>Exercício</th><th>Evolução</th><th>Variação</th><th>PSE média</th></tr></thead><tbody>' + ex + '</tbody></table></div>' : '<p class="small">Sem cargas registadas neste período.</p>') + '</section>';
+        (ex ? '<p class="kicker">Cargas por exercício</p><div class="scroll"><table class="rt"><thead><tr><th>Exercício</th><th>Evolução</th><th>Variação</th></tr></thead><tbody>' + ex + '</tbody></table></div>' : '<p class="small">Sem cargas registadas neste período.</p>') + '</section>';
       txt.push(a.n + ' (' + a.m + ')');
       txt.push('Presença: ' + pres + ' (' + st.done + ' de ' + st.plan + ' sessões). ' + faltas);
       txt.push('Wellness: Hooper médio ' + (st.ph == null ? '–' : num(st.ph)) + ', dias em atenção ' + st.att);
@@ -2116,7 +2117,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       pr: mr ? +mr[1] : undefined,
       c: it.circuito || undefined,
       pu: /^\s*\d+([.,]\d+)?\s*(km|m|cal|s)\s*$/i.test(reps) ? reps : undefined,
-      id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, hn: it.nota_item || undefined,
+      id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, pa: it.pse_alvo != null ? it.pse_alvo : undefined, hn: it.nota_item || undefined,
       pad: it.padrao && it.padrao !== 'core' ? it.padrao : undefined,
       core: it.core_tipo || undefined,
       lat: (it.padrao || uni) ? it.lateralidade : undefined,
@@ -4160,11 +4161,11 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     renderWork();
   });
   /* PSE de cada exercício com carga (0 a 10) */
-  function livePseEx(e, base, T) {
-    if (T !== 'carga' && T !== 'vbt') return '';
-    var v = String(reg[base + '_p'] == null ? '' : reg[base + '_p']), o = '<option value="">–</option>', i;
-    for (i = 1; i <= 10; i++) o += '<option value="' + i + '"' + (v === String(i) ? ' selected' : '') + '>' + i + '</option>';
-    return '<label class="pse-ex"><span>PSE deste exercício <small>(0 a 10, o quão duro foi com esta carga)</small></span><select class="sel" data-k="' + base + '_p" aria-label="PSE do exercício">' + o + '</select></label>';
+  function livePseEx(e) {
+    if (e.pa == null || e.pa === '') return '';
+    var p = parseFloat(e.pa), txt = isFinite(p) ? (p % 1 ? String(p).replace('.', ',') : String(p)) : esc(String(e.pa));
+    var dica = p >= 9.5 ? 'quase máximo: não dava para mais nenhuma repetição' : p >= 8.5 ? 'muito pesado: ainda dava para mais 1 repetição' : p >= 7.5 ? 'pesado: ainda dava para mais 2 repetições' : p >= 6.5 ? 'moderado-pesado: ainda dava para mais 3 repetições' : p >= 5 ? 'moderado: com margem confortável' : 'leve';
+    return '<div class="pse-alvo"><b>Alvo do treinador: PSE ' + txt + '</b> <span>(' + dica + ')</span></div>';
   }
   /* ---------- parabéns no dia de anos ---------- */
   function liveBday() {
@@ -5555,6 +5556,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         '<label class="gn">Quantidade<input data-f="reps" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.reps) + '"></label>' +
         '<label class="gn">Em<select data-f="unid" data-d="' + i + '" data-k="' + o.k + '">' + [['', 'reps'], ['s', 'segundos'], ['m', 'metros'], ['km', 'km'], ['cal', 'calorias']].map(function (u) { return '<option value="' + u[0] + '"' + ((o.it.unid || '') === u[0] ? ' selected' : '') + '>' + u[1] + '</option>'; }).join('') + '</select></label>' +
         (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
+        '<label class="gn">PSE alvo (0 a 10)<input inputmode="decimal" data-f="pse" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.pse || '') + '"></label>' +
         (pos > 0 ? '<button class="chip" data-act="lig" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + lig + '">Com o anterior</button>' : '') +
         '<label class="gn">O que o atleta regista<select data-f="mreg" data-d="' + i + '" data-k="' + o.k + '"><option value=""' + (!o.it.mreg ? ' selected' : '') + '>Por defeito (' + esc(gRegLabel(reg)) + ')</option>' +
           GREG.map(function (r) { return '<option value="' + r[0] + '"' + (o.it.mreg === r[0] ? ' selected' : '') + '>' + esc(r[1]) + '</option>'; }).join('') +
@@ -5645,7 +5647,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   }
   function gFetchPlan(aid, mon) {
     return tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(aid) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
-      '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(id,alt_de,bloco,ordem,series,reps,pede_registo,registo,grupo,circuito,descanso_s,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
+      '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(id,alt_de,bloco,ordem,series,reps,pede_registo,registo,grupo,circuito,descanso_s,pse_alvo,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
       var plan = gNewPlan(), n = 0;
       rows.forEach(function (t) {
         var i = isoDow(t.data);
@@ -5670,7 +5672,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
           var arr = plan[i].itens, pv = arr.length ? arr[arr.length - 1] : null;
           var um = /^\s*(\d+(?:[.,]\d+)?)\s*(km|m|cal|s)\s*$/i.exec(it.reps || '');
           plan[i].itens.push({ bloco: it.bloco, c: it.circuito || 0, ex: ex.nome, series: String(it.series), reps: um ? um[1] : (it.reps || ''), unid: um ? um[2].toLowerCase() : '', pede: !!it.pede_registo, mreg: it.registo || (it.pede_registo ? '' : 'feito'),
-            lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', nota: it.nota || '' }); byId[it.id] = plan[i].itens[plan[i].itens.length - 1]; n++;
+            lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', pse: it.pse_alvo != null ? String(it.pse_alvo) : '', nota: it.nota || '' }); byId[it.id] = plan[i].itens[plan[i].itens.length - 1]; n++;
         });
         Object.keys(legacy).forEach(function (lb) {
           plan[i].circ[lb] = plan[i].circ[lb] || {};
@@ -5734,9 +5736,10 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
           var same = function (o) { return o && (o.c || 0) === (it.c || 0); };
           var lig = pos > 0 && !!it.lig && same(bi[pos - 1]), nxt = same(bi[pos + 1]) ? bi[pos + 1] : null, ult = !(nxt && nxt.lig), grupo = null;
           if (lig) { grupo = cur; } else if (nxt && nxt.lig) { grupo = cur = ++gn; ser = String(parseInt(it.series, 10) || 3); } else { cur = null; ser = null; }
-          var sr = lig ? ser : String(parseInt(it.series, 10) || 3), ds = parseInt(it.desc, 10);
+          var sr = lig ? ser : String(parseInt(it.series, 10) || 3), ds = parseInt(it.desc, 10), psa = null, pst = String(it.pse == null ? '' : it.pse).trim().replace(',', '.');
+          if (pst !== '') { psa = parseFloat(pst); if (!isFinite(psa) || psa < 0 || psa > 10) { avisos.push(DIASL[i] + ': a PSE alvo de “' + it.ex + '” tem de ser de 0 a 10.'); psa = null; } }
           linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: sr, reps: (String(it.reps || '').trim() + (it.unid && String(it.reps || '').trim() ? ' ' + it.unid : '')), pede_registo: gPede(it), registo_item: it.mreg || '',
-            grupo: grupo, circuito: it.c || null, descanso_s: ult && ds > 0 ? ds : null, nota_item: String(it.nota || '').trim(),
+            grupo: grupo, circuito: it.c || null, descanso_s: ult && ds > 0 ? ds : null, pse_alvo: psa, nota_item: String(it.nota || '').trim(),
             alt_exercicio: String(it.alt || '').trim() || null, alt_series: String(it.alt || '').trim() ? (String(it.alts || '').trim() || null) : null, alt_reps: String(it.alt || '').trim() ? (String(it.altr || '').trim() || null) : null });
         });
       });
