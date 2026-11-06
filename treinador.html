@@ -426,6 +426,9 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .pse-ex{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:.85rem;font-weight:600}
 .pse-ex small{display:block;font-weight:400;color:var(--muted)}
 .pse-ex select{width:auto;min-width:72px}
+.nota-it{border-left:3px solid var(--line);padding:4px 0 4px 10px;margin:8px 0}.nota-it.n{border-left-color:var(--crit)}.nota-it .nh{font-size:13px;color:var(--muted)}.nota-it .nt{margin-top:2px}
+.ntag{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:1px 8px;margin-right:6px;background:var(--accent-soft);color:var(--fg)}.ntag.dor{background:var(--crit-soft);color:var(--crit)}.ntag.falta{background:var(--warn-soft);color:var(--fg)}
+.nnew{font-size:10px;font-weight:800;background:var(--crit);color:#fff;border-radius:4px;padding:1px 5px;margin-left:6px}
 </style>
 </head>
 <body>
@@ -753,6 +756,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     </div>
 
     <div class="panel" id="p-acwr"><header><div><p class="kicker">Carga</p><h2>ACWR</h2></div></header><div id="acwr-body"></div></div>
+
+    <div class="panel" id="p-notas"><header><div><p class="kicker">Atleta</p><h2>Notas</h2></div></header><div id="notas-body"></div></div>
 
     <div class="panel" id="p-ton">
       <header>
@@ -1725,6 +1730,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     $('#t-carga').innerHTML = tableOrEmpty(['Semana de', 'UA', 'Sessões'], st.order.map(function (w) { return [fmtDate(w), st.wk[w].ua, st.wk[w].n]; }));
     if (typeof acwrRender === 'function') acwrRender(a);
     if (typeof compRender === 'function') compRender(a);
+    if (typeof notasRender === 'function') notasRender(a);
 
     /* tonelagem semanal */
     var mt = 0;
@@ -1951,7 +1957,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         kv('Core', ctot, cSub) +
         kv('Unilateral', upct + '%', 'da tonelagem') +
         kv('ACWR', awz ? acwrFmt(awc.ult.acwr) : '–', awz ? awz[2] + ' · semana de ' + fmtDate(awc.ult.k) : 'dados insuficientes') +
-        '</div><p class="small">' + faltas + '</p>' +
+        '</div><p class="small">' + faltas + '</p>' + notasRel(a, toISO(range.i0), toISO(range.i1)) +
         '<p class="kicker">Semana a semana: Hooper, PSE, carga e tonelagem</p>' + compHtml(a, range.i0, range.i1, 12) + (function () { var kk = compSemKeys(a); return kk.length ? '<p class="kicker">Última semana, dia a dia (' + fmtDate(kk[kk.length - 1]) + ')</p>' + compGraficos(a, kk[kk.length - 1]) : ''; })() +
         '<p class="kicker">Tonelagem por padrão</p><div class="scroll"><table class="rt"><thead><tr><th>Padrão</th><th>Tonelagem</th><th>%</th></tr></thead><tbody>' + pr + '</tbody></table></div>' +
         (ex ? '<p class="kicker">Cargas por exercício</p><div class="scroll"><table class="rt"><thead><tr><th>Exercício</th><th>Evolução</th><th>Variação</th><th>PSE média</th></tr></thead><tbody>' + ex + '</tbody></table></div>' : '<p class="small">Sem cargas registadas neste período.</p>') + '</section>';
@@ -1963,6 +1969,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       txt.push('Por padrão: ' + prTxt);
       compSemanas(a, range.i0, range.i1).slice(-12).forEach(function (x) { txt.push('  Semana de ' + fmtDate(x.k) + ': Hooper ' + (x.h == null ? '–' : num(x.h)) + ' · PSE ' + (x.pse == null ? '–' : num(x.pse)) + ' · carga ' + fmtN(x.ua) + ' UA · tonelagem ' + num(x.ton / 1000) + ' t'); });
       txt.push('ACWR (carga da semana / média das 4 anteriores): ' + acwrFrase(awc));
+      var ntx = notasTxt(a, toISO(range.i0), toISO(range.i1)); if (ntx) txt.push(ntx);
       txt.push('Core: ' + ctot + ' (' + cSub + ')');
       if (exTxt.length) txt.push('Cargas: ' + exTxt.join('; '));
       txt.push('');
@@ -3496,7 +3503,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   $('#f-atleta').addEventListener('change', function () { if (OBS) opRender(); });
   /* ---------- separadores do treinador + quem preencheu esta semana ---------- */
   var DSUB = lsGet('alvo.dsub') || 'resumo';
-  var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-comp', 'Comparar'], ['p-hooper', 'Hooper'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-acwr', 'ACWR'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-rep', 'Relatório']];
+  var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-comp', 'Comparar'], ['p-notas', 'Notas'], ['p-hooper', 'Hooper'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-acwr', 'ACWR'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-rep', 'Relatório']];
   var TAB = lsGet('alvo.tab') || 'semana';
   if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados' && TAB !== 'online') TAB = 'semana';
   var ONSUB = lsGet('alvo.osub') || 'alunos';
@@ -3654,7 +3661,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       if (!a.pres && !(a.rec[hI] && a.rec[hI].w)) faltaW.push(a.n);
       var nf = a.faltas.filter(function (f) { return f.iso >= mon && f.iso <= isoAdd(mon, 6); });
       var ftxt = nf.length ? '<small class="err">' + nf.length + (nf.length === 1 ? ' falta' : ' faltas') + ': ' + esc(nf.map(function (f) { return f.m === 'lesao' ? 'lesão' : f.m; }).join(', ')) + '</small>' : '';
-      return '<tr><td><span class="who"><b>' + esc(a.n) + '</b><small>' + esc(a.m) + '</small></span></td>' +
+      return '<tr><td><span class="who"><b>' + esc(a.n) + '</b><small>' + esc(a.m) + '</small>' + notasBadge(a.id) + '</span></td>' +
         '<td class="scell"><b>' + nw + ' / 7</b>' + dots(w) + '</td>' +
         '<td class="scell"><b>' + nc + (plan ? ' / ' + plan : '') + '</b>' + dots(c) + ftxt + '</td>' +
         '<td class="scell"><b>' + np + '</b>' + dots(p) + '</td></tr>';
@@ -3688,12 +3695,14 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       tGet('sessoes', 'select=atleta_id,data,pse,minutos&order=data,id'),
       tGet('treinos', 'select=atleta_id,data,tipo&order=data,id'),
       tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,pse_ex,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id'),
-      tGet('notas_bloco', 'select=atleta_id,data,bloco,motivo,nota&order=data,id'),
+      tGet('notas_bloco', 'select=id,atleta_id,data,bloco,motivo,nota&order=data,id'),
       tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id'),
-      tGet('faltas', 'select=atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id').catch(function () { return []; }),
+      tGet('faltas', 'select=id,atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id').catch(function () { return []; }),
       tGet('resultados_bloco', 'select=atleta_id,treino_id,data,bloco,formato,tempo_s,rondas,reps,completo,nota&order=data,id').catch(function () { return []; }),
-      tGet('treino_blocos', 'select=treino_id,bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min').catch(function () { return []; })
+      tGet('treino_blocos', 'select=treino_id,bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min').catch(function () { return []; }),
+      tGet('notas_vistas', 'select=tipo,nota_id,hash').catch(function () { return []; })
     ]).then(function (r) {
+      notasCarregarVistas(r[10]);
       RAWD = { D: { atletas: r[0], wellness: r[1], sessoes: r[2], treinos: r[3], registos: r[4], notas: r[5], competicoes: r[6], faltas: r[7] }, wod: { res: r[8] || [], cfg: r[9] || [] }, hoje: hojeISO };
       SCOPE = TAB === 'online' ? 'pt' : 'main';
       liveBuildScope();
@@ -3701,6 +3710,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       try { liveTrainerWellAlert(); } catch (e0) { /* aviso opcional */ }
       try { liveTrainerBday(); } catch (e0b) { /* opcional */ }
       try { liveTrainerAcwrAlert(); } catch (e0c) { /* opcional */ }
+      try { liveTrainerNotasAlert(); } catch (e0d) { /* opcional */ }
       refreshTrainerUI();
       return gLoad();
     }).catch(function (e) {
@@ -3829,6 +3839,80 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     }).join('<br>') + '<br><span class="small">Semana de ' + fmtDate(ref) + '. Vê o separador ACWR em Dados.</span><br><button class="chip" id="t-acwr-ok" type="button">Ok, vi</button>';
     v.insertBefore(el, v.firstChild);
     $('#t-acwr-ok').addEventListener('click', function () { lsSet('alvo.acwr', sig); el.remove(); });
+  }
+  /* ---------- notas dos atletas (notas do treino e das faltas) ---------- */
+  var NOTV = {}, NOTF = 'todas';
+  function notaHash(m, t) { var s = (m || '') + '|' + (t || ''), h = 5381, i; for (i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return String(h >>> 0); }
+  function notaDor(it) { return /les[aã]o|\bdor(es)?\b|\bdoi\b|\bdoem\b|incomod/i.test((it.motivo || '') + ' ' + (it.nota || '')); }
+  function notasLista(atletaId) {
+    var out = [], hj = RAWD && RAWD.hoje ? RAWD.hoje : localISO(), lim = isoAdd(hj, -14), nom = {};
+    if (!RAWD) return out;
+    (RAWD.D.atletas || []).forEach(function (x) { nom[x.id] = x; });
+    function add(tipo, n, onde, mot, dataX) {
+      if (!n.id || (!n.nota && !n.motivo)) return;
+      if (atletaId && n.atleta_id !== atletaId) return;
+      var at = nom[n.atleta_id]; if (!at || at.ativo === false) return;
+      var h = notaHash(mot, n.nota), it = { tipo: tipo, id: n.id, at: n.atleta_id, nome: at.nome, mod: at.grupo === 'pt' ? 'Online training' : (at.modalidade || ''), data: dataX, onde: onde, motivo: mot || '', nota: n.nota || '', hash: h };
+      it.novo = NOTV[tipo + '|' + n.id] !== h && dataX >= lim;
+      it.dor = notaDor(it);
+      out.push(it);
+    }
+    (RAWD.D.notas || []).forEach(function (n) { add('bloco', n, 'bloco ' + (n.bloco || ''), n.motivo, n.data); });
+    (RAWD.D.faltas || []).forEach(function (f) { add('falta', f, 'não fez ' + (f.treino && f.treino.nome ? '“' + f.treino.nome + '”' : 'o treino'), MOTIVO_TXT[f.motivo] || f.motivo, (f.treino && f.treino.data) || f.data); });
+    out.sort(function (a, b) { return a.data < b.data ? 1 : a.data > b.data ? -1 : 0; });
+    return out;
+  }
+  function notaTag(it) { return '<span class="ntag' + (it.dor ? ' dor' : it.tipo === 'falta' ? ' falta' : '') + '">' + esc(it.dor ? 'dor' : it.tipo === 'falta' ? 'falta' : (it.motivo || 'nota').toLowerCase()) + '</span>'; }
+  function notasMarcar(its) {
+    if (!its.length) return Promise.resolve();
+    its.forEach(function (it) { NOTV[it.tipo + '|' + it.id] = it.hash; });
+    var body = its.map(function (it) { return { tipo: it.tipo, nota_id: it.id, hash: it.hash }; });
+    return tReq('/rest/v1/notas_vistas?on_conflict=tipo,nota_id', { method: 'POST', body: body, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' } })
+      .catch(function () { try { var o = JSON.parse(lsGet('alvo.notv') || '{}'); its.forEach(function (it) { o[it.tipo + '|' + it.id] = it.hash; }); lsSet('alvo.notv', JSON.stringify(o)); } catch (e) { /* sem armazenamento */ } });
+  }
+  function notasCarregarVistas(rows) {
+    NOTV = {};
+    (rows || []).forEach(function (r) { NOTV[r.tipo + '|' + r.nota_id] = r.hash; });
+    try { var o = JSON.parse(lsGet('alvo.notv') || '{}'); Object.keys(o).forEach(function (k) { if (!NOTV[k]) NOTV[k] = o[k]; }); } catch (e) { /* ignora */ }
+  }
+  function notaHtml(it, comAt) {
+    return '<div class="nota-it' + (it.novo ? ' n' : '') + '"><div class="nh">' + notaTag(it) + (comAt ? '<b>' + esc(it.nome) + '</b> · ' : '<b>' + fmtD(it.data) + '</b> · ') + esc(it.onde) + (comAt ? ' · ' + fmtD(it.data) : '') + (it.novo ? '<span class="nnew">NOVA</span>' : '') + '</div>' + (it.nota ? '<div class="nt">' + esc(it.nota) + '</div>' : '<div class="nt small">sem texto, só o motivo</div>') + '</div>';
+  }
+  function notasRender(a) {
+    var p = $('#notas-body'); if (!p) return;
+    var all = notasLista(a.id), nv = all.filter(function (x) { return x.novo; });
+    var f = NOTF, lst = all.filter(function (x) { return f === 'dor' ? x.dor : f === 'faltas' ? x.tipo === 'falta' : f === '30' ? x.data >= isoAdd(RAWD.hoje, -30) : true; });
+    var h = '<div class="chips" role="group" aria-label="Filtro">' + [['todas', 'Todas'], ['dor', 'Só dor'], ['faltas', 'Só faltas'], ['30', 'Últimos 30 dias']].map(function (c) { return '<button class="chip" type="button" data-nf="' + c[0] + '" aria-pressed="' + (f === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div>';
+    if (nv.length) h += '<p class="small"><b>' + nv.length + (nv.length === 1 ? ' nota nova' : ' notas novas') + '.</b> <button class="chip" type="button" id="notas-vistas">Marcar como vistas</button></p>';
+    h += lst.length ? lst.map(function (x) { return notaHtml(x, false); }).join('') : '<p class="note">Sem notas' + (f !== 'todas' ? ' neste filtro' : '') + '.</p>';
+    p.innerHTML = h;
+    p.querySelectorAll('[data-nf]').forEach(function (b) { b.addEventListener('click', function () { NOTF = b.getAttribute('data-nf'); notasRender(a); }); });
+    var bt = $('#notas-vistas'); if (bt) bt.addEventListener('click', function () { notasMarcar(nv).then(function () { notasRender(a); liveTrainerNotasAlert(); try { renderSemana(); } catch (e) { /* opcional */ } }); });
+  }
+  function notasBadge(id) {
+    var n = notasLista(id).filter(function (x) { return x.novo; });
+    if (!n.length) return '';
+    return '<small class="err">● ' + n.length + (n.length === 1 ? ' nota nova' : ' notas novas') + (n.some(function (x) { return x.dor; }) ? ' · dor' : '') + '</small>';
+  }
+  function notasTxt(a, de, ate) {
+    var l = notasLista(a.id).filter(function (x) { return x.data >= de && x.data <= ate; });
+    if (!l.length) return '';
+    return 'Notas do atleta (' + l.length + '): ' + l.slice(0, 6).map(function (x) { return fmtD(x.data) + ' ' + x.onde + (x.motivo ? ', ' + x.motivo.toLowerCase() : '') + (x.nota ? ': “' + x.nota + '”' : ''); }).join('; ') + (l.length > 6 ? '; e mais ' + (l.length - 6) + '.' : '.');
+  }
+  function notasRel(a, de, ate) {
+    var l = notasLista(a.id).filter(function (x) { return x.data >= de && x.data <= ate && (x.nota || x.dor); });
+    if (!l.length) return '';
+    return '<p class="kicker">Notas do atleta (' + l.length + ')</p>' + l.slice(0, 8).map(function (x) { return notaHtml(x, false).replace('<span class="nnew">NOVA</span>', ''); }).join('') + (l.length > 8 ? '<p class="small">e mais ' + (l.length - 8) + ' no separador Notas.</p>' : '');
+  }
+  function liveTrainerNotasAlert() {
+    var v = $('#view-treinador'); if (!v || !RAWD) return;
+    var el = $('#t-notas'); if (el) el.remove();
+    var nv = notasLista(null).filter(function (x) { return x.novo; });
+    if (!nv.length) return;
+    el = document.createElement('div'); el.id = 't-notas'; el.className = 'mac-warn'; el.setAttribute('role', 'alert'); el.style.margin = '10px 14px';
+    el.innerHTML = '<b>Notas novas dos atletas · ' + nv.length + '</b>' + nv.slice(0, 6).map(function (x) { return '<div class="nota-it' + (x.dor ? ' n' : '') + '">' + notaTag(x) + '<b>' + esc(x.nome) + '</b> <span class="small">· ' + esc(x.onde) + ' · ' + fmtD(x.data) + '</span>' + (x.nota ? '<br><span class="small">“' + esc(x.nota.length > 140 ? x.nota.slice(0, 140) + '…' : x.nota) + '”</span>' : '') + '</div>'; }).join('') + (nv.length > 6 ? '<span class="small">e mais ' + (nv.length - 6) + '.</span><br>' : '') + '<span class="small">Estão também no separador Notas, em Dados.</span><br><button class="chip" id="t-notas-ok" type="button">Ok, vi</button>';
+    v.insertBefore(el, v.firstChild);
+    $('#t-notas-ok').addEventListener('click', function () { notasMarcar(nv).then(function () { el.remove(); try { renderSemana(); } catch (e) { /* opcional */ } }); });
   }
   /* ---------- comparação semanal: Hooper, PSE, carga (UA) e tonelagem ---------- */
   function compSemanas(a, i0, i1) {
