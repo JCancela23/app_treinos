@@ -430,6 +430,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .ntag{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:1px 8px;margin-right:6px;background:var(--accent-soft);color:var(--fg)}.ntag.dor{background:var(--crit-soft);color:var(--crit)}.ntag.falta{background:var(--warn-soft);color:var(--fg)}
 .nnew{font-size:10px;font-weight:800;background:var(--crit);color:#fff;border-radius:4px;padding:1px 5px;margin-left:6px}
 .pse-alvo{background:var(--accent-soft);border-radius:10px;padding:7px 11px;font-size:14px}.pse-alvo span{color:var(--muted);font-weight:400}
+.pv-box{background:var(--warn-soft);border-radius:10px;padding:7px 11px;font-size:14px}.pv-box span{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -2117,7 +2118,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       pr: mr ? +mr[1] : undefined,
       c: it.circuito || undefined,
       pu: /^\s*\d+([.,]\d+)?\s*(km|m|cal|s)\s*$/i.test(reps) ? reps : undefined,
-      id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, pa: it.pse_alvo != null ? it.pse_alvo : undefined, hn: it.nota_item || undefined,
+      id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, pa: it.pse_alvo != null ? it.pse_alvo : undefined, pv: it.pede_video ? true : undefined, hn: it.nota_item || undefined,
       pad: it.padrao && it.padrao !== 'core' ? it.padrao : undefined,
       core: it.core_tipo || undefined,
       lat: (it.padrao || uni) ? it.lateralidade : undefined,
@@ -3506,7 +3507,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   var DSUB = lsGet('alvo.dsub') || 'resumo';
   var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-comp', 'Comparar'], ['p-notas', 'Notas'], ['p-hooper', 'Hooper'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-acwr', 'ACWR'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-rep', 'Relatório']];
   var TAB = lsGet('alvo.tab') || 'semana';
-  if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados' && TAB !== 'online') TAB = 'semana';
+  if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados' && TAB !== 'online' && TAB !== 'eu') TAB = 'semana';
   var ONSUB = lsGet('alvo.osub') || 'alunos';
   var ONSECS = [['semana', 'Esta semana'], ['alunos', 'Alunos'], ['macro', 'Macro'], ['plano', 'Planear'], ['planos', 'Ver planos'], ['registar', 'Registar sessão'], ['pagamentos', 'Pagamentos'], ['dados', 'Dados'], ['evolucao', 'Evolução'], ['testes', 'Testes'], ['rep', 'Relatório']];
   var ONG = { alunos: 'atletas', macro: 'macro', plano: 'plano', planos: 'planos', registar: 'registar', pagamentos: 'pagamentos', evolucao: 'evolucao', testes: 'testes' };
@@ -3519,7 +3520,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     document.head.appendChild(st);
     var nav = document.createElement('div'); nav.className = 'panel'; nav.id = 't-nav'; nav.hidden = true;
     nav.innerHTML = '<div class="chips" id="t-tabs" role="group" aria-label="Secções">' +
-      [['semana', 'Esta semana'], ['gestao', 'Planear e gerir'], ['dados', 'Dados dos atletas'], ['online', 'Online training']].map(function (t) { return '<button class="chip" data-t2="' + t[0] + '" aria-pressed="false">' + t[1] + '</button>'; }).join('') +
+      [['semana', 'Esta semana'], ['gestao', 'Planear e gerir'], ['dados', 'Dados dos atletas'], ['online', 'Online training'], ['eu', 'Eu']].map(function (t) { return '<button class="chip" data-t2="' + t[0] + '" aria-pressed="false">' + t[1] + '</button>'; }).join('') +
       '<button class="chip" id="t-exp2">Exportar dados</button><button class="chip" id="t-sair2">Sair</button></div>';
     var sm = document.createElement('div'); sm.className = 'panel'; sm.id = 'p-semana'; sm.hidden = true;
     sm.innerHTML = '<header><div><p class="kicker">Semana corrente</p><h2>Quem preencheu</h2></div></header><div id="sem-out"></div>';
@@ -3597,9 +3598,10 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   function applyTab() {
     var nav = $('#t-nav'); if (nav) nav.hidden = false;
     var on = TAB === 'online';
-    liveSetScope(on ? 'pt' : 'main');
+    liveSetScope(on ? 'pt' : TAB === 'eu' ? 'eu' : 'main');
+    ['t-notas', 't-acwr', 't-walert', 't-bday'].forEach(function (id) { var e = document.getElementById(id); if (e) e.hidden = TAB === 'eu'; });
     if (!ONSECS.some(function (s) { return s[0] === ONSUB; })) ONSUB = 'alunos';
-    var showDados = TAB === 'dados' || (on && ONSUB === 'dados');
+    var showDados = TAB === 'dados' || TAB === 'eu' || (on && ONSUB === 'dados');
     var gKey = on ? ONG[ONSUB] : null;
     var secs = DSECS.filter(function (s) { return (s[0] !== 'p-wod' || WODD.res.length > 0) && !(on && s[0] === 'p-rep'); });
     if (!secs.some(function (s) { return s[0] === DSUB; })) DSUB = 'resumo';
@@ -3673,10 +3675,12 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       '<p class="small">Wellness: dias preenchidos. Cargas: dias com carga registada / treinos de ginásio planeados; a vermelho, treinos que o atleta marcou como não feitos. PSE: sessões com esforço registado. O wellness só é obrigatório nos dias em que o atleta treina.</p>';
   }
   var RAWD = null, SCOPE = 'main';
+  function isEu(a) { return a.grupo !== 'pt' && String(a.modalidade || '').trim().toLowerCase() === 'treinador'; }
+  function scopeDe(a) { return a.grupo === 'pt' ? 'pt' : isEu(a) ? 'eu' : 'main'; }
   function liveBuildScope() {
     if (!RAWD) return;
-    var pt = SCOPE === 'pt', ok = {};
-    var ats = RAWD.D.atletas.filter(function (a) { var e = (a.grupo === 'pt') === pt; if (e) ok[a.id] = true; return e; });
+    var ok = {};
+    var ats = RAWD.D.atletas.filter(function (a) { var e = scopeDe(a) === SCOPE; if (e) ok[a.id] = true; return e; });
     var D = {}; Object.keys(RAWD.D).forEach(function (k) { D[k] = RAWD.D[k]; }); D.atletas = ats;
     buildLive(D, RAWD.hoje);
     WODD = { res: (RAWD.wod.res || []).filter(function (x) { return ok[x.atleta_id]; }), cfg: RAWD.wod.cfg || [] }; renderWod();
@@ -3705,7 +3709,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     ]).then(function (r) {
       notasCarregarVistas(r[10]);
       RAWD = { D: { atletas: r[0], wellness: r[1], sessoes: r[2], treinos: r[3], registos: r[4], notas: r[5], competicoes: r[6], faltas: r[7] }, wod: { res: r[8] || [], cfg: r[9] || [] }, hoje: hojeISO };
-      SCOPE = TAB === 'online' ? 'pt' : 'main';
+      SCOPE = TAB === 'online' ? 'pt' : TAB === 'eu' ? 'eu' : 'main';
       liveBuildScope();
       showTrainer(true);
       try { liveTrainerWellAlert(); } catch (e0) { /* aviso opcional */ }
@@ -3852,7 +3856,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     function add(tipo, n, onde, mot, dataX) {
       if (!n.id || (!n.nota && !n.motivo)) return;
       if (atletaId && n.atleta_id !== atletaId) return;
-      var at = nom[n.atleta_id]; if (!at || at.ativo === false) return;
+      var at = nom[n.atleta_id]; if (!at || at.ativo === false || (!atletaId && isEu(at))) return;
       var h = notaHash(mot, n.nota), it = { tipo: tipo, id: n.id, at: n.atleta_id, nome: at.nome, mod: at.grupo === 'pt' ? 'Online training' : (at.modalidade || ''), data: dataX, onde: onde, motivo: mot || '', nota: n.nota || '', hash: h };
       it.novo = NOTV[tipo + '|' + n.id] !== h && dataX >= lim;
       it.dor = notaDor(it);
@@ -4162,10 +4166,11 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   });
   /* PSE de cada exercício com carga (0 a 10) */
   function livePseEx(e) {
-    if (e.pa == null || e.pa === '') return '';
+    var vd = e.pv ? '<div class="pv-box"><b>Gravar vídeo</b> <span>Grava a execução deste exercício (15 a 30 s, de lado, com boa luz) e envia-me por WhatsApp.</span></div>' : '';
+    if (e.pa == null || e.pa === '') return vd;
     var p = parseFloat(e.pa), txt = isFinite(p) ? (p % 1 ? String(p).replace('.', ',') : String(p)) : esc(String(e.pa));
     var dica = p >= 9.5 ? 'quase máximo: não dava para mais nenhuma repetição' : p >= 8.5 ? 'muito pesado: ainda dava para mais 1 repetição' : p >= 7.5 ? 'pesado: ainda dava para mais 2 repetições' : p >= 6.5 ? 'moderado-pesado: ainda dava para mais 3 repetições' : p >= 5 ? 'moderado: com margem confortável' : 'leve';
-    return '<div class="pse-alvo"><b>Alvo do treinador: PSE ' + txt + '</b> <span>(' + dica + ')</span></div>';
+    return '<div class="pse-alvo"><b>PSE alvo: ' + txt + '</b> <span>(' + dica + ')</span></div>' + vd;
   }
   /* ---------- parabéns no dia de anos ---------- */
   function liveBday() {
@@ -4199,7 +4204,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var v = $('#view-treinador'), el = $('#t-walert'); if (!v || !RAWD) return;
     if (!el) { el = document.createElement('div'); el.id = 't-walert'; el.className = 'mac-warn'; el.setAttribute('role', 'alert'); el.style.margin = '10px 14px'; v.insertBefore(el, v.firstChild); }
     var hj = RAWD.hoje, ont = isoAdd(hj, -1), por = {}, nomes = {};
-    (RAWD.D.atletas || []).forEach(function (a) { if (a.ativo !== false && a.grupo !== 'presencial') nomes[a.id] = a; });
+    (RAWD.D.atletas || []).forEach(function (a) { if (a.ativo !== false && a.grupo !== 'presencial' && !isEu(a)) nomes[a.id] = a; });
     (RAWD.D.wellness || []).forEach(function (w) {
       var a = nomes[w.atleta_id]; if (!a || w.data < ont) return;
       var t = (w.sono || 0) + (w.fadiga || 0) + (w.dor || 0) + (w.stress || 0);
@@ -5557,6 +5562,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         '<label class="gn">Em<select data-f="unid" data-d="' + i + '" data-k="' + o.k + '">' + [['', 'reps'], ['s', 'segundos'], ['m', 'metros'], ['km', 'km'], ['cal', 'calorias']].map(function (u) { return '<option value="' + u[0] + '"' + ((o.it.unid || '') === u[0] ? ' selected' : '') + '>' + u[1] + '</option>'; }).join('') + '</select></label>' +
         (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
         '<label class="gn">PSE alvo (0 a 10)<input inputmode="decimal" data-f="pse" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.pse || '') + '"></label>' +
+        '<button class="chip" data-act="pv" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + (!!o.it.pv) + '">Pedir vídeo</button>' +
         (pos > 0 ? '<button class="chip" data-act="lig" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + lig + '">Com o anterior</button>' : '') +
         '<label class="gn">O que o atleta regista<select data-f="mreg" data-d="' + i + '" data-k="' + o.k + '"><option value=""' + (!o.it.mreg ? ' selected' : '') + '>Por defeito (' + esc(gRegLabel(reg)) + ')</option>' +
           GREG.map(function (r) { return '<option value="' + r[0] + '"' + (o.it.mreg === r[0] ? ' selected' : '') + '>' + esc(r[1]) + '</option>'; }).join('') +
@@ -5647,7 +5653,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   }
   function gFetchPlan(aid, mon) {
     return tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(aid) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
-      '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(id,alt_de,bloco,ordem,series,reps,pede_registo,registo,grupo,circuito,descanso_s,pse_alvo,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
+      '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(id,alt_de,bloco,ordem,series,reps,pede_registo,registo,grupo,circuito,descanso_s,pse_alvo,pede_video,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
       var plan = gNewPlan(), n = 0;
       rows.forEach(function (t) {
         var i = isoDow(t.data);
@@ -5672,7 +5678,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
           var arr = plan[i].itens, pv = arr.length ? arr[arr.length - 1] : null;
           var um = /^\s*(\d+(?:[.,]\d+)?)\s*(km|m|cal|s)\s*$/i.exec(it.reps || '');
           plan[i].itens.push({ bloco: it.bloco, c: it.circuito || 0, ex: ex.nome, series: String(it.series), reps: um ? um[1] : (it.reps || ''), unid: um ? um[2].toLowerCase() : '', pede: !!it.pede_registo, mreg: it.registo || (it.pede_registo ? '' : 'feito'),
-            lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', pse: it.pse_alvo != null ? String(it.pse_alvo) : '', nota: it.nota || '' }); byId[it.id] = plan[i].itens[plan[i].itens.length - 1]; n++;
+            lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', pse: it.pse_alvo != null ? String(it.pse_alvo) : '', pv: !!it.pede_video, nota: it.nota || '' }); byId[it.id] = plan[i].itens[plan[i].itens.length - 1]; n++;
         });
         Object.keys(legacy).forEach(function (lb) {
           plan[i].circ[lb] = plan[i].circ[lb] || {};
@@ -5739,7 +5745,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
           var sr = lig ? ser : String(parseInt(it.series, 10) || 3), ds = parseInt(it.desc, 10), psa = null, pst = String(it.pse == null ? '' : it.pse).trim().replace(',', '.');
           if (pst !== '') { psa = parseFloat(pst); if (!isFinite(psa) || psa < 0 || psa > 10) { avisos.push(DIASL[i] + ': a PSE alvo de “' + it.ex + '” tem de ser de 0 a 10.'); psa = null; } }
           linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: sr, reps: (String(it.reps || '').trim() + (it.unid && String(it.reps || '').trim() ? ' ' + it.unid : '')), pede_registo: gPede(it), registo_item: it.mreg || '',
-            grupo: grupo, circuito: it.c || null, descanso_s: ult && ds > 0 ? ds : null, pse_alvo: psa, nota_item: String(it.nota || '').trim(),
+            grupo: grupo, circuito: it.c || null, descanso_s: ult && ds > 0 ? ds : null, pse_alvo: psa, pede_video: !!it.pv, nota_item: String(it.nota || '').trim(),
             alt_exercicio: String(it.alt || '').trim() || null, alt_series: String(it.alt || '').trim() ? (String(it.alts || '').trim() || null) : null, alt_reps: String(it.alt || '').trim() ? (String(it.altr || '').trim() || null) : null });
         });
       });
@@ -5875,6 +5881,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       if (inp) inp.value = '';
       if (vv && gAddItem(d, b.getAttribute('data-b'), vv, cc)) gRenderPlano();
     }
+    else if (a === 'pv') { G.plan[d].itens[k].pv = !G.plan[d].itens[k].pv; gRenderPlano(); }
     else if (a === 'lig') { G.plan[d].itens[k].lig = !G.plan[d].itens[k].lig; gRenderPlano(); }
     else if (a === 'tog') { G.plan[d].itens[k].pede = !G.plan[d].itens[k].pede; gRenderPlano(); }
     else if (a === 'rm') { G.plan[d].itens.splice(k, 1); gRenderPlano(); }
