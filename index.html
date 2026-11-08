@@ -4254,6 +4254,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     if (/^pull/.test(s)) return { padrao: 'pull' };
     if (/^plyo/.test(s)) return { padrao: 'plyo' };
     if (/olymp|weightlift|halter/.test(s)) return { padrao: 'olympic' };
+    if (/hand\s*stand|pino/.test(s)) return { padrao: 'handstand' };
     if (/^core/.test(s)) {
       var t = /later|lat\b/.test(s) ? 'lat' : /exten/.test(s) ? 'ext' : /flex|flec/.test(s) ? 'flex' : /rot/.test(s) ? 'rot' : null; if (t && /anti/.test(s)) t = 'a' + t;
       return t ? { padrao: 'core', core_tipo: t } : null;
@@ -4362,7 +4363,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   /* ====================== GESTÃO (treinador): atletas, exercícios, planear semana ====================== */
   var G = { atl: [], ex: [], tab: 'plano', sel: {}, semana: '', plan: null, edit: null, exEdit: null, exQ: '', srcAtl: '', srcSem: '' };
   var GBL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
-  var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['olympic', 'Olympic weightlifting'], ['core:ext', 'Core extensão'], ['core:flex', 'Core flexão'], ['core:lat', 'Core flexão lateral'], ['core:rot', 'Core rotação'], ['core:aext', 'Core anti-extensão'], ['core:aflex', 'Core anti-flexão'], ['core:alat', 'Core anti-flexão lateral'], ['core:arot', 'Core anti-rotação']];
+  var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['olympic', 'Olympic weightlifting'], ['handstand', 'Handstand'], ['core:ext', 'Core extensão'], ['core:flex', 'Core flexão'], ['core:lat', 'Core flexão lateral'], ['core:rot', 'Core rotação'], ['core:aext', 'Core anti-extensão'], ['core:aflex', 'Core anti-flexão'], ['core:alat', 'Core anti-flexão lateral'], ['core:arot', 'Core anti-rotação']];
   var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'Carga + VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Broad jump (cm)'], ['feito', 'Só "feito"']];
   var DIASL = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
