@@ -276,7 +276,7 @@ table.rt { min-width: 0; font-size: .85rem; }
 
 .gitem.gin { border-left: 4px solid var(--accent); margin-left: 10px; }
 .gname small { font-weight: 400; color: var(--muted); }
-.gnota { margin-top: 6px; font-size: .85rem; }
+.gnota { margin-top: 6px; font-size: .85rem; resize: none; overflow: hidden; min-height: 2.4em; line-height: 1.35; display: block; width: 100%; box-sizing: border-box; font-family: inherit; }
 
 #save.bad { background: var(--crit); color: #fff; }
 #status.bad { color: var(--crit); background: var(--crit-soft); border: 1px solid var(--crit); border-radius: 10px; padding: 10px 12px; font-weight: 700; }
@@ -5570,7 +5570,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         '<button class="chip" data-act="up" data-d="' + i + '" data-k="' + o.k + '" aria-label="Subir">↑</button>' +
         '<button class="chip" data-act="down" data-d="' + i + '" data-k="' + o.k + '" aria-label="Descer">↓</button>' +
         '<button class="chip" data-act="rm" data-d="' + i + '" data-k="' + o.k + '" aria-label="Remover">✕</button></div>' +
-        '<input class="dt gnota" data-f="nota" data-d="' + i + '" data-k="' + o.k + '" placeholder="Nota só para este treino (opcional)" value="' + esc(o.it.nota || '') + '">' +
+        '<textarea class="dt gnota" rows="1" data-f="nota" data-d="' + i + '" data-k="' + o.k + '" placeholder="Nota só para este treino (opcional)">' + esc(o.it.nota || '') + '</textarea>' +
         '<details class="galt"' + (o.it.alt ? ' open' : '') + '><summary>' + (o.it.alt ? 'Adaptação: ' + esc(o.it.alt) : 'Adaptação (se o atleta não conseguir fazer este exercício)') + '</summary><div class="gctl">' +
         '<label class="gn" style="flex:1 1 100%">Exercício alternativo<input class="dt" list="g-exlist" data-f="alt" data-d="' + i + '" data-k="' + o.k + '" placeholder="Escolhe da biblioteca, por exemplo Goblet squat" value="' + esc(o.it.alt || '') + '" autocomplete="off"></label>' +
         '<label class="gn">Séries<input inputmode="numeric" data-f="alts" data-d="' + i + '" data-k="' + o.k + '" placeholder="' + esc(o.it.series || '') + '" value="' + esc(o.it.alts || '') + '"></label>' +
@@ -5911,6 +5911,11 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var t = e.target;
     if (t.id === 'gx-pad' && /^core:/.test(t.value)) { var rg = $('#gx-reg'); if (rg && rg.value === 'carga') rg.value = 'tempo'; }
   });
+  /* notas dos exercícios: a caixa cresce com o texto */
+  function gAutoNota(t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
+  function gAutoNotas() { var l = document.querySelectorAll('#g-panel textarea.gnota'); for (var q = 0; q < l.length; q++) gAutoNota(l[q]); }
+  try { new MutationObserver(gAutoNotas).observe($('#g-panel'), { childList: true, subtree: true }); } catch (e) {}
+  window.addEventListener('resize', gAutoNotas);
   $('#g-panel').addEventListener('input', function (e) {
     var t = e.target;
     if (t.id === 'ga-mod' || t.id === 'ge-mod') { var bx = $('#' + t.id.slice(0, 2) + '-esp'); if (bx) bx.hidden = !gEhNat(t.value) && !bx.querySelector('[aria-pressed="true"]'); return; }
@@ -5926,6 +5931,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     }
     var f = t.getAttribute('data-f');
     if (!f) return;
+    if (t.classList.contains('gnota')) gAutoNota(t);
     var d = +t.getAttribute('data-d');
     if (f === 'nome') G.plan[d].nome = t.value;
     else G.plan[d].itens[+t.getAttribute('data-k')][f] = t.value;
