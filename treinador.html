@@ -457,6 +457,12 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .hf-wod{margin:8px 0;padding:8px 10px;border-radius:10px;background:var(--soft,#eef4ef)}
 .hf-d[open]{padding-bottom:12px}
 .hf-nav .chip{width:auto;flex:none}
+
+/* fiz / falhei por série de carga */
+.set.has-ok{grid-template-columns:2.2rem 1fr 1fr auto}
+.okb{border:1px solid var(--line,#dfe3e0);background:var(--bg,#fff);border-radius:12px;padding:9px 10px;font:inherit;font-size:.85rem;font-weight:600;color:var(--mut,#5b665f);white-space:nowrap;min-width:4.6rem}
+.okb[data-v="1"]{background:#e3f4e8;border-color:#2e9b57;color:#1a6d3a}
+.okb[data-v="0"]{background:#fdeaea;border-color:#c0392b;color:#a02a1e}
 </style>
 </head>
 <body>
@@ -1211,7 +1217,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
             for (var s = 0; s < e.series; s++) {
               var k = base + '_' + s;
               if (T === 'carga') {
-                body += '<div class="set"><span class="sn">' + (e.g ? 'Volta ' : 'S') + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + (e.pu ? '<span class="small">' + esc(e.pu) + ' (prescrito)</span>' : e.pr ? '<span class="small">' + e.pr + (uni ? ' reps/side' : ' reps') + ' (prescrito)</span>' : field(k + '_b', uni ? 'reps/side' : 'reps', 'numeric', '0')) + '</div>';
+                body += '<div class="set has-ok"><span class="sn">' + (e.g ? 'Volta ' : 'S') + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + (e.pu ? '<span class="small">' + esc(e.pu) + ' (prescrito)</span>' : e.pr ? '<span class="small">' + e.pr + (uni ? ' reps/side' : ' reps') + ' (prescrito)</span>' : field(k + '_b', uni ? 'reps/side' : 'reps', 'numeric', '0')) + (function () { var ok = reg[k + '_o'] || ''; return '<button type="button" class="okb" data-ok="' + k + '_o" data-v="' + ok + '" aria-label="Série ' + (s + 1) + ': fiz ou falhei">' + (ok === '1' ? '✓ Fiz' : ok === '0' ? '✗ Falhei' : 'Fiz?') + '</button>'; })() + '</div>';
               } else if (T === 'vbt') {
                 body += '<div class="set"><span class="sn">' + (e.g ? 'Volta ' : 'S') + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + field(k + '_b', 'm/s', 'decimal', '0,00') + '</div>';
               } else if (T === 'reps') {
@@ -2104,7 +2110,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     if (lb) lb.textContent = (mods.length > 1 ? '3. ' : '') + 'PIN (4 a 6 dígitos)';
   }
   function liveLoadList() {
-    rpc('listar_atletas', {}).then(function (r) { LISTA = r || []; listErr = LISTA.length ? '' : 'Ainda não há atletas registados.'; renderEntrada(); })
+    rpc('listar_atletas', {}).then(function (r) { LISTA = r || []; listErr = LISTA.length ? '' : 'Ainda não há atletas registados.'; renderEntrada(); hfSync(); })
       .catch(function (e) { listErr = netErr(e); renderEntrada(); });
   }
   function loadWeek(id, pin) {
@@ -2394,6 +2400,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       else a = x.bj_cm;
       if (a != null) reg[base + '_' + s + '_a'] = pt(a);
       if (b != null) reg[base + '_' + s + '_b'] = pt(b);
+      if (T === 'carga' && x.feito != null) reg[base + '_' + s + '_o'] = x.feito ? '1' : '0';
       savedRows[x.item_id + '_' + s] = true;
     });
     (r.resultados || []).forEach(function (x) { WODR[x.treino_id + '|' + x.bloco] = x; });
@@ -2418,6 +2425,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     $('#entrada').hidden = true;
     $('#atleta-app').hidden = false;
     renderHooper(); applyGate(); renderDays(); renderWork(); renderPse();
+    hfSync();
   }
   function startSession(id, nome, pin) {
     return loadWeek(id, pin).then(function (r) {
@@ -2850,7 +2858,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     $('#mac-btn').hidden = true; if ($('#sem-btn')) $('#sem-btn').hidden = true; if ($('#sem-panel')) $('#sem-panel').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true; $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#evo-panel').hidden = true; MACD = null; EVD = null; AUL = null; PTOK = false; WELLHI = null; liveWellAlert();
     livePinPanel(false, false);
     lsSet('alvo.sessao', null);
-    sess = null; escolhido = null;
+    sess = null; escolhido = null; hfSync();
     $('#status').textContent = '';
     $('#atleta-app').hidden = true;
     $('#entrada').hidden = false;
@@ -2882,14 +2890,14 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         for (var s = 0; s < e.series; s++) {
           var a = toNum(reg[base + '_' + s + '_a']), b = toNum(reg[base + '_' + s + '_b']);
           var row = { item_id: e.id, serie: s + 1 };
-          if (T === 'carga') { row.carga_kg = a; row.reps = e.pu ? '' : e.pr ? (a === '' ? '' : e.pr) : (b === '' ? '' : Math.round(b)); }
+          if (T === 'carga') { row.carga_kg = a; row.reps = e.pu ? '' : e.pr ? (a === '' ? '' : e.pr) : (b === '' ? '' : Math.round(b)); var ok = reg[base + '_' + s + '_o']; if (ok === '1' || ok === '0') row.feito = ok === '1'; }
           else if (T === 'vbt') { row.carga_kg = a; row.vbt_ms = b; }
           else if (T === 'reps') row.reps = a === '' ? '' : Math.round(a);
           else if (T === 'tempo') row.tempo_s = a === '' ? '' : Math.round(a);
           else if (T === 'cmj') row.cmj_cm = a;
           else row.bj_cm = a;
           if (T === 'carga' || T === 'vbt') row.pse_ex = pe;
-          if (a !== '' || b !== '' || savedRows[e.id + '_' + s]) series.push(row);
+          if (a !== '' || b !== '' || row.feito !== undefined || savedRows[e.id + '_' + s]) series.push(row);
         }
       });
       var nk = day + '_' + bi, m = reg['m_' + nk] || '', n = (reg['n_' + nk] || '').trim();
@@ -3016,6 +3024,12 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   }
   $('#work').addEventListener('input', function (e) { if (LIVE && !(e.target.closest && e.target.closest('[data-wf]'))) schedSave(); });
   $('#work').addEventListener('click', function (e) { if (LIVE && e.target.closest('[data-m]')) schedSave(); });
+  $('#work').addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-ok]'); if (!b || b.disabled) return;
+    var k = b.getAttribute('data-ok'), v = reg[k] === '1' ? '0' : reg[k] === '0' ? '' : '1';
+    reg[k] = v; b.setAttribute('data-v', v); b.textContent = v === '1' ? '✓ Fiz' : v === '0' ? '✗ Falhei' : 'Fiz?';
+    if (LIVE) schedSave();
+  });
   window.addEventListener('pagehide', function () { if (LIVE && sess && liveCanEdit()) doSave(); });
 
 
@@ -3643,7 +3657,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   });
   function histNum(x) { return x == null ? '' : String(x).replace('.', ','); }
   function histSerie(r, reg) {
-    if (reg === 'carga') return (r.carga_kg != null ? histNum(r.carga_kg) + ' kg' : '') + (r.reps != null ? ' × ' + r.reps : '');
+    if (reg === 'carga') return (r.carga_kg != null ? histNum(r.carga_kg) + ' kg' : '') + (r.reps != null ? ' × ' + r.reps : '') + (r.feito === false ? ' ✗ falhou' : r.feito === true ? ' ✓' : '');
     if (reg === 'tempo') return r.tempo_s != null ? r.tempo_s + ' s' : '';
     if (reg === 'vbt') return (r.carga_kg != null ? histNum(r.carga_kg) + ' kg' : '') + (r.vbt_ms != null ? ' · ' + histNum(r.vbt_ms) + ' m/s' : '');
     if (reg === 'cmj') return r.cmj_cm != null ? histNum(r.cmj_cm) + ' cm' : '';
@@ -4217,9 +4231,15 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     });
   })();
   /* ---------- aba "Treinos feitos" (Treinador e Online training): semanas anteriores, só para ver ---------- */
-  var HFW = '', HFN = 0;
+  var HFW = '', HFN = 0, hfSync = function () {};
+  function hfAllowed() {
+    if (!sess) return false;
+    if (ONL || PTOK) return true;
+    var a = (LISTA || []).filter(function (x) { return x.id === sess.id; })[0];
+    return !!a && (a.modalidade === 'Treinador' || a.grupo === 'pt');
+  }
   function hfSerie(x, T) {
-    if (T === 'carga') return (x.carga_kg != null ? pt(x.carga_kg) + ' kg' : '') + (x.reps != null ? ' × ' + x.reps : '');
+    if (T === 'carga') return (x.carga_kg != null ? pt(x.carga_kg) + ' kg' : '') + (x.reps != null ? ' × ' + x.reps : '') + (x.feito === false ? ' ✗ falhou' : x.feito === true ? ' ✓' : '');
     if (T === 'vbt') return (x.carga_kg != null ? pt(x.carga_kg) + ' kg' : '') + (x.vbt_ms != null ? ' · ' + pt(x.vbt_ms) + ' m/s' : '');
     if (T === 'tempo') return x.tempo_s != null ? x.tempo_s + ' s' : '';
     if (T === 'reps') return x.reps != null ? x.reps + ' reps' : '';
@@ -4275,13 +4295,15 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   }
   (function hfInit() {
     var sb = $('#sem-btn'), sp = $('#sem-panel'); if (!sb || !sp) return;
-    var bt = document.createElement('button'); bt.type = 'button'; bt.className = 'chip'; bt.id = 'hf-btn'; bt.hidden = sb.hidden; bt.textContent = 'Histórico de treinos';
+    var bt = document.createElement('button'); bt.type = 'button'; bt.className = 'chip'; bt.id = 'hf-btn'; bt.hidden = true; bt.textContent = 'Histórico de treinos';
     sb.parentNode.insertBefore(bt, sb.nextSibling);
     var pn = document.createElement('div'); pn.className = 'panel'; pn.id = 'hf-panel'; pn.hidden = true;
     pn.innerHTML = '<header><h2>Histórico de treinos</h2><span class="kicker">Semanas anteriores</span></header><div id="hf-body"></div>';
     sp.parentNode.insertBefore(pn, sp.nextSibling);
     PNIDS.push('hf-panel');
-    new MutationObserver(function () { bt.hidden = sb.hidden; if (sb.hidden) pn.hidden = true; }).observe(sb, { attributes: true, attributeFilter: ['hidden'] });
+    hfSync = function () { var ok = !!sess && hfAllowed(); bt.hidden = !ok; if (!ok) pn.hidden = true; };
+    new MutationObserver(function () { hfSync(); }).observe(sb, { attributes: true, attributeFilter: ['hidden'] });
+    hfSync();
     bt.addEventListener('click', function () {
       if (!sess) return;
       if (!pn.hidden) { pn.hidden = true; setTimeout(pnSync, 60); return; }
