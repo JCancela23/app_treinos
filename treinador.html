@@ -431,6 +431,19 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .nnew{font-size:10px;font-weight:800;background:var(--crit);color:#fff;border-radius:4px;padding:1px 5px;margin-left:6px}
 .pse-alvo{background:var(--accent-soft);border-radius:10px;padding:7px 11px;font-size:14px}.pse-alvo span{color:var(--muted);font-weight:400}
 .pv-box{background:var(--warn-soft);border-radius:10px;padding:7px 11px;font-size:14px}.pv-box span{color:var(--muted)}
+
+/* registos mostrados no plano (Eu / Online training) */
+.hreg{font-size:.92em;color:var(--accent,#1a7f45);margin:-2px 0 8px 14px}
+.hwod{margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--soft,#eef4ef)}
+.gday{border:1px solid var(--line,#dfe3e0);border-radius:12px;margin:8px 0;background:var(--bg2,#f2f4f2)}
+.gday>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px}
+.gday>summary::-webkit-details-marker{display:none}
+.gday>summary::after{content:'›';margin-left:6px;font-size:1.3em;transition:transform .15s}
+.gday[open]>summary::after{transform:rotate(90deg)}
+.gday .gd-s{margin-left:auto;text-align:right}
+.gday .gd-b{padding:0 14px 12px}
+.gday>.gd-b{margin-top:0}
+.gday>summary{font-weight:400}
 </style>
 </head>
 <body>
@@ -848,7 +861,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         <h2>Importar plano do Excel</h2>
         <span class="kicker">Colar linhas</span>
       </header>
-      <p class="small">Copia as linhas do Excel e cola aqui. Colunas: Dia (Seg a Dom), Bloco (Warm-up, Preparation, Main, Accessory), Exercício, Séries, Repetições, Registar carga (sim ou não), Vídeo (link), Padrão, Lateralidade, Tipo de registo (opcional: carga, vbt, tempo, cmj ou bj) e Nome do treino (opcional). Padrão: squat, hip hinge, push, pull, plyo, olympic weightlifting, core extension, core flexion, core lateral flexion ou core rotation. Lateralidade: bilateral ou unilateral. Para um dia sem exercícios, escreve só o dia e Descanso (ou Água), por exemplo: Qui e Descanso.</p>
+      <p class="small">Copia as linhas do Excel e cola aqui. Colunas: Dia (Seg a Dom), Bloco (Warm-up, Preparation, Main, Accessory), Exercício, Séries, Repetições, Registar carga (sim ou não), Vídeo (link), Padrão, Lateralidade, Tipo de registo (opcional: carga, vbt, tempo, cmj ou bj) e Nome do treino (opcional) e Região (opcional: inferior ou superior). Padrão: squat, hip hinge, push, pull, plyo, throws, olympic weightlifting, core extension, core flexion, core lateral flexion ou core rotation. Lateralidade: bilateral ou unilateral. Para um dia sem exercícios, escreve só o dia e Descanso (ou Água), por exemplo: Qui e Descanso.</p>
       <label for="paste" class="small" style="font-weight:600">Linhas do plano</label>
       <textarea id="paste" spellcheck="false"></textarea>
       <button class="primary" id="preview">Pré-visualizar plano</button>
@@ -3505,7 +3518,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   $('#f-atleta').addEventListener('change', function () { if (OBS) opRender(); });
   /* ---------- separadores do treinador + quem preencheu esta semana ---------- */
   var DSUB = lsGet('alvo.dsub') || 'resumo';
-  var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-comp', 'Comparar'], ['p-notas', 'Notas'], ['p-hooper', 'Hooper'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-acwr', 'ACWR'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-rep', 'Relatório']];
+  var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-comp', 'Comparar'], ['p-notas', 'Notas'], ['p-hooper', 'Hooper'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-acwr', 'ACWR'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-hist', 'Semanas'], ['p-rep', 'Relatório']];
   var TAB = lsGet('alvo.tab') || 'semana';
   if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados' && TAB !== 'online' && TAB !== 'eu') TAB = 'semana';
   var ONSUB = lsGet('alvo.osub') || 'alunos';
@@ -3595,6 +3608,62 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     });
     out.innerHTML = h + '<p class="small">Os resultados com o mesmo nome de WOD e formato são comparados. A evolução compara o primeiro com o último resultado de cada atleta (tempo menor, mais rondas/reps, EMOM completo = melhor).</p>';
   }
+
+  /* ---------- painel: semanas já feitas (só Eu) ---------- */
+  var HIST_N = 0, HW = { mon: '' };
+  (function () {
+    var v = $('#view-treinador'), ref = $('#g-panel');
+    if (!v || !ref) return;
+    var pn = document.createElement('div'); pn.className = 'panel'; pn.id = 'p-hist'; pn.hidden = true;
+    pn.innerHTML = '<header><div><p class="kicker">O que fizeste</p><h2>Semanas</h2></div></header><div id="hist-out"></div>';
+    v.insertBefore(pn, ref);
+    pn.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-hw]'); if (!b) return;
+      var k = b.getAttribute('data-hw'), cur = HW.mon || gMon(localISO());
+      HW.mon = k === 'prev' ? isoAdd(cur, -7) : k === 'next' ? isoAdd(cur, 7) : gMon(localISO());
+      renderHist();
+    });
+  })();
+  function histNum(x) { return x == null ? '' : String(x).replace('.', ','); }
+  function histSerie(r, reg) {
+    if (reg === 'carga') return (r.carga_kg != null ? histNum(r.carga_kg) + ' kg' : '') + (r.reps != null ? ' × ' + r.reps : '');
+    if (reg === 'tempo') return r.tempo_s != null ? r.tempo_s + ' s' : '';
+    if (reg === 'vbt') return (r.carga_kg != null ? histNum(r.carga_kg) + ' kg' : '') + (r.vbt_ms != null ? ' · ' + histNum(r.vbt_ms) + ' m/s' : '');
+    if (reg === 'cmj') return r.cmj_cm != null ? histNum(r.cmj_cm) + ' cm' : '';
+    if (reg === 'bj') return r.bj_cm != null ? histNum(r.bj_cm) + ' cm' : '';
+    if (reg === 'reps') return r.reps != null ? r.reps + ' reps' : '';
+    return r.feito ? 'feito' : '';
+  }
+  function renderHist() {
+    var out = $('#hist-out'); if (!out) return;
+    var a = ATLETAS[sel]; if (!a) { out.innerHTML = '<p class="note">Sem atleta.</p>'; return; }
+    var mon = HW.mon || (HW.mon = gMon(localISO())), end = isoAdd(mon, 6), n = ++HIST_N, id = encodeURIComponent(a.id);
+    var nav = '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><button class="chip" style="width:auto" data-hw="prev" aria-label="Semana anterior">‹</button><b>Semana de ' + gFmt(mon) + ' a ' + gFmt(end) + '</b><button class="chip" style="width:auto" data-hw="next" aria-label="Semana seguinte">›</button><button class="chip" style="width:auto" data-hw="hoje">Esta semana</button></div>';
+    out.innerHTML = nav + '<p class="note">A carregar…</p>';
+    Promise.all([
+      tGet('treinos', 'atleta_id=eq.' + id + '&data=gte.' + mon + '&data=lte.' + end + '&select=id,atleta_id,data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(id,bloco,ordem,series,reps,circuito,grupo,exercicios(nome,registo))&order=data&treino_itens.alt_de=is.null&treino_itens.order=ordem'),
+      tGet('registos_serie', 'atleta_id=eq.' + id + '&data=gte.' + isoAdd(mon, -7) + '&data=lte.' + isoAdd(end, 7) + '&select=data,item_id,serie,carga_kg,reps,tempo_s,vbt_ms,cmj_cm,bj_cm,feito&order=serie'),
+      tGet('sessoes', 'atleta_id=eq.' + id + '&data=gte.' + isoAdd(mon, -7) + '&select=treino_id,data,pse,minutos'),
+      tGet('resultados_bloco', 'atleta_id=eq.' + id + '&select=treino_id,data,bloco,tempo_s,rondas,reps,completo,nota').catch(function () { return []; }),
+      tGet('faltas', 'atleta_id=eq.' + id + '&select=treino_id,motivo,nota').catch(function () { return []; })
+    ]).then(function (r) {
+      if (n !== HIST_N) return;
+      var B = histBundle(r[1], r[3], r[2]), fal = {}, feitoEm = {};
+      r[4].forEach(function (x) { if (x.treino_id) fal[x.treino_id] = x; });
+      var h = nav;
+      for (var i = 0; i < 7; i++) {
+        var iso = isoAdd(mon, i), t = r[0].filter(function (x) { return x.data === iso; })[0];
+        if (!t) continue;
+        var feito = (t.treino_itens || []).some(function (it) { return B.reg[it.id] && B.reg[it.id].length; }) || !!B.ses[t.id] || Object.keys(B.res).some(function (k) { return k.indexOf(t.id + '|') === 0; });
+        var f = fal[t.id], sx = B.ses[t.id];
+        var st = t.tipo === 'rest' ? 'Descanso' : t.tipo === 'agua' ? 'Água' : f ? 'Não treinaste (' + (f.motivo === 'lesao' ? 'lesão' : f.motivo || '') + ')' : feito ? 'Feito' + (sx ? ' · PSE ' + histNum(sx.pse) : '') : 'Sem registo';
+        if (t.tipo === 'rest') continue;
+        h += gDayCard('<b>' + DIASL[i] + ' · ' + gFmt(iso) + '</b> · ' + esc(t.nome || 'Treino'), st, !!f, t.tipo === 'gym' ? pvDayHtml(t, B) : '<p class="small">' + esc(st) + '</p>');
+      }
+      if (h === nav) h += '<p class="note">Sem treinos nesta semana.</p>';
+      out.innerHTML = h;
+    }).catch(function (e) { if (n === HIST_N) out.innerHTML = nav + '<p class="err">' + esc(netErr(e)) + '</p>'; });
+  }
   function applyTab() {
     var nav = $('#t-nav'); if (nav) nav.hidden = false;
     var on = TAB === 'online';
@@ -3603,7 +3672,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     if (!ONSECS.some(function (s) { return s[0] === ONSUB; })) ONSUB = 'alunos';
     var showDados = TAB === 'dados' || TAB === 'eu' || (on && ONSUB === 'dados');
     var gKey = on ? ONG[ONSUB] : null;
-    var secs = DSECS.filter(function (s) { return (s[0] !== 'p-wod' || WODD.res.length > 0) && !(on && s[0] === 'p-rep'); });
+    var secs = DSECS.filter(function (s) { return (s[0] !== 'p-wod' || WODD.res.length > 0) && (s[0] !== 'p-hist' || TAB === 'eu') && !(on && s[0] === 'p-rep'); });
     if (!secs.some(function (s) { return s[0] === DSUB; })) DSUB = 'resumo';
     document.querySelectorAll('#view-treinador > .panel').forEach(function (p) {
       if (p.id === 't-login' || p.id === 't-reset' || p.id === 't-nav' || p.id === 'p-obs-plano' || p.id === 'd-nav' || p.id === 'o-nav') return;
@@ -3616,7 +3685,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       if (p.id === 'filtros' && on && ONSUB === 'rep') { p.hidden = false; p.style.order = '-2'; return; }
       if (showDados) {
         var key = p.querySelector('#t-date') ? 'resumo' : p.id;
-        p.hidden = !(key === DSUB || p.id === 'filtros');
+        p.hidden = !(key === DSUB || (p.id === 'filtros' && DSUB !== 'p-hist'));
         p.style.order = p.id === 'filtros' ? '-2' : '';
         return;
       }
@@ -3643,6 +3712,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       else if (TAB === 'gestao') { if (G.tab === 'pagamentos') G.tab = 'plano'; if (typeof gRender === 'function') gRender(); }
     }
     if (TAB === 'semana' || (on && ONSUB === 'semana')) renderSemana();
+    if (showDados && DSUB === 'p-hist') renderHist();
   }
   function renderSemana() {
     var out = $('#sem-out'); if (!out) return;
@@ -4253,6 +4323,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     if (/^push/.test(s)) return { padrao: 'push' };
     if (/^pull/.test(s)) return { padrao: 'pull' };
     if (/^plyo/.test(s)) return { padrao: 'plyo' };
+    if (/^throw|lan[cç]amento/.test(s)) return { padrao: 'throws' };
     if (/olymp|weightlift|halter/.test(s)) return { padrao: 'olympic' };
     if (/hand\s*stand|pino/.test(s)) return { padrao: 'handstand' };
     if (/^core/.test(s)) {
@@ -4277,7 +4348,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       var pd = normPad(c[7]), la = normLat(c[8]);
       rows.push({
         d: d, dia: c[0], bloco: BLOCOS_MAP[c[1].toLowerCase()], blocoTxt: c[1], ex: c[2], series: parseInt(c[3], 10) || 3, reps: c[4],
-        pede: /^(s|y)/i.test(c[5] || ''), video: c[6] || '', pad: pd, lat: la, regTipo: (c[9] || '').toLowerCase(), nome: c[10] || ''
+        pede: /^(s|y)/i.test(c[5] || ''), video: c[6] || '', pad: pd, lat: la, regTipo: (c[9] || '').toLowerCase(), nome: c[10] || '',
+        regiao: /^inf/i.test(c[11] || '') ? 'inferior' : /^sup/i.test(c[11] || '') ? 'superior' : ''
       });
     });
     imp = { rows: rows, days: days };
@@ -4316,7 +4388,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       if (x.pede && !rt) rt = 'carga';
       linhas.push({
         data: isoAdd(mon, x.d), treino_nome: nomes[x.d] || 'Treino', tipo: 'gym', bloco: x.bloco, exercicio: x.ex, series: x.series, reps: x.reps, pede_registo: x.pede,
-        video_url: x.video, padrao: x.pad ? x.pad.padrao : '', core_tipo: x.pad && x.pad.core_tipo ? x.pad.core_tipo : '', lateralidade: x.lat || '', registo: rt
+        video_url: x.video, padrao: x.pad ? x.pad.padrao : '', core_tipo: x.pad && x.pad.core_tipo ? x.pad.core_tipo : '', lateralidade: x.lat || '', registo: rt, regiao: x.regiao || ''
       });
     });
     $('#imp-go').disabled = true;
@@ -4363,7 +4435,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
   /* ====================== GESTÃO (treinador): atletas, exercícios, planear semana ====================== */
   var G = { atl: [], ex: [], tab: 'plano', sel: {}, semana: '', plan: null, edit: null, exEdit: null, exQ: '', srcAtl: '', srcSem: '' };
   var GBL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
-  var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['olympic', 'Olympic weightlifting'], ['handstand', 'Handstand'], ['core:ext', 'Core extensão'], ['core:flex', 'Core flexão'], ['core:lat', 'Core flexão lateral'], ['core:rot', 'Core rotação'], ['core:aext', 'Core anti-extensão'], ['core:aflex', 'Core anti-flexão'], ['core:alat', 'Core anti-flexão lateral'], ['core:arot', 'Core anti-rotação']];
+  var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['throws', 'Throws (lançamentos)'], ['olympic', 'Olympic weightlifting'], ['handstand', 'Handstand'], ['core:ext', 'Core extensão'], ['core:flex', 'Core flexão'], ['core:lat', 'Core flexão lateral'], ['core:rot', 'Core rotação'], ['core:aext', 'Core anti-extensão'], ['core:aflex', 'Core anti-flexão'], ['core:alat', 'Core anti-flexão lateral'], ['core:arot', 'Core anti-rotação']];
   var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'Carga + VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Broad jump (cm)'], ['feito', 'Só "feito"']];
   var DIASL = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
@@ -4433,7 +4505,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       }).catch(function () {
         return tGet('atletas', 'select=id,nome,modalidade,distancias,estilos,grupo,ativo,semanas_a_frente&order=nome,id');
       }),
-      tGet('exercicios', 'select=id,nome,video_url,padrao,lateralidade,core_tipo,registo,nota&order=nome,id')
+      tGet('exercicios', 'select=id,nome,video_url,padrao,lateralidade,core_tipo,registo,nota,regiao&order=nome,id')
     ]).then(function (r) {
       G.all = r[0] || []; G.ex = r[1] || [];
       G.hasFim = !G.all.length || G.all[0].hasOwnProperty('acesso_fim');
@@ -5016,11 +5088,11 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var mon = PV.mon, end = isoAdd(mon, 6);
     PV.d = null; gRenderPlanos();
     return Promise.all([
-      tGet('treinos', 'data=gte.' + mon + '&data=lte.' + end + '&select=id,atleta_id,data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(id,bloco,ordem,series,reps,circuito,grupo,exercicios(nome))&order=data&treino_itens.alt_de=is.null&treino_itens.order=ordem'),
-      tGet('sessoes', 'data=gte.' + isoAdd(mon, -7) + '&select=atleta_id,treino_id,data,pse').catch(function () { return []; }),
+      tGet('treinos', 'data=gte.' + mon + '&data=lte.' + end + '&select=id,atleta_id,data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(id,bloco,ordem,series,reps,circuito,grupo,exercicios(nome,registo))&order=data&treino_itens.alt_de=is.null&treino_itens.order=ordem'),
+      tGet('sessoes', 'data=gte.' + isoAdd(mon, -7) + '&select=atleta_id,treino_id,data,pse,minutos').catch(function () { return []; }),
       tGet('faltas', 'select=treino_id,motivo').catch(function () { return []; }),
-      tGet('registos_serie', 'data=gte.' + isoAdd(mon, -7) + '&select=data,item:treino_itens(treino_id)').catch(function () { return []; }),
-      tGet('resultados_bloco', 'select=treino_id,data').catch(function () { return []; })
+      tGet('registos_serie', 'data=gte.' + isoAdd(mon, -7) + '&select=data,item_id,serie,carga_kg,reps,tempo_s,vbt_ms,cmj_cm,bj_cm,feito,item:treino_itens(treino_id)').catch(function () { return []; }),
+      tGet('resultados_bloco', 'select=treino_id,data,bloco,tempo_s,rondas,reps,completo,nota').catch(function () { return []; })
     ]).then(function (r) {
       var feito = {}, falta = {};
       (r[1] || []).forEach(function (x) { if (x.treino_id) feito[x.treino_id] = x.data; });
@@ -5028,6 +5100,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       (r[4] || []).forEach(function (x) { if (x.treino_id && !feito[x.treino_id]) feito[x.treino_id] = x.data; });
       (r[2] || []).forEach(function (x) { if (x.treino_id) falta[x.treino_id] = x.motivo; });
       PV.d = { t: r[0] || [], feito: feito, falta: falta }; PV.err = '';
+      if (G.scope === 'pt') PV.d.B = histBundle(r[3], r[4], r[1]);
       gRenderPlanos();
     }).catch(function (e) { PV.d = { t: [], feito: {}, falta: {} }; PV.err = gFail(e); gRenderPlanos(); });
   }
@@ -5037,21 +5110,40 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     if (PV.d.feito[t.id]) return { k: 'feito', txt: 'Feito a ' + gFmtD(PV.d.feito[t.id]), edit: false, sym: '✓' };
     return { k: 'pend', txt: 'Por fazer', edit: true, sym: '○' };
   }
-  function pvDayHtml(t) {
+  /* registos de um treino já feito (usado em "Ver planos" do Online training e na secção Semanas do Eu) */
+  function histBundle(regs, res, ses) {
+    var B = { reg: {}, res: {}, ses: {} };
+    (regs || []).forEach(function (x) { (B.reg[x.item_id] = B.reg[x.item_id] || []).push(x); });
+    (res || []).forEach(function (x) { B.res[x.treino_id + '|' + x.bloco] = x; });
+    (ses || []).forEach(function (x) { if (x.treino_id) B.ses[x.treino_id] = x; });
+    return B;
+  }
+  /* dia fechado (dia · treino · estado); só abre o treino ao carregar */
+  function gDayCard(left, status, red, body) {
+    return '<details class="gday"><summary><span class="gd-l">' + left + '</span><span class="gd-s small"' + (red ? ' style="color:#b3261e"' : '') + '>' + esc(status) + '</span></summary><div class="gd-b">' + body + '</div></details>';
+  }
+  function pvDayHtml(t, B) {
     var h = '';
     GBL.forEach(function (b) {
       var its = (t.treino_itens || []).filter(function (it) { return it.bloco === b[0]; }).sort(function (x, y) { return x.ordem - y.ordem; });
       if (!its.length) return;
       var cfg = {}; (t.treino_blocos || []).forEach(function (c) { cfg[c.bloco] = c; });
-      var line = function (it) { var ex = Array.isArray(it.exercicios) ? it.exercicios[0] : it.exercicios; return '<div class="small">• ' + esc(ex ? ex.nome : '?') + ' · ' + it.series + (it.reps ? ' × ' + esc(it.reps) : (it.grupo != null ? ' voltas' : ' séries')) + '</div>'; };
+      var line = function (it) {
+        var ex = Array.isArray(it.exercicios) ? it.exercicios[0] : it.exercicios, rg = '';
+        if (B && B.reg[it.id]) { var tx = B.reg[it.id].slice().sort(function (p, q) { return p.serie - q.serie; }).map(function (x) { return histSerie(x, ex ? ex.registo : 'feito'); }).filter(Boolean).join(' · '); if (tx) rg = '<div class="hreg">✓ ' + esc(tx) + '</div>'; }
+        return '<div class="small">• ' + esc(ex ? ex.nome : '?') + ' · ' + it.series + (it.reps ? ' × ' + esc(it.reps) : (it.grupo != null ? ' voltas' : ' séries')) + '</div>' + rg;
+      };
+      var resB = function (code) { var x = B && B.res[t.id + '|' + code]; return x ? '<div class="hwod">Resultado: <b>' + esc(wodFmtRes({ formato: (cfg[code] || {}).formato, completo: x.completo, tempo_s: x.tempo_s, rondas: x.rondas, reps: x.reps })) + '</b>' + (x.nota ? ' <small>· ' + esc(x.nota) + '</small>' : '') + '</div>' : ''; };
       h += '<p class="small" style="margin-top:6px"><b>' + esc(b[1]) + '</b></p>';
       if (cfg[b[0]]) h += '<div class="wodhead"><b>' + esc(wodTitle(cfg[b[0]])) + '</b>' + (cfg[b[0]].nome ? '<span class="wodname">' + esc(cfg[b[0]].nome) + '</span>' : '') + '</div>';
       var cs = []; its.forEach(function (it) { var c = it.circuito || 0; if (cs.indexOf(c) < 0) cs.push(c); });
       cs.sort(function (p, q) { return p - q; }).forEach(function (c) {
         if (c) { var cf = cfg[b[0] + '#' + c]; h += '<div class="wodhead"><b>Circuito ' + c + (cf ? ' · ' + esc(wodTitle(cf)) : '') + '</b>' + (cf && cf.nome ? '<span class="wodname">' + esc(cf.nome) + '</span>' : '') + (cf && cf.descricao ? '<p class="small">' + esc(cf.descricao) + '</p>' : '') + '</div>'; }
-        h += its.filter(function (it) { return (it.circuito || 0) === c; }).map(line).join('');
+        h += its.filter(function (it) { return (it.circuito || 0) === c; }).map(line).join('') + resB(b[0] + (c ? '#' + c : ''));
       });
     });
+    var sx = B && B.ses[t.id];
+    if (sx) h += '<p class="small" style="margin-top:8px"><b>Sessão:</b> PSE ' + esc(String(sx.pse).replace('.', ',')) + (sx.minutos ? ' · ' + sx.minutos + ' min' : '') + '</p>';
     return h || '<p class="small">Sem exercícios.</p>';
   }
   function gRenderPlanos() {
@@ -5085,11 +5177,17 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       h += '<div class="chips"><button class="primary" data-act="pv-edit" data-id="' + PV.aid + '" style="padding:8px 16px">Editar a semana</button></div>';
       for (var i = 0; i < 7; i++) {
         var iso = isoAdd(mon, i), t2 = PV.d.t.filter(function (x) { return x.atleta_id === PV.aid && x.data === iso; })[0];
+        if (PV.d.B && t2 && t2.tipo === 'gym') {
+          var stc = pvStatus(t2);
+          h += gDayCard('<b>' + DIASL[i] + ' · ' + gFmt(iso) + '</b> · ' + esc(t2.nome || 'Treino'), stc.txt, stc.k === 'falta',
+            pvDayHtml(t2, PV.d.B) + (stc.edit ? '<div class="chips" style="margin-top:6px"><button class="chip" data-act="pv-edit" data-id="' + PV.aid + '" data-d="' + iso + '">Editar este dia</button></div>' : '<p class="small">Já tem registos: não pode ser alterado.</p>'));
+          continue;
+        }
         h += '<div class="gbox"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>' + DIASL[i] + ' · ' + gFmt(iso) + (t2 && t2.tipo === 'gym' ? ' · ' + esc(t2.nome || 'Treino') : '') + '</b>';
         if (!t2) h += '</div><p class="small">Sem treino planeado.</p></div>';
         else {
           var st = pvStatus(t2);
-          h += '<span class="small"' + (st.k === 'falta' ? ' style="color:#b3261e"' : '') + '>' + esc(st.txt) + '</span></div>' + (t2.tipo === 'gym' ? pvDayHtml(t2) : '') +
+          h += '<span class="small"' + (st.k === 'falta' ? ' style="color:#b3261e"' : '') + '>' + esc(st.txt) + '</span></div>' + (t2.tipo === 'gym' ? pvDayHtml(t2, PV.d.B) : '') +
             (st.edit ? '<div class="chips" style="margin-top:6px"><button class="chip" data-act="pv-edit" data-id="' + PV.aid + '" data-d="' + iso + '">Editar este dia</button></div>' : (t2.tipo === 'gym' ? '<p class="small">Já tem registos: não pode ser alterado.</p>' : '')) + '</div>';
         }
       }
@@ -5502,6 +5600,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       '<div class="field"><label for="gx-nome">Nome (em inglês)</label><input class="dt" id="gx-nome" autocomplete="off" value="' + esc(e.nome || '') + '"></div>' +
       '<div class="inline"><div class="field"><label for="gx-pad">Padrão</label><select class="sel" id="gx-pad">' + gOpt(GPAD, gPadVal(e)) + '</select></div>' +
       '<div class="field"><label for="gx-lat">Lateralidade</label><select class="sel" id="gx-lat">' + gOpt([['bi', 'Bilateral'], ['uni', 'Unilateral']], e.lateralidade || 'bi') + '</select></div></div>' +
+      '<div class="field"><label for="gx-rg">Região (só movimentos simples; deixa vazio em core, olympic, lançamentos, etc.)</label><select class="sel" id="gx-rg">' + gOpt([['', 'Sem região'], ['inferior', 'Inferior (pernas)'], ['superior', 'Superior (braços e tronco)']], e.regiao || '') + '</select></div>' +
       '<div class="field"><label for="gx-reg">O que o atleta regista</label><select class="sel" id="gx-reg">' + gOpt(GREG, e.registo || 'carga') + '</select></div>' +
       '<div class="field"><label for="gx-video">Link do vídeo</label><input class="dt" id="gx-video" inputmode="url" autocomplete="off" placeholder="https://…" value="' + esc(e.video_url || '') + '"></div>' +
       '<div class="field"><label for="gx-nota">Nota para o atleta (opcional)</label><input class="dt" id="gx-nota" autocomplete="off" value="' + esc(e.nota || '') + '"></div>' +
@@ -5517,7 +5616,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var PD = {}; GPAD.forEach(function (p) { PD[p[0]] = p[1]; });
     var RG = {}; GREG.forEach(function (p) { RG[p[0]] = p[1]; });
     $('#gx-list').innerHTML = L.length ? L.map(function (x) {
-      var tags = [PD[gPadVal(x)] || '', x.lateralidade === 'uni' ? 'Unilateral' : 'Bilateral', RG[x.registo] || '', x.video_url ? 'Com vídeo' : 'Sem vídeo'].filter(Boolean).join(' · ');
+      var tags = [PD[gPadVal(x)] || '', x.lateralidade === 'uni' ? 'Unilateral' : 'Bilateral', x.regiao === 'inferior' ? 'Inferior' : x.regiao === 'superior' ? 'Superior' : '', RG[x.registo] || '', x.video_url ? 'Com vídeo' : 'Sem vídeo'].filter(Boolean).join(' · ');
       return '<div class="grow"><div class="who"><b>' + esc(x.nome) + '</b><small>' + esc(tags) + '</small></div><button class="chip" data-act="ex-edit" data-id="' + x.id + '">Editar</button></div>';
     }).join('') : '<p class="note">Nenhum exercício encontrado.</p>';
   }
@@ -5525,7 +5624,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     var nome = $('#gx-nome').value.trim(), pad = $('#gx-pad').value, lat = $('#gx-lat').value, reg = $('#gx-reg').value, vid = $('#gx-video').value.trim(), nota = $('#gx-nota').value.trim();
     if (!nome) { gMsg('g-msg-ex', 'Escreve o nome do exercício.', true); return; }
     if (vid && !/^https?:\/\//i.test(vid)) { gMsg('g-msg-ex', 'O link do vídeo tem de começar por http:// ou https://.', true); return; }
-    var body = { nome: nome, lateralidade: lat, registo: reg, video_url: vid || null, nota: nota || null, padrao: null, core_tipo: null };
+    var body = { nome: nome, lateralidade: lat, registo: reg, video_url: vid || null, nota: nota || null, padrao: null, core_tipo: null, regiao: ($('#gx-rg').value || null) };
     if (pad) { if (pad.indexOf('core:') === 0) { body.padrao = 'core'; body.core_tipo = pad.slice(5); } else body.padrao = pad; }
     gMsg('g-msg-ex', 'A guardar…');
     var req = G.exEdit ? tReq('/rest/v1/exercicios?id=eq.' + encodeURIComponent(G.exEdit), { method: 'PATCH', body: body })
