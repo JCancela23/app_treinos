@@ -494,6 +494,12 @@ button.hm-r{cursor:pointer}
 .hm-det{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
 #after:not(.home-on) #days,#after:not(.home-on) #sess-help{display:none}
 #home-back{width:auto;display:inline-block}
+
+#sem-btn{display:none !important}
+html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o Macro até haver 'Registar treino fora do plano' */
+.hm-fase{background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:10px;padding:8px 10px;margin-bottom:10px;display:grid;gap:2px}
+.hm-fase .kicker{margin:0}
+.hm-wl{grid-column:1/-1;font-size:.68rem;color:var(--muted);margin-top:4px}.hm-wl.cur{color:var(--accent);font-weight:700}
 </style>
 </head>
 <body>
@@ -2176,6 +2182,10 @@ button.hm-r{cursor:pointer}
     if (!reps) pres = (T === 'cmj' || T === 'bj') ? it.series + ' tentativas' : it.series + ' séries';
     else pres = it.series + ' × ' + reps;
     if (uni && reps && !/lado|perna|side|leg/i.test(reps)) pres += ' / side';
+    if (it.grupo) {   /* bloco A/B em seguida: as voltas já estão no cabeçalho do bloco, o exercício mostra só as reps */
+      pres = reps ? (/^\s*\d+\s*$/.test(reps) ? reps.trim() + ' reps' : reps) : '';
+      if (uni && reps && !/lado|perna|side|leg/i.test(pres)) pres += ' / side';
+    }
     var mr = /^\s*(\d{1,3})\s*(\/?\s*(lado|perna|side|leg)\w*)?\s*$/i.exec(reps);
     return {
       pr: mr ? +mr[1] : undefined,
@@ -2483,7 +2493,7 @@ button.hm-r{cursor:pointer}
           $('#entrar-err').textContent = r0 && r0.erro === 'expirado' ? 'O teu acesso terminou. Fala com o teu treinador para o renovar.' : 'Email ou PIN incorretos. Depois de 5 tentativas falhadas, a entrada fica bloqueada 15 minutos. Fala com o teu treinador se precisares.';
           return;
         }
-        ONL = true;
+        ONL = true; document.documentElement.classList.add('onl');
         return startSession(r0.id, r0.nome, pin).then(function (r) {
           $('#entrar').disabled = false;
           if (r.ok) { $('#pin').value = ''; EMV = ''; return; }
@@ -2596,7 +2606,7 @@ button.hm-r{cursor:pointer}
     $('#mac-btn').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true; if ($('#sem-btn')) $('#sem-btn').hidden = true;
     var h = HOJE || localISO(), y = +h.slice(0, 4), m = +h.slice(5, 7);
     macLoad(y, m).then(function (d) {
-      if (d && d.ok) { $('#mac-btn').hidden = false; $('#per-btn').hidden = false; $('#evo-btn').hidden = false; if ($('#sem-btn')) $('#sem-btn').hidden = false; PTOK = true; liveWellAlert(); liveLocks(); liveRenderDays(); renderWork(); livePseFor(); }
+      if (d && d.ok) { $('#mac-btn').hidden = false; $('#per-btn').hidden = false; $('#evo-btn').hidden = false; if ($('#sem-btn')) $('#sem-btn').hidden = false; PTOK = true; if (HOME) { HC = {}; homeRender(); } liveWellAlert(); liveLocks(); liveRenderDays(); renderWork(); livePseFor(); }
     }).catch(function () {});
   }
   function macAb(n) { var w = String(n || '').trim().split(/\s+/)[0]; return w.length > 5 ? w.slice(0, 4) + '.' : w; }
@@ -2887,7 +2897,7 @@ button.hm-r{cursor:pointer}
     livePinPanel(false, PINPROV);
   });
   function liveSair() {
-    $('#mac-btn').hidden = true; if ($('#sem-btn')) $('#sem-btn').hidden = true; if ($('#sem-panel')) $('#sem-panel').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true; $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#evo-panel').hidden = true; MACD = null; EVD = null; AUL = null; PTOK = false; WELLHI = null; liveWellAlert();
+    $('#mac-btn').hidden = true; if ($('#sem-btn')) $('#sem-btn').hidden = true; if ($('#sem-panel')) $('#sem-panel').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true; $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#evo-panel').hidden = true; MACD = null; EVD = null; AUL = null; PTOK = false; ONL = false; document.documentElement.classList.remove('onl'); WELLHI = null; liveWellAlert();
     livePinPanel(false, false);
     lsSet('alvo.sessao', null);
     sess = null; escolhido = null; hfSync();
@@ -4390,7 +4400,11 @@ button.hm-r{cursor:pointer}
     var inner = lab + '<div class="hm-t"><b>' + esc(it.nome) + '</b><small>' + esc(homeSub(it)) + '</small></div><span class="hm-st ' + s.c + '">' + esc(s.t) + '</span>';
     return s.ix >= 0 ? '<button type="button" class="' + cls + '" data-ho="' + s.ix + '">' + inner + '</button>' : '<div class="' + cls + '">' + inner + '</div>';
   }
-  function homeWeekHtml(B) {
+  function homeFaseHtml(F, mon) {
+    var f = F && F[mon]; if (!f || !(f.fase || f.objetivo || f.nota)) return '';
+    return '<div class="hm-fase">' + (f.fase ? '<p class="kicker">' + esc(f.fase) + '</p>' : '') + (f.objetivo ? '<b>' + esc(f.objetivo) + '</b>' : '') + (f.nota ? '<div class="small">' + esc(f.nota) + '</div>' : '') + '</div>';
+  }
+  function homeWeekHtml(B, F) {
     var h = '', fe = 0, pl = 0, ps = [];
     for (var i = 0; i < 7; i++) {
       var d = isoAdd(HWK, i), its = B[d] || [];
@@ -4401,14 +4415,15 @@ button.hm-r{cursor:pointer}
       });
     }
     var m = ps.length ? ps.reduce(function (a, b) { return a + b; }, 0) / ps.length : null;
-    return '<div class="hm-sum"><div><b>' + fe + '/' + pl + '</b><small>treinos feitos</small></div><div><b>' + (m == null ? '–' : pt(Math.round(m * 10) / 10)) + '</b><small>PSE média</small></div></div>' + h;
+    return homeFaseHtml(F, HWK) + '<div class="hm-sum"><div><b>' + fe + '/' + pl + '</b><small>treinos feitos</small></div><div><b>' + (m == null ? '–' : pt(Math.round(m * 10) / 10)) + '</b><small>PSE média</small></div></div>' + h;
   }
-  function homeMonthHtml(B) {
+  function homeMonthHtml(B, F) {
     var first = HMS, y = +first.slice(0, 4), mo = +first.slice(5, 7), nd = new Date(Date.UTC(y, mo, 0)).getUTCDate();
     var lead = isoDow(first), rows = Math.ceil((lead + nd) / 7), start = isoAdd(first, -lead), fe = 0, pl = 0;
     var h = '<div class="hm-cal">' + ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map(function (x) { return '<div class="hm-h">' + x + '</div>'; }).join('');
     for (var i = 0; i < rows * 7; i++) {
       var d = isoAdd(start, i), its = (B[d] || []).filter(function (x) { return x.tipo !== 'rest'; }), out = d.slice(0, 7) !== first.slice(0, 7);
+      if (i % 7 === 0) { var fw = F && F[d]; if (fw && fw.fase) h += '<div class="hm-wl' + (d <= HOJE && HOJE <= isoAdd(d, 6) ? ' cur' : '') + '">' + esc(fw.fase) + '</div>'; }
       var c = 'hm-c' + (out ? ' out' : '') + (d === HOJE ? ' td' : '') + (d === HSEL ? ' sel' : ''), nm = '';
       if (its.length) {
         var a = its[0];
@@ -4425,7 +4440,8 @@ button.hm-r{cursor:pointer}
       var its2 = B[sel] || [];
       dt = '<div class="hm-det"><p class="kicker">' + esc(homeFmt(sel)) + '</p>' + (its2.length ? its2.map(function (it) { return homeRow(sel, it, null); }).join('') : '<p class="small">Sem treino neste dia.</p>') + '</div>';
     }
-    return h + sm + dt;
+    var selw = sel ? isoAdd(sel, -isoDow(sel)) : '';
+    return h + sm + dt + (selw ? homeFaseHtml(F, selw) : '');
   }
   function homeRange() {
     if (HV === 'm') {
@@ -4444,12 +4460,15 @@ button.hm-r{cursor:pointer}
     var lab = HV === 'm' ? HMES[+HMS.slice(5, 7) - 1].charAt(0).toUpperCase() + HMES[+HMS.slice(5, 7) - 1].slice(1) + ' ' + HMS.slice(0, 4) : homeFmt(HWK) + ' – ' + homeFmt(isoAdd(HWK, 6));
     var top = '<div class="hm-seg"><button type="button" data-hv="s"' + (HV === 's' ? ' class="on"' : '') + '>Semana</button><button type="button" data-hv="m"' + (HV === 'm' ? ' class="on"' : '') + '>Mês</button></div>' +
       '<div class="hm-nav"><button type="button" class="chip" data-hn="-1" aria-label="Anterior">‹</button><b>' + esc(lab) + '</b>' + (cur ? '' : '<button type="button" class="chip" data-hn="0">Hoje</button>') + '<button type="button" class="chip" data-hn="1" aria-label="Seguinte">›</button></div>';
-    var draw = function (B) { el.innerHTML = top + (HV === 'm' ? homeMonthHtml(B) : homeWeekHtml(B)); };
+    var draw = function (X) { el.innerHTML = top + (HV === 'm' ? homeMonthHtml(X.B, X.F) : homeWeekHtml(X.B, X.F)); };
     if (HC[key]) draw(HC[key]); else el.innerHTML = top + '<p class="small">A carregar…</p>';
-    rpc('atleta_semana', { p_atleta: sess.id, p_pin: sess.pin, p_de: rg[0], p_ate: rg[1] }).then(function (r) {
+    var my = HV === 'm' ? HMS : HWK, mp = PTOK ? rpc('atleta_macro', { p_atleta: sess.id, p_pin: sess.pin, p_ano: +my.slice(0, 4), p_mes: +my.slice(5, 7) }).catch(function () { return null; }) : Promise.resolve(null);
+    Promise.all([rpc('atleta_semana', { p_atleta: sess.id, p_pin: sess.pin, p_de: rg[0], p_ate: rg[1] }), mp]).then(function (a) {
+      var r = a[0], mc = a[1];
       if (n !== HN) return;
       if (!r || !r.ok) { if (!HC[key]) el.innerHTML = top + '<p class="small">Não foi possível carregar.</p>'; return; }
-      HC[key] = homeIdx(r); draw(HC[key]);
+      var F = {}; if (mc && mc.ok) (mc.fases || []).forEach(function (f) { F[f.semana] = f; });
+      HC[key] = { B: homeIdx(r), F: F }; draw(HC[key]);
     }).catch(function (e) { if (n === HN && !HC[key]) el.innerHTML = top + '<p class="small">' + esc(netErr(e)) + '</p>'; });
   }
   function homeOn(on) {
