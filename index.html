@@ -463,6 +463,37 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 .okb{border:1px solid var(--line,#dfe3e0);background:var(--bg,#fff);border-radius:12px;padding:9px 10px;font:inherit;font-size:.85rem;font-weight:600;color:var(--mut,#5b665f);white-space:nowrap;min-width:4.6rem}
 .okb[data-v="1"]{background:#e3f4e8;border-color:#2e9b57;color:#1a6d3a}
 .okb[data-v="0"]{background:#fdeaea;border-color:#c0392b;color:#a02a1e}
+
+/* página principal do atleta (Semana / Mês) */
+#after.home-on > *:not(#home){display:none !important}
+.hm-seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:3px;margin-bottom:10px}
+.hm-seg button{flex:1;border:0;background:none;color:var(--muted);padding:7px;border-radius:99px;font:inherit;font-weight:600}
+.hm-seg button.on{background:var(--accent);color:var(--accent-fg)}
+.hm-nav{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:10px}.hm-nav b{flex:1;text-align:center}
+.hm-sum{display:flex;gap:8px;margin-bottom:10px}.hm-sum div{flex:1;border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center;background:var(--bg)}.hm-sum b{display:block;font-size:1.25rem}.hm-sum small{color:var(--muted)}
+.hm-r{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;color:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;background:var(--surface)}
+button.hm-r{cursor:pointer}
+.hm-r.hoje{border:2px solid var(--accent);background:var(--accent-soft)}
+.hm-r.hm-e{opacity:.55;padding:6px 10px}
+.hm-dt{width:40px;text-align:center;font-size:.7rem;color:var(--muted)}.hm-dt b{display:block;font-size:1.05rem;color:var(--fg)}
+.hm-t{flex:1;min-width:0}.hm-t b{display:block}.hm-t small{color:var(--muted)}
+.hm-st{font-size:.72rem;padding:2px 9px;border-radius:99px;white-space:nowrap;border:1px solid var(--line);color:var(--muted)}
+.hm-st.f{background:var(--accent-soft);color:var(--accent);border-color:transparent;font-weight:700}
+.hm-st.h{background:var(--accent);color:var(--accent-fg);border-color:transparent;font-weight:700}
+.hm-st.x{background:var(--crit-soft);color:var(--crit);border-color:transparent}
+.hm-st.r{border:0}
+.hm-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}.hm-h{text-align:center;font-size:.7rem;color:var(--muted)}
+.hm-c{min-height:50px;border:1px solid var(--line);border-radius:8px;padding:3px 4px;font:inherit;font-size:.62rem;line-height:1.15;background:var(--surface);color:var(--fg);text-align:left;overflow:hidden;cursor:pointer;word-break:break-word;display:block;width:100%;min-width:0}
+.hm-c.f,.hm-c.pl,.hm-c.x{display:block}
+.hm-c i{display:block;font-style:normal;font-size:.72rem;color:var(--muted)}
+.hm-c.out{opacity:.3}.hm-c.f{background:var(--accent-soft);border-color:transparent;color:var(--accent);font-weight:700}.hm-c.f i{color:var(--accent)}
+.hm-c.pl{border-style:dashed}.hm-c.x{background:var(--crit-soft);border-color:transparent;color:var(--crit)}
+.hm-c.td{border:2px solid var(--accent)}.hm-c.sel{outline:2px solid var(--fg)}
+.hm-lg{display:flex;gap:10px;flex-wrap:wrap;font-size:.7rem;color:var(--muted);margin:8px 0}.hm-lg i{display:inline-block;width:9px;height:9px;border-radius:3px;border:1px solid var(--line);margin-right:4px}
+.hm-lg i.f{background:var(--accent-soft);border-color:var(--accent)}.hm-lg i.td{border:2px solid var(--accent)}.hm-lg i.pl{border-style:dashed}.hm-lg i.x{background:var(--crit-soft)}
+.hm-det{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
+#after:not(.home-on) #days,#after:not(.home-on) #sess-help{display:none}
+#home-back{width:auto;display:inline-block}
 </style>
 </head>
 <body>
@@ -2322,6 +2353,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     $('#gate').hidden = true; $('#wsum').hidden = true; $('#after').hidden = false;
     day = pend;
     if (bx) { bx.hidden = false; bx.innerHTML = '<b>Antes do wellness de hoje:</b> falta registar o esforço (PSE) do treino "' + esc(p.nome) + '" de ' + fmtL(p.feito) + '. Escolhe o esforço e a duração em baixo e guarda. Depois já podes preencher o wellness.'; }
+    if (HOME) homeOn(false);
     liveRenderDays(); livePseFor();
   };
   function liveCanEdit() {
@@ -2425,7 +2457,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     $('#entrada').hidden = true;
     $('#atleta-app').hidden = false;
     renderHooper(); applyGate(); renderDays(); renderWork(); renderPse();
-    hfSync();
+    hfSync(); homeStart();
   }
   function startSession(id, nome, pin) {
     return loadWeek(id, pin).then(function (r) {
@@ -2736,7 +2768,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     [['mac-btn', 'mac-panel'], ['evo-btn', 'evo-panel'], ['tes-btn', 'tes-panel'], ['per-btn', 'per-panel'], ['sem-btn', 'sem-panel']].forEach(function (p) { var bt = $('#' + p[0]), pn = $('#' + p[1]); if (bt && pn) bt.setAttribute('aria-pressed', String(!pn.hidden)); });
     PNIDS.forEach(function (id) {
       var e = $('#' + id); if (!e || e.querySelector('.pn-back')) return;
-      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip pn-back'; b.textContent = '‹ Voltar ao treino';
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip pn-back'; b.textContent = '‹ Voltar';
       b.addEventListener('click', function () { PNIDS.forEach(function (x) { $('#' + x).hidden = true; }); pnSync(); window.scrollTo(0, 0); });
       e.insertBefore(b, e.firstChild);
     });
@@ -2969,7 +3001,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
         $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.';
         PSEOK[tid] = true; liveCelebrate(r.ua, pse, m);
         SESMAP[tid] = { pse: pse, minutos: m }; SESDIAS[r.data || HOJE] = tid; if (!p.feito) p.feito = r.data || HOJE;
-        if (!late) { liveLocks(); liveRenderDays(); liveSkipBox(); }
+        if (!late) { liveLocks(); liveRenderDays(); liveSkipBox(); setTimeout(function () { homeOn(true); }, 500); }
         else { liveLocks(); liveNextOpen(); applyGate(); liveRenderDays(); renderWork(); livePseFor(); $('#status').textContent = 'Sessão guardada · ' + r.ua + ' UA.'; }
       }
       else if (r && r.erro === 'descanso') $('#status').textContent = 'Este treino é um dia de descanso. Não há sessão para registar.';
@@ -4227,7 +4259,7 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
       var o = e.target && e.target.closest && e.target.closest('#mac-btn,#evo-btn,#tes-btn,#per-btn');
       if (o) { pn.hidden = true; setTimeout(pnSync, 60); }
       var g = e.target && e.target.closest && e.target.closest('[data-sem]');
-      if (g) { var i = +g.getAttribute('data-sem'); pn.hidden = true; if (LIVE) liveFlush(); day = i; livePseFor(); renderDays(); renderWork(); pnSync(); }
+      if (g) { var i = +g.getAttribute('data-sem'); pn.hidden = true; if (LIVE) liveFlush(); day = i; homeOn(false); livePseFor(); renderDays(); renderWork(); pnSync(); }
     });
   })();
   /* ---------- aba "Treinos feitos" (Treinador e Online training): semanas anteriores, só para ver ---------- */
@@ -4317,6 +4349,148 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
     document.addEventListener('click', function (e) {
       var o = e.target && e.target.closest && e.target.closest('#mac-btn,#evo-btn,#tes-btn,#per-btn,#sem-btn');
       if (o) { pn.hidden = true; setTimeout(pnSync, 60); }
+    });
+  })();
+  /* ---------- página principal do atleta: vista Semana / Mês ---------- */
+  var HOME = false, HV = lsGet('alvo.hv') === 'm' ? 'm' : 's', HWK = '', HMS = '', HSEL = '', HN = 0, HC = {};
+  var HMES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  var HMC = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  function homeFmt(iso) { return DAYS[isoDow(iso)] + ' ' + parseInt(iso.slice(8, 10), 10) + ' ' + HMC[+iso.slice(5, 7) - 1]; }
+  function homePlanIdx(id) { for (var i = 0; i < PLAN.length; i++) if (PLAN[i] && PLAN[i].id === id) return i; return -1; }
+  function homeIdx(r) {
+    var ses = {}, fal = {}, B = {};
+    (r.sessoes || []).forEach(function (x) { if (x.treino_id) ses[x.treino_id] = x; });
+    (r.faltas || []).forEach(function (f) { fal[f.treino_id] = f; });
+    (r.treinos || []).forEach(function (t) {
+      var fe = t.feito_em, d = fe || t.data;
+      (B[d] = B[d] || []).push({ id: t.id, nome: t.nome || 'Treino', tipo: t.tipo, data: t.data, feito: fe || null, saltado: !!fal[t.id] && !fe, ses: ses[t.id] || null });
+    });
+    return B;
+  }
+  function homeSt(it) {
+    var ix = it.tipo === 'gym' ? homePlanIdx(it.id) : -1;
+    if (it.tipo === 'rest') return { t: 'Descanso', c: 'r', ix: -1 };
+    if (it.tipo === 'agua') return { t: 'Água', c: 'r', ix: -1 };
+    if (it.saltado) return { t: 'Não treinei', c: 'x', ix: ix };
+    if (it.feito) return { t: ix >= 0 && liveNeedsPse(PLAN[ix]) ? 'Falta o PSE' : '✓ Feito', c: ix >= 0 && liveNeedsPse(PLAN[ix]) ? 'p' : 'f', ix: ix };
+    return { t: ix >= 0 ? 'Abrir' : (it.data < HOJE ? 'Sem registo' : 'Planeado'), c: ix >= 0 ? (it.data === HOJE ? 'h' : 'p') : 'r', ix: ix };
+  }
+  function homeSub(it) {
+    if (it.tipo === 'rest') return '';
+    if (it.tipo === 'agua') return 'Sessão na água';
+    if (it.saltado) return 'Não treinaste';
+    if (it.feito) return it.ses ? 'PSE ' + pt(it.ses.pse) + (it.ses.minutos ? ' · ' + it.ses.minutos + ' min' : '') : 'Feito ' + homeFmt(it.feito);
+    return it.data < HOJE ? 'Previsto ' + homeFmt(it.data) : 'Por fazer';
+  }
+  function homeRow(d, it, first) {
+    var s = it ? homeSt(it) : null, dd = parseInt(d.slice(8, 10), 10);
+    var lab = first === null ? '' : first ? '<div class="hm-dt">' + DAYS[isoDow(d)].toUpperCase() + '<b>' + dd + '</b></div>' : '<div class="hm-dt"></div>';
+    var cls = 'hm-r' + (d === HOJE ? ' hoje' : '') + (!it || it.tipo === 'rest' ? ' hm-e' : '');
+    if (!it) return '<div class="' + cls + '">' + lab + '<div class="hm-t"><small>Sem treino</small></div></div>';
+    var inner = lab + '<div class="hm-t"><b>' + esc(it.nome) + '</b><small>' + esc(homeSub(it)) + '</small></div><span class="hm-st ' + s.c + '">' + esc(s.t) + '</span>';
+    return s.ix >= 0 ? '<button type="button" class="' + cls + '" data-ho="' + s.ix + '">' + inner + '</button>' : '<div class="' + cls + '">' + inner + '</div>';
+  }
+  function homeWeekHtml(B) {
+    var h = '', fe = 0, pl = 0, ps = [];
+    for (var i = 0; i < 7; i++) {
+      var d = isoAdd(HWK, i), its = B[d] || [];
+      if (!its.length) h += homeRow(d, null, true);
+      its.forEach(function (it, k) {
+        h += homeRow(d, it, k === 0);
+        if (it.tipo === 'gym') { pl++; if (it.feito) { fe++; if (it.ses && it.ses.pse != null) ps.push(+it.ses.pse); } }
+      });
+    }
+    var m = ps.length ? ps.reduce(function (a, b) { return a + b; }, 0) / ps.length : null;
+    return '<div class="hm-sum"><div><b>' + fe + '/' + pl + '</b><small>treinos feitos</small></div><div><b>' + (m == null ? '–' : pt(Math.round(m * 10) / 10)) + '</b><small>PSE média</small></div></div>' + h;
+  }
+  function homeMonthHtml(B) {
+    var first = HMS, y = +first.slice(0, 4), mo = +first.slice(5, 7), nd = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+    var lead = isoDow(first), rows = Math.ceil((lead + nd) / 7), start = isoAdd(first, -lead), fe = 0, pl = 0;
+    var h = '<div class="hm-cal">' + ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map(function (x) { return '<div class="hm-h">' + x + '</div>'; }).join('');
+    for (var i = 0; i < rows * 7; i++) {
+      var d = isoAdd(start, i), its = (B[d] || []).filter(function (x) { return x.tipo !== 'rest'; }), out = d.slice(0, 7) !== first.slice(0, 7);
+      var c = 'hm-c' + (out ? ' out' : '') + (d === HOJE ? ' td' : '') + (d === HSEL ? ' sel' : ''), nm = '';
+      if (its.length) {
+        var a = its[0];
+        c += a.saltado ? ' x' : a.feito ? ' f' : ' pl';
+        nm = esc(a.tipo === 'agua' ? 'Água' : a.nome) + (its.length > 1 ? ' +' + (its.length - 1) : '');
+      }
+      if (!out) its.forEach(function (x) { if (x.tipo === 'gym') { pl++; if (x.feito) fe++; } });
+      h += '<button type="button" class="' + c + '" data-hd="' + d + '"><i>' + parseInt(d.slice(8, 10), 10) + '</i>' + nm + '</button>';
+    }
+    h += '</div><div class="hm-lg"><span><i class="f"></i>Feito</span><span><i class="td"></i>Hoje</span><span><i class="pl"></i>Planeado</span><span><i class="x"></i>Não treinei</span></div>';
+    var sm = '<div class="hm-sum"><div><b>' + fe + '</b><small>feitos de ' + pl + ' planeados</small></div></div>';
+    var sel = HSEL && HSEL.slice(0, 7) === first.slice(0, 7) ? HSEL : '', dt = '';
+    if (sel) {
+      var its2 = B[sel] || [];
+      dt = '<div class="hm-det"><p class="kicker">' + esc(homeFmt(sel)) + '</p>' + (its2.length ? its2.map(function (it) { return homeRow(sel, it, null); }).join('') : '<p class="small">Sem treino neste dia.</p>') + '</div>';
+    }
+    return h + sm + dt;
+  }
+  function homeRange() {
+    if (HV === 'm') {
+      var first = HMS, nd = new Date(Date.UTC(+first.slice(0, 4), +first.slice(5, 7), 0)).getUTCDate(), lead = isoDow(first), rows = Math.ceil((lead + nd) / 7), st = isoAdd(first, -lead);
+      return [st, isoAdd(st, rows * 7 - 1)];
+    }
+    return [HWK, isoAdd(HWK, 6)];
+  }
+  function homeRender() {
+    var el = $('#home-body'); if (!el || !sess) return;
+    if (!HWK) HWK = WK0 || isoAdd(HOJE, -isoDow(HOJE));
+    if (!HMS) HMS = HOJE.slice(0, 7) + '-01';
+    if (!HSEL) HSEL = HOJE;
+    var rg = homeRange(), key = HV + rg[0] + rg[1], n = ++HN;
+    var cur = HV === 'm' ? HMS === HOJE.slice(0, 7) + '-01' : HWK === isoAdd(HOJE, -isoDow(HOJE));
+    var lab = HV === 'm' ? HMES[+HMS.slice(5, 7) - 1].charAt(0).toUpperCase() + HMES[+HMS.slice(5, 7) - 1].slice(1) + ' ' + HMS.slice(0, 4) : homeFmt(HWK) + ' – ' + homeFmt(isoAdd(HWK, 6));
+    var top = '<div class="hm-seg"><button type="button" data-hv="s"' + (HV === 's' ? ' class="on"' : '') + '>Semana</button><button type="button" data-hv="m"' + (HV === 'm' ? ' class="on"' : '') + '>Mês</button></div>' +
+      '<div class="hm-nav"><button type="button" class="chip" data-hn="-1" aria-label="Anterior">‹</button><b>' + esc(lab) + '</b>' + (cur ? '' : '<button type="button" class="chip" data-hn="0">Hoje</button>') + '<button type="button" class="chip" data-hn="1" aria-label="Seguinte">›</button></div>';
+    var draw = function (B) { el.innerHTML = top + (HV === 'm' ? homeMonthHtml(B) : homeWeekHtml(B)); };
+    if (HC[key]) draw(HC[key]); else el.innerHTML = top + '<p class="small">A carregar…</p>';
+    rpc('atleta_semana', { p_atleta: sess.id, p_pin: sess.pin, p_de: rg[0], p_ate: rg[1] }).then(function (r) {
+      if (n !== HN) return;
+      if (!r || !r.ok) { if (!HC[key]) el.innerHTML = top + '<p class="small">Não foi possível carregar.</p>'; return; }
+      HC[key] = homeIdx(r); draw(HC[key]);
+    }).catch(function (e) { if (n === HN && !HC[key]) el.innerHTML = top + '<p class="small">' + esc(netErr(e)) + '</p>'; });
+  }
+  function homeOn(on) {
+    HOME = !!on && !!sess;
+    var af = $('#after'); if (af) af.classList.toggle('home-on', HOME);
+    var hm = $('#home'); if (hm) hm.hidden = !HOME;
+    if (HOME) { HC = {}; homeRender(); window.scrollTo(0, 0); }
+  }
+  function homeStart() {
+    HWK = ''; HMS = ''; HSEL = ''; HC = {};
+    var pend = LIVE && !wellDone ? liveFirstPend() : -1;
+    homeOn(pend < 0);
+  }
+  (function homeInit() {
+    var af = $('#after'); if (!af) return;
+    var hm = document.createElement('div'); hm.className = 'panel'; hm.id = 'home'; hm.hidden = true;
+    hm.innerHTML = '<header><h2>Os meus treinos</h2><span class="kicker">Início</span></header><div id="home-body"></div>';
+    af.insertBefore(hm, af.firstChild);
+    var hd = $('#work-kicker') && $('#work-kicker').parentNode && $('#work-kicker').parentNode.parentNode;
+    if (hd) {
+      var bk = document.createElement('button'); bk.type = 'button'; bk.className = 'chip'; bk.id = 'home-back'; bk.textContent = '‹ Início'; bk.style.marginBottom = '8px';
+      hd.parentNode.insertBefore(bk, hd);
+      bk.addEventListener('click', function () { if (LIVE) liveFlush(); homeOn(true); });
+    }
+    hm.addEventListener('click', function (e) {
+      var t = e.target.closest ? e.target : null; if (!t) return;
+      var o = t.closest('[data-ho]');
+      if (o) { var ix = +o.getAttribute('data-ho'); if (LIVE) liveFlush(); day = ix; homeOn(false); livePseFor(); renderDays(); renderWork(); window.scrollTo(0, 0); return; }
+      var v = t.closest('[data-hv]');
+      if (v) { HV = v.getAttribute('data-hv'); lsSet('alvo.hv', HV); homeRender(); return; }
+      var d = t.closest('[data-hd]');
+      if (d) { HSEL = d.getAttribute('data-hd'); homeRender(); return; }
+      var g = t.closest('[data-hn]');
+      if (g) {
+        var s = +g.getAttribute('data-hn');
+        if (HV === 'm') {
+          if (!s) { HMS = HOJE.slice(0, 7) + '-01'; HSEL = HOJE; }
+          else { var dt = new Date(Date.UTC(+HMS.slice(0, 4), +HMS.slice(5, 7) - 1 + s, 1)); HMS = dt.toISOString().slice(0, 7) + '-01'; HSEL = ''; }
+        } else HWK = s ? isoAdd(HWK, 7 * s) : isoAdd(HOJE, -isoDow(HOJE));
+        homeRender();
+      }
     });
   })();
   /* ---------- adaptação de um exercício ---------- */
