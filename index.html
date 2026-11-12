@@ -1245,7 +1245,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
           var base = day + '_' + bi + '_' + ki;
           var body = '';
           var T = e.t || 'feito';
-          var uni = e.lat === 'uni';
+          var uni = e.lat === 'uni' && !e.ald;   /* alternado: reps totais, sem /side */
           if (T === 'nenhum') {
             body = '';
           } else if (T === 'feito') {
@@ -1269,7 +1269,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
           var tags = '';
           if (e.pad) tags += '<span class="mtag">' + PADROES[e.pad] + '</span>';
           if (e.core) tags += '<span class="mtag">' + COREC[e.core] + '</span>';
-          if (e.lat) tags += '<span class="mtag">' + (uni ? 'Unilateral' : 'Bilateral') + '</span>';
+          if (e.lat) tags += '<span class="mtag">' + (e.lat === 'uni' ? 'Unilateral' : 'Bilateral') + '</span>';
           var vurl = e.href ? (/^https?:\/\//i.test(e.href) ? e.href : '') : (e.v ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(e.v) : '');
           var vid = vurl ? '<a class="vid" href="' + esc(vurl) + '" target="_blank" rel="noopener">Ver vídeo</a>' : '';
           var last = e.last ? '<span class="last">Última sessão: ' + e.last + '</span>' : '';
@@ -2174,6 +2174,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   }
   function mkEx(it) {
     var uni = it.lateralidade === 'uni';
+    var ald = uni && /altern/i.test(it.nome || '');   /* alternado: as reps são o total dos dois lados */
     var T, ri = it.registo_item;
     if (ri === 'nenhum') T = 'nenhum';
     else if (ri) T = ri === 'feito' ? undefined : ri;
@@ -2181,11 +2182,12 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     var reps = it.reps || '', pres;
     if (!reps) pres = (T === 'cmj' || T === 'bj') ? it.series + ' tentativas' : it.series + ' séries';
     else pres = it.series + ' × ' + reps;
-    if (uni && reps && !/lado|perna|side|leg/i.test(reps)) pres += ' / side';
-    if (it.grupo) {   /* bloco A/B em seguida: as voltas já estão no cabeçalho do bloco, o exercício mostra só as reps */
+    if (uni && !ald && reps && !/lado|perna|side|leg/i.test(reps)) pres += ' / side';
+    if (it.grupo || (it.circuito && it.series === 1)) {   /* bloco A/B em seguida: as voltas já estão no cabeçalho do bloco, o exercício mostra só as reps */
       pres = reps ? (/^\s*\d+\s*$/.test(reps) ? reps.trim() + ' reps' : reps) : '';
-      if (uni && reps && !/lado|perna|side|leg/i.test(pres)) pres += ' / side';
+      if (uni && !ald && reps && !/lado|perna|side|leg/i.test(pres)) pres += ' / side';
     }
+    if (ald && reps && !/altern/i.test(pres)) pres += ' alternadas';
     var mr = /^\s*(\d{1,3})\s*(\/?\s*(lado|perna|side|leg)\w*)?\s*$/i.exec(reps);
     return {
       pr: mr ? +mr[1] : undefined,
@@ -2194,13 +2196,14 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, pa: it.pse_alvo != null ? it.pse_alvo : undefined, pv: it.pede_video ? true : undefined, hn: it.nota_item || undefined,
       pad: it.padrao && it.padrao !== 'core' ? it.padrao : undefined,
       core: it.core_tipo || undefined,
-      lat: (it.padrao || uni) ? it.lateralidade : undefined,
+      lat: (it.padrao || uni) ? it.lateralidade : undefined, ald: ald || undefined,
       h: it.nota || undefined, href: it.video_url || undefined, v: it.nome + ' technique',
       last: lastTxt(it, T)
     };
   }
   function fmtRest(n) { return n < 60 ? n + ' s' : Math.floor(n / 60) + ' min' + (n % 60 ? ' ' + (n % 60) + ' s' : ''); }
   function grpLetter(bl, i) {
+    if (bl.ex[i].ul) return bl.ex[i].ul;   /* letra contínua no treino todo */
     var seen = [], k, g = bl.ex[i].g;
     for (k = 0; k < bl.ex.length; k++) { if (bl.ex[k].g && seen.indexOf(bl.ex[k].g) < 0) seen.push(bl.ex[k].g); if (bl.ex[k].g === g) break; }
     return String.fromCharCode(64 + seen.length);
@@ -2221,6 +2224,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   }
   function grpTag(bl, i) {
     var e = bl.ex[i];
+    if (e.ul && !e.ad) return '<span class="sg-tag">' + e.ul + (e.g || e.c ? e.up + 1 : '') + '</span> ';
     if (!e.g) return '';
     return '<span class="sg-tag">' + grpLetter(bl, i) + (grpSize(bl, i).pos + 1) + '</span> ';
   }
@@ -2249,6 +2253,15 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
         var ae = mkEx(a); ae.ad = true; ae.am = mi; exs.push(ae); exs[mi].alt = exs.length - 1;
       });
       if (its.length) blocos.push({ b: b[1], code: b[0], ex: exs });
+    });
+    var nU = 0, nX = 0, seenU = {};   /* cada unidade (exercício solto, bloco em seguida ou circuito) recebe a letra seguinte, sem recomeçar */
+    blocos.forEach(function (bl) {
+      bl.ex.forEach(function (e) {
+        if (e.ad) return;
+        var key = e.g ? 'g' + e.g : e.c ? 'c' + bl.code + '#' + e.c : 'x' + (nX++);
+        if (!seenU[key]) seenU[key] = { l: nU < 26 ? String.fromCharCode(65 + nU) : '', n: 0 }, nU++;
+        e.ul = seenU[key].l; e.up = seenU[key].n++;
+      });
     });
     p.blocos = blocos;
     p.cfg = {}; (t.blocos || []).forEach(function (c) { p.cfg[c.bloco] = c; });
@@ -3082,13 +3095,15 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     if (c.formato === 'fortime') { if (c.rondas) x.push(c.rondas + (c.rondas === 1 ? ' ronda' : ' rondas')); if (c.tc_min) x.push('time cap ' + c.tc_min + ' min'); }
     else if (c.formato === 'amrap') { if (c.duracao_min) x.push(c.duracao_min + ' min'); }
     else if (c.formato === 'emom') { x.push(c.intervalo_min > 1 ? 'a cada ' + c.intervalo_min + ' min' : 'todos os minutos'); if (c.duracao_min) x.push('durante ' + c.duracao_min + ' min'); }
+    if (c.formato === 'amrap' && x.length === 1) return t + ' ' + x[0];
     return t + (x.length ? ' · ' + x.join(' · ') : '');
   }
   function liveWodHead(p, key) {
     var c = p && p.cfg && p.cfg[key];
     if (!c) return '';
-    var cm = /#(\d+)$/.exec(key);
-    return '<div class="wodhead"><b>' + (cm ? 'Circuito ' + cm[1] + ' · ' : '') + esc(wodTitle(c)) + '</b>' + (c.nome ? '<span class="wodname">' + esc(c.nome) + '</span>' : '') + (c.descricao ? '<p class="small" style="white-space:pre-line">' + esc(c.descricao) + '</p>' : '') + '</div>';
+    var cm = /#(\d+)$/.exec(key), cl = '';
+    if (cm) { (p.blocos || []).forEach(function (bl) { bl.ex.forEach(function (e) { if (!cl && !e.ad && e.c && bl.code + '#' + e.c === key) cl = e.ul || ''; }); }); }
+    return '<div class="wodhead"><b>' + (cm ? (cl ? cl + ' · ' : 'Circuito ' + cm[1] + ' · ') : '') + esc(wodTitle(c)) + '</b>' + (c.nome ? '<span class="wodname">' + esc(c.nome) + '</span>' : '') + (c.descricao ? '<p class="small" style="white-space:pre-line">' + esc(c.descricao) + '</p>' : '') + '</div>';
   }
   function wIn(code, f, unit, v, mode) {
     return '<label class="f"><input data-wf="' + f + '" data-wb="' + code + '" inputmode="' + (mode || 'numeric') + '" placeholder="0" value="' + (v == null ? '' : esc(String(v))) + '" aria-label="' + unit + '"><span>' + unit + '</span></label>';
@@ -4236,7 +4251,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
           h += '<p class="kicker">' + esc(bl.b) + '</p><ul class="sem-ul">';
           bl.ex.forEach(function (e, k) {
             if (e.ad) return;
-            var tag = e.g ? '<span class="sg-tag">' + grpLetter(bl, k) + (grpSize(bl, k).pos + 1) + '</span> ' : '';
+            var tag = grpTag(bl, k);
             var gi = e.g && (k === 0 || bl.ex[k - 1].g !== e.g) ? '<li class="sem-g">Bloco ' + grpLetter(bl, k) + ': ' + grpSize(bl, k).n + ' exercícios seguidos, ' + e.series + ' voltas</li>' : '';
             h += gi + '<li>' + tag + '<b>' + esc(e.n) + '</b> <span class="small">' + esc(e.pres) + (e.rest ? ' · descanso ' + fmtRest(e.rest) : '') + '</span>' + (e.h ? '<br><span class="small">' + esc(e.h) + '</span>' : '') + (e.alt != null ? '<br><span class="small"><span class="alt-tag">Adaptação</span>' + esc(bl.ex[e.alt].n) + ' · ' + esc(bl.ex[e.alt].pres) + '</span>' : '') + '</li>';
           });
