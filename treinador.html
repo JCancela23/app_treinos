@@ -3473,7 +3473,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
         var kg = +row.carga_kg, reps = row.reps != null ? +row.reps : (row.vbt_ms != null ? (parseInt(row.item.reps, 10) || 0) : 0);
         if (g.kgMax == null || kg > g.kgMax) { g.kgMax = kg; g.repsAtMax = reps; }
         if (ex.padrao && PADROES[ex.padrao]) {
-          var t = kg * reps * (uni ? 2 : 1);
+          var t = kg * reps * (uni && !/altern/i.test(ex.nome || '') ? 2 : 1);   /* alternado: reps já são o total dos dois lados */
           x.r.ton += t; x.r.tp[ex.padrao] = (x.r.tp[ex.padrao] || 0) + t;
           if (uni) x.r.tu += t;
         }
@@ -5356,7 +5356,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
         h += '<p class="kicker" style="margin-top:6px">' + esc(GR.t.nome) + '</p>';
         var bl = '';
         GR.t.treino_itens.forEach(function (it) {
-          var T = gRegT(it), ex = it.exercicios || {}, uni = ex.lateralidade === 'uni', pres = it.series + ' × ' + (it.reps || '') + (uni && it.reps && !/lado|perna|side|leg/i.test(it.reps) ? ' / lado' : '');
+          var T = gRegT(it), ex = it.exercicios || {}, uni = ex.lateralidade === 'uni', pres = it.series + ' × ' + (it.reps || '') + (uni && it.reps && !/lado|perna|side|leg|altern/i.test(it.reps) && !/altern/i.test(ex.nome || '') ? ' / lado' : '');
           var mr = /^\s*(\d{1,3})\s*(\/?\s*(lado|perna|side|leg)\w*)?\s*$/i.exec(it.reps || ''), pr = mr ? mr[1] : '';
           var inner = '';
           if (it.bloco !== bl) { bl = it.bloco; h += '<p class="small"><b>' + esc(bl) + '</b></p>'; }
