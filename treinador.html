@@ -10,6 +10,7 @@
 <title>1% · Treinador</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* Layout: uma coluna estreita, pensada para telemóvel. Duas vistas (Atleta / Treinador) com a mesma identidade: verde, preto e branco, números grandes e condensados. Nos gráficos, a única cor de dados é o verde da marca; tudo o resto é tinta e linhas finas. */
 :root {
   --bg: #F2F5F1;
@@ -3091,11 +3092,21 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
 
   /* ---------- blocos com formato (For time / AMRAP / EMOM) ---------- */
   var WFN = { fortime: 'For time', amrap: 'AMRAP', emom: 'EMOM', livre: 'Circuito' };
+  function parseMS(v) {
+    var s = String(v == null ? '' : v).trim().replace(',', '.'), m;
+    if (!s) return null;
+    if ((m = /^(\d{1,3}):([0-5]?\d)$/.exec(s))) return +m[1] * 60 + +m[2];
+    if ((m = /^(\d+(?:\.\d+)?)$/.exec(s))) { var q = Math.round(parseFloat(m[1]) * 60); return q > 0 ? q : null; }
+    return null;
+  }
+  function fmtMS(sec) { sec = Math.round(sec); var m = Math.floor(sec / 60), s = sec % 60; return s ? m + ':' + ('0' + s).slice(-2) : String(m); }
+  function ivS(c) { return c.intervalo_s || (c.intervalo_min ? c.intervalo_min * 60 : 60); }
+  function duS(c) { return c.duracao_s || (c.duracao_min ? c.duracao_min * 60 : 0); }
   function wodTitle(c) {
     var t = WFN[c.formato] || c.formato, x = [];
     if (c.formato === 'fortime') { if (c.rondas) x.push(c.rondas + (c.rondas === 1 ? ' ronda' : ' rondas')); if (c.tc_min) x.push('time cap ' + c.tc_min + ' min'); }
-    else if (c.formato === 'amrap') { if (c.duracao_min) x.push(c.duracao_min + ' min'); }
-    else if (c.formato === 'emom') { x.push(c.intervalo_min > 1 ? 'a cada ' + c.intervalo_min + ' min' : 'todos os minutos'); if (c.duracao_min) x.push('durante ' + c.duracao_min + ' min'); }
+    else if (c.formato === 'amrap') { if (duS(c)) x.push(fmtMS(duS(c)) + ' min'); }
+    else if (c.formato === 'emom') { x.push(ivS(c) > 60 ? 'a cada ' + fmtMS(ivS(c)) + ' min' : ivS(c) < 60 ? 'a cada ' + ivS(c) + ' s' : 'todos os minutos'); if (duS(c)) x.push('durante ' + fmtMS(duS(c)) + ' min'); }
     if (c.formato === 'amrap' && x.length === 1) return t + ' ' + x[0];
     return t + (x.length ? ' · ' + x.join(' · ') : '');
   }
@@ -3730,7 +3741,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     var nav = '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><button class="chip" style="width:auto" data-hw="prev" aria-label="Semana anterior">‹</button><b>Semana de ' + gFmt(mon) + ' a ' + gFmt(end) + '</b><button class="chip" style="width:auto" data-hw="next" aria-label="Semana seguinte">›</button><button class="chip" style="width:auto" data-hw="hoje">Esta semana</button></div>';
     out.innerHTML = nav + '<p class="note">A carregar…</p>';
     Promise.all([
-      tGet('treinos', 'atleta_id=eq.' + id + '&data=gte.' + mon + '&data=lte.' + end + '&select=id,atleta_id,data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(id,bloco,ordem,series,reps,circuito,grupo,exercicios(nome,registo))&order=data&treino_itens.alt_de=is.null&treino_itens.order=ordem'),
+      tGet('treinos', 'atleta_id=eq.' + id + '&data=gte.' + mon + '&data=lte.' + end + '&select=id,atleta_id,data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s,descricao),treino_itens(id,bloco,ordem,series,reps,circuito,grupo,exercicios(nome,registo))&order=data&treino_itens.alt_de=is.null&treino_itens.order=ordem'),
       tGet('registos_serie', 'atleta_id=eq.' + id + '&data=gte.' + isoAdd(mon, -7) + '&data=lte.' + isoAdd(end, 7) + '&select=data,item_id,serie,carga_kg,reps,tempo_s,vbt_ms,cmj_cm,bj_cm,feito&order=serie'),
       tGet('sessoes', 'atleta_id=eq.' + id + '&data=gte.' + isoAdd(mon, -7) + '&select=treino_id,data,pse,minutos'),
       tGet('resultados_bloco', 'atleta_id=eq.' + id + '&select=treino_id,data,bloco,tempo_s,rondas,reps,completo,nota').catch(function () { return []; }),
@@ -3863,7 +3874,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id'),
       tGet('faltas', 'select=id,atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id').catch(function () { return []; }),
       tGet('resultados_bloco', 'select=atleta_id,treino_id,data,bloco,formato,tempo_s,rondas,reps,completo,nota&order=data,id').catch(function () { return []; }),
-      tGet('treino_blocos', 'select=treino_id,bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min').catch(function () { return []; }),
+      tGet('treino_blocos', 'select=treino_id,bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s').catch(function () { return []; }),
       tGet('notas_vistas', 'select=tipo,nota_id,hash').catch(function () { return []; })
     ]).then(function (r) {
       notasCarregarVistas(r[10]);
@@ -5263,7 +5274,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     if (!GR.aid || !GR.data) { GR.t = null; GR.loaded = false; return gRenderReg(); }
     var a = encodeURIComponent(GR.aid), d = encodeURIComponent(GR.data);
     return Promise.all([
-      tGet('treinos', 'select=id,data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min),treino_itens(id,bloco,ordem,series,reps,pede_registo,registo,grupo,exercicios(nome,registo,lateralidade))&atleta_id=eq.' + a + '&data=eq.' + d + '&treino_itens.alt_de=is.null&treino_itens.order=ordem'),
+      tGet('treinos', 'select=id,data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s),treino_itens(id,bloco,ordem,series,reps,pede_registo,registo,grupo,exercicios(nome,registo,lateralidade))&atleta_id=eq.' + a + '&data=eq.' + d + '&treino_itens.alt_de=is.null&treino_itens.order=ordem'),
       tGet('registos_serie', 'select=item_id,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,feito&atleta_id=eq.' + a + '&data=eq.' + d),
       tGet('sessoes', 'select=pse,minutos,treino_id&atleta_id=eq.' + a + '&data=eq.' + d),
       tGet('wellness', 'select=sono,stress,fadiga,dor&atleta_id=eq.' + a + '&data=eq.' + d),
@@ -5422,7 +5433,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     var mon = PV.mon, end = isoAdd(mon, 6);
     PV.d = null; gRenderPlanos();
     return Promise.all([
-      tGet('treinos', 'data=gte.' + mon + '&data=lte.' + end + '&select=id,atleta_id,data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(id,bloco,ordem,series,reps,circuito,grupo,exercicios(nome,registo))&order=data&treino_itens.alt_de=is.null&treino_itens.order=ordem'),
+      tGet('treinos', 'data=gte.' + mon + '&data=lte.' + end + '&select=id,atleta_id,data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s,descricao),treino_itens(id,bloco,ordem,series,reps,circuito,grupo,exercicios(nome,registo))&order=data&treino_itens.alt_de=is.null&treino_itens.order=ordem'),
       tGet('sessoes', 'data=gte.' + isoAdd(mon, -7) + '&select=atleta_id,treino_id,data,pse,minutos').catch(function () { return []; }),
       tGet('faltas', 'select=treino_id,motivo').catch(function () { return []; }),
       tGet('registos_serie', 'data=gte.' + isoAdd(mon, -7) + '&select=data,item_id,serie,carga_kg,reps,tempo_s,vbt_ms,cmj_cm,bj_cm,feito,item:treino_itens(treino_id)').catch(function () { return []; }),
@@ -5979,8 +5990,8 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       [['fortime', 'For time'], ['amrap', 'AMRAP'], ['emom', 'EMOM'], ['livre', 'Livre (sem resultado)']].map(function (o) { return '<option value="' + o[0] + '"' + (fo === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>';
     if (fo !== 'livre') x += inp('nome', 'Nome do WOD (igual = comparável)', 'ex.: Fran', false);
     if (fo === 'fortime') x += inp('rondas', 'Rondas', '4', true) + inp('tc_min', 'Time cap (min)', '20', true);
-    if (fo === 'amrap') x += inp('duracao_min', 'Duração (min)', '12', true);
-    if (fo === 'emom') x += inp('intervalo_min', 'A cada (min)', '1', true) + inp('duracao_min', 'Duração total (min)', '12', true);
+    if (fo === 'amrap') x += inp('duracao_min', 'Duração (min ou m:ss)', '12', false);
+    if (fo === 'emom') x += inp('intervalo_min', 'A cada (min ou m:ss)', '1 ou 2:30', false) + inp('duracao_min', 'Duração total (min ou m:ss)', '12', false);
     x += '<label class="gn" style="flex:1 1 100%">Descrição / como é o circuito<textarea class="dt" rows="2" data-cf="descricao" ' + at + ' placeholder="ex.: 4 rondas, 5 exercícios por ronda…">' + esc(f.descricao || '') + '</textarea></label>' +
       '<button class="chip" data-act="circ-del" data-d="' + i + '" data-b="' + b + '" data-n="' + n + '">Remover circuito (os exercícios ficam no bloco)</button></div>';
     return x;
@@ -6097,7 +6108,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   }
   function gFetchPlan(aid, mon) {
     return tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(aid) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
-      '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,descricao),treino_itens(id,alt_de,bloco,ordem,series,reps,pede_registo,registo,grupo,circuito,descanso_s,pse_alvo,pede_video,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
+      '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s,descricao),treino_itens(id,alt_de,bloco,ordem,series,reps,pede_registo,registo,grupo,circuito,descanso_s,pse_alvo,pede_video,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
       var plan = gNewPlan(), n = 0;
       rows.forEach(function (t) {
         var i = isoDow(t.data);
@@ -6106,7 +6117,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
           var mm = /^(principal|aquecimento|preparacao|acessorio)(?:#(\d+))?$/.exec(b.bloco);
           if (!mm) return;
           var cfg = { formato: b.formato, nome: b.nome || '', rondas: b.rondas == null ? '' : String(b.rondas), tc_min: b.tc_min == null ? '' : String(b.tc_min),
-            duracao_min: b.duracao_min == null ? '' : String(b.duracao_min), intervalo_min: b.intervalo_min == null ? '' : String(b.intervalo_min), descricao: b.descricao || '' };
+            duracao_min: (b.duracao_s || b.duracao_min) ? fmtMS(duS(b)) : '', intervalo_min: (b.intervalo_s || b.intervalo_min) ? fmtMS(ivS(b)) : '', descricao: b.descricao || '' };
           if (mm[2]) { (plan[i].circ[mm[1]] = plan[i].circ[mm[1]] || {})[+mm[2]] = cfg; } else legacy[mm[1]] = cfg;
         });
         plan[i].tipo = t.tipo === 'agua' ? 'none' : t.tipo; plan[i].nome = t.tipo === 'agua' ? '' : (t.nome || '');
@@ -6192,7 +6203,8 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
           if (!fm || !d.itens.some(function (it) { return it.bloco === b[0] && it.c === cn && it.ex; })) return;
           var fo = fm.formato || 'fortime';
           blk.push({ data: data, bloco: b[0] + '#' + cn, formato: fo, nome: String(fm.nome || '').trim(), rondas: fo === 'fortime' ? pi(fm.rondas) : null, tc_min: fo === 'fortime' ? pi(fm.tc_min) : null,
-            duracao_min: (fo === 'amrap' || fo === 'emom') ? pi(fm.duracao_min) : null, intervalo_min: fo === 'emom' ? (pi(fm.intervalo_min) || 1) : null, descricao: String(fm.descricao || '').trim() });
+            duracao_min: (fo === 'amrap' || fo === 'emom') && parseMS(fm.duracao_min) ? Math.max(1, Math.round(parseMS(fm.duracao_min) / 60)) : null, duracao_s: (fo === 'amrap' || fo === 'emom') ? parseMS(fm.duracao_min) : null,
+            intervalo_min: fo === 'emom' ? Math.max(1, Math.round((parseMS(fm.intervalo_min) || 60) / 60)) : null, intervalo_s: fo === 'emom' ? (parseMS(fm.intervalo_min) || 60) : null, descricao: String(fm.descricao || '').trim() });
         });
         var bi = d.itens.filter(function (it) { return it.bloco === b[0] && it.ex; }).map(function (it, ix) { return { it: it, ix: ix }; })
           .sort(function (p, q) { return ((p.it.c || 0) - (q.it.c || 0)) || (p.ix - q.ix); }).map(function (o) { return o.it; }), cur = null, ser = null;
