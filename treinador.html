@@ -972,6 +972,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   }
 
   var PADROES = { squat: 'Squat', hinge: 'Hip hinge', push: 'Push', pull: 'Pull', plyo: 'Plyo', olympic: 'Olympic weightlifting' };
+  var PADTAG = { throws: 'Throws', handstand: 'Handstand', locomocao: 'Locomoção' };
   var COREC = { ext: 'Core extensão', flex: 'Core flexão', lat: 'Core flexão lateral', rot: 'Core rotação', aext: 'Core anti-extensão', aflex: 'Core anti-flexão', alat: 'Core anti-flexão lateral', arot: 'Core anti-rotação' };
   var CORE_KEYS = ['ext', 'flex', 'lat', 'rot', 'aext', 'aflex', 'alat', 'arot'];
   /* exercícios com carga: pad = padrão de movimento, lat = lateralidade (uni conta os dois lados na tonelagem) */
@@ -1267,10 +1268,10 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
             }
           }
           var tags = '';
-          if (e.pad) tags += '<span class="mtag">' + PADROES[e.pad] + '</span>';
+          if (e.pad && (PADROES[e.pad] || PADTAG[e.pad])) tags += '<span class="mtag">' + (PADROES[e.pad] || PADTAG[e.pad]) + '</span>';
           if (e.core) tags += '<span class="mtag">' + COREC[e.core] + '</span>';
           if (e.lat) tags += '<span class="mtag">' + (e.lat === 'uni' ? 'Unilateral' : 'Bilateral') + '</span>';
-          var vurl = e.href ? (/^https?:\/\//i.test(e.href) ? e.href : '') : (e.v ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(e.v) : '');
+          var vurl = e.href && /^https?:\/\//i.test(e.href) ? e.href : '';
           var vid = vurl ? '<a class="vid" href="' + esc(vurl) + '" target="_blank" rel="noopener">Ver vídeo</a>' : '';
           var last = e.last ? '<span class="last">Última sessão: ' + e.last + '</span>' : '';
           return (typeof liveCircHead === 'function' ? liveCircHead(PLAN[day], bl, i) : '') + grpHead(bl, i) + '<article class="ex' + (e.g ? ' ing' : '') + '"><header><h3>' + grpTag(bl, i) + (altOn ? '<span class="alt-tag">Adaptação</span>' : '') + e.n + '</h3><span class="pres">' + e.pres + '</span></header>' +
@@ -4658,6 +4659,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     if (/^throw|lan[cç]amento/.test(s)) return { padrao: 'throws' };
     if (/olymp|weightlift|halter/.test(s)) return { padrao: 'olympic' };
     if (/hand\s*stand|pino/.test(s)) return { padrao: 'handstand' };
+    if (/locomo/.test(s)) return { padrao: 'locomocao' };
     if (/^core/.test(s)) {
       var t = /later|lat\b/.test(s) ? 'lat' : /exten/.test(s) ? 'ext' : /flex|flec/.test(s) ? 'flex' : /rot/.test(s) ? 'rot' : null; if (t && /anti/.test(s)) t = 'a' + t;
       return t ? { padrao: 'core', core_tipo: t } : null;
@@ -4767,7 +4769,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   /* ====================== GESTÃO (treinador): atletas, exercícios, planear semana ====================== */
   var G = { atl: [], ex: [], tab: 'plano', sel: {}, semana: '', plan: null, edit: null, exEdit: null, exQ: '', srcAtl: '', srcSem: '' };
   var GBL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
-  var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['throws', 'Throws (lançamentos)'], ['olympic', 'Olympic weightlifting'], ['handstand', 'Handstand'], ['core:ext', 'Core extensão'], ['core:flex', 'Core flexão'], ['core:lat', 'Core flexão lateral'], ['core:rot', 'Core rotação'], ['core:aext', 'Core anti-extensão'], ['core:aflex', 'Core anti-flexão'], ['core:alat', 'Core anti-flexão lateral'], ['core:arot', 'Core anti-rotação']];
+  var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['throws', 'Throws (lançamentos)'], ['olympic', 'Olympic weightlifting'], ['handstand', 'Handstand'], ['locomocao', 'Locomoção'], ['core:ext', 'Core extensão'], ['core:flex', 'Core flexão'], ['core:lat', 'Core flexão lateral'], ['core:rot', 'Core rotação'], ['core:aext', 'Core anti-extensão'], ['core:aflex', 'Core anti-flexão'], ['core:alat', 'Core anti-flexão lateral'], ['core:arot', 'Core anti-rotação']];
   var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'Carga + VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Broad jump (cm)'], ['feito', 'Só "feito"']];
   var DIASL = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
