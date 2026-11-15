@@ -3091,12 +3091,13 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
 
 
   /* ---------- blocos com formato (For time / AMRAP / EMOM) ---------- */
-  var WFN = { fortime: 'For time', amrap: 'AMRAP', emom: 'EMOM', livre: 'Circuito' };
+  var WFN = { fortime: 'For time', amrap: 'AMRAP', emom: 'EMOM', tabata: 'Tabata', livre: 'Circuito' };
   function wodTitle(c) {
     var t = WFN[c.formato] || c.formato, x = [];
     if (c.formato === 'fortime') { if (c.rondas) x.push(c.rondas + (c.rondas === 1 ? ' ronda' : ' rondas')); if (c.tc_min) x.push('time cap ' + c.tc_min + ' min'); }
     else if (c.formato === 'amrap') { if (duS(c)) x.push(fmtMS(duS(c)) + ' min'); }
     else if (c.formato === 'emom') { x.push(ivS(c) > 60 ? 'a cada ' + fmtMS(ivS(c)) + ' min' : ivS(c) < 60 ? 'a cada ' + ivS(c) + ' s' : 'todos os minutos'); if (duS(c)) x.push('durante ' + fmtMS(duS(c)) + ' min'); }
+    else if (c.formato === 'tabata') { x.push((c.rondas || 8) + ' rondas'); x.push((c.intervalo_s || 20) + ' s / ' + (c.descanso_s == null ? 10 : c.descanso_s) + ' s'); }
     if (c.formato === 'amrap' && x.length === 1) return t + ' ' + x[0];
     return t + (x.length ? ' · ' + x.join(' · ') : '');
   }
@@ -3122,8 +3123,8 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     } else if (f === 'amrap') {
       h += '<div class="wodrow">' + wIn(code, 'rondas', 'rondas completas', r.rondas) + wIn(code, 'reps', 'reps extra', r.reps) + '</div>';
     } else {
-      h += '<label class="check"><input type="checkbox" data-wf="comp" data-wb="' + code + '"' + (r.completo ? ' checked' : '') + '>Completei todos os minutos</label>' +
-        '<div class="wodrow">' + wIn(code, 'rondas', 'rondas / minutos feitos', r.rondas) + '</div>';
+      h += '<label class="check"><input type="checkbox" data-wf="comp" data-wb="' + code + '"' + (r.completo ? ' checked' : '') + '>' + (f === 'tabata' ? 'Completei todas as rondas' : 'Completei todos os minutos') + '</label>' +
+        '<div class="wodrow">' + wIn(code, 'rondas', f === 'tabata' ? 'rondas feitas' : 'rondas / minutos feitos', r.rondas) + '</div>';
     }
     h += '<label class="small" for="wn-' + code + '">Nota (carga usada, adaptações…)</label><textarea class="bnota" id="wn-' + code + '" data-wf="nota" data-wb="' + code + '" placeholder="Ex.: RX com 20 kg, remo 500 m">' + esc(r.nota || '') + '</textarea>' +
       '<button class="chip" data-wsave="' + code + '">Guardar resultado</button> <span class="small" role="status" id="wst-' + code + '">' + (r.data ? 'Guardado.' : '') + '</span></div>';
@@ -3169,6 +3170,13 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       for (i = 0; i < n; i++) S.push({ kind: 'work', dur: iv, i: i, N: n, cyc: rod ? items.length : 1, ex: (rod ? [items[i % items.length]] : items).map(lab) });
     } else if (f === 'amrap') { var da = duS(c); if (!da) return null; S.push({ kind: 'amrap', dur: da, ex: items.map(lab) }); }
     else if (f === 'fortime') { if (!c.tc_min) return null; S.push({ kind: 'ft', dur: c.tc_min * 60, ex: items.map(lab) }); }
+    else if (f === 'tabata') {
+      var wk = c.intervalo_s || 20, rs = c.descanso_s == null ? 10 : c.descanso_s, nr = c.rondas || 8;
+      for (i = 0; i < nr; i++) {
+        S.push({ kind: 'work', dur: wk, i: i, N: nr, cyc: 1, tab: true, ex: [lab(items[i % items.length])] });
+        if (rs > 0 && i < nr - 1) S.push({ kind: 'rest', dur: rs, i: i, N: nr, ex: [{ n: 'Descanso', r: '' }] });
+      }
+    }
     else return null;
     var t = 0; S.forEach(function (s) { s.s = t; t += s.dur; s.e = t; });
     return { f: f, key: key, nome: wodTitle(c), segs: S };
@@ -3192,17 +3200,18 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   var CKSND = {
     pip: function () { ckTone(880, .12, 0, .24); },
     pum: function () { ckTone(1320, .5, 0, .24); },
+    pom: function () { ckTone(660, .25, 0, .21); },
     dbl: function () { ckTone(880, .12, 0, .24); ckTone(880, .12, .22, .24); },
     fim: function () { ckTone(1320, .25, 0, .24); ckTone(1320, .25, .32, .24); ckTone(1320, .8, .64, .24); }
   };
-  var CKVIB = { pip: 40, pum: 300, dbl: [40, 80, 40], fim: [200, 100, 200, 100, 400] };
+  var CKVIB = { pip: 40, pum: 300, pom: 120, dbl: [40, 80, 40], fim: [200, 100, 200, 100, 400] };
   function ckPlay(k) { try { if (CK.ctx && CK.ctx.state !== 'running') CK.ctx.resume(); CKSND[k](); } catch (e) { } if (!CK.mute && navigator.vibrate) navigator.vibrate(CKVIB[k]); }
   function ckEvents(S) {
     var r = [], tot = S[S.length - 1].e;
     S.forEach(function (s, k) {
       if (s.dur >= 4) for (var m = 3; m >= 1; m--) r.push({ t: s.e - m, k: 'pip' });
       if ((s.kind === 'amrap' || s.kind === 'ft') && s.dur >= 180) r.push({ t: s.e - 60, k: 'dbl' });
-      if (k > 0) r.push({ t: s.s, k: 'pum' });
+      if (k > 0) r.push({ t: s.s, k: s.kind === 'rest' ? 'pom' : 'pum' });
     });
     r.push({ t: tot, k: 'fim' });
     return r.sort(function (a, b) { return a.t - b.t; });
@@ -3216,7 +3225,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       '#ckov.on{display:flex}#ckov .ckt{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}#ckov .ckt b{font-family:var(--font-display);font-size:1.4rem}#ckov .ckt span{display:block;color:var(--muted);font-size:.85rem}' +
       '#ckov .ckph{text-align:center;margin-top:16px;color:var(--muted);font-size:.9rem;letter-spacing:.06em;text-transform:uppercase;min-height:44px}' +
       '#ckov .cknum{font-family:var(--font-display);font-variant-numeric:tabular-nums;text-align:center;font-weight:700;font-size:min(150px,27vw);line-height:.95;color:var(--accent)}' +
-      '#ckov.warn .cknum{color:var(--warn)}#ckov.prep .cknum{color:var(--muted)}' +
+      '#ckov.warn .cknum{color:var(--warn)}#ckov.prep .cknum,#ckov.rest .cknum{color:var(--muted)}' +
       '#ckov .ckbar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin:8px 0 16px}#ckov .ckbar i{display:block;height:100%;width:0;background:var(--accent)}' +
       '#ckov .cknow{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px}#ckov .cknow .k,#ckov .cknext .k{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}' +
       '#ckov .cknow .n{font-size:1.35rem;font-weight:700}#ckov .cknow .r{color:var(--accent);font-weight:600}' +
@@ -3269,19 +3278,20 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     } else if (s.kind === 'prep') {
       cls = 'prep'; num = ckMMSS(rem); fase = 'Prepara-te · começa em'; nowK = 'Primeiro'; nowN = lst(S[1].ex, 'n'); nowR = lst(S[1].ex, 'r');
     } else {
-      cls = rem <= 3 ? 'warn' : 'go';
+      cls = s.kind === 'rest' ? 'rest' : rem <= 3 ? 'warn' : 'go';
       if (s.kind === 'ft') { num = ckMMSS(t - s.s); fase = 'For time · limite ' + ckMMSS(s.dur) + ' · faltam ' + ckMMSS(rem); }
       else num = ckMMSS(rem);
-      if (c.f === 'emom') fase = 'Ronda ' + (Math.floor(s.i / s.cyc) + 1) + ' de ' + Math.ceil(s.N / s.cyc) + (s.cyc > 1 ? ' · estação ' + (s.i % s.cyc + 1) + '/' + s.cyc : '') + ' · intervalo ' + (s.i + 1) + '/' + s.N;
+      if (c.f === 'tabata') fase = s.kind === 'rest' ? 'Descanso · ronda ' + (s.i + 2) + ' de ' + s.N + ' a seguir' : 'Trabalho · ronda ' + (s.i + 1) + ' de ' + s.N;
+      else if (c.f === 'emom') fase = 'Ronda ' + (Math.floor(s.i / s.cyc) + 1) + ' de ' + Math.ceil(s.N / s.cyc) + (s.cyc > 1 ? ' · estação ' + (s.i % s.cyc + 1) + '/' + s.cyc : '') + ' · intervalo ' + (s.i + 1) + '/' + s.N;
       else if (c.f === 'amrap') fase = 'AMRAP ' + Math.round(s.dur / 60) + ' min · ' + CK.ron + (CK.ron === 1 ? ' ronda' : ' rondas');
       nowN = lst(s.ex, 'n'); nowR = lst(s.ex, 'r');
-      var nx = S[i + 1]; if (c.f === 'emom') { nextN = nx ? lst(nx.ex, 'n') : 'Fim do bloco'; showNext = rem <= 10; }
+      var nx = S[i + 1]; if (c.f === 'emom' || c.f === 'tabata') { nextN = nx ? lst(nx.ex, 'n') : 'Fim do bloco'; showNext = rem <= 10; }
     }
     el.className = 'on ' + cls;
     document.getElementById('ck-n').textContent = num; document.getElementById('ck-ph').textContent = fase;
     document.getElementById('ck-k').textContent = nowK; document.getElementById('ck-en').textContent = nowN; document.getElementById('ck-er').textContent = nowR;
     document.getElementById('ck-b').style.width = (fim ? 100 : 100 * (1 - rem / s.dur)) + '%';
-    var nxe = document.getElementById('ck-nx'); nxe.classList.toggle('show', showNext); nxe.style.display = c.f === 'emom' ? 'block' : 'none'; document.getElementById('ck-nn').textContent = nextN;
+    var nxe = document.getElementById('ck-nx'); nxe.classList.toggle('show', showNext); nxe.style.display = (c.f === 'emom' || c.f === 'tabata') ? 'block' : 'none'; document.getElementById('ck-nn').textContent = nextN;
     document.getElementById('ck-rd').textContent = CK.ron + (CK.ron === 1 ? ' ronda' : ' rondas');
     if (!CK.paused && CK.done == null) for (var j = 0; j < CK.EV.length; j++) { e1 = CK.EV[j]; if (e1.t > CK.last && e1.t <= t) ckPlay(e1.k); }
     CK.last = t;
@@ -6144,15 +6154,16 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   }
 
   /* ---------- planear semana ---------- */
-  var GFMT = [['', 'Bloco normal'], ['fortime', 'For time'], ['amrap', 'AMRAP'], ['emom', 'EMOM']];
+  var GFMT = [['', 'Bloco normal'], ['fortime', 'For time'], ['amrap', 'AMRAP'], ['emom', 'EMOM'], ['tabata', 'Tabata']];
   function gCircHtml(i, b, d, n) {
     var f = (d.circ[b] && d.circ[b][n]) || {}, fo = f.formato || 'fortime';
     var at = 'data-d="' + i + '" data-b="' + b + '" data-n="' + n + '"';
     var inp = function (k, lab, ph, num) { return '<label class="gn">' + lab + '<input' + (num ? ' inputmode="numeric"' : '') + ' data-cf="' + k + '" ' + at + ' placeholder="' + (ph || '') + '" value="' + esc(f[k] || '') + '"></label>'; };
     var x = '<div class="gfmt"><label class="gn">Circuito ' + n + ' · formato<select data-cf="formato" ' + at + '>' +
-      [['fortime', 'For time'], ['amrap', 'AMRAP'], ['emom', 'EMOM'], ['livre', 'Livre (sem resultado)']].map(function (o) { return '<option value="' + o[0] + '"' + (fo === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>';
+      [['fortime', 'For time'], ['amrap', 'AMRAP'], ['emom', 'EMOM'], ['tabata', 'Tabata'], ['livre', 'Livre (sem resultado)']].map(function (o) { return '<option value="' + o[0] + '"' + (fo === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>';
     if (fo !== 'livre') x += inp('nome', 'Nome do WOD (igual = comparável)', 'ex.: Fran', false);
     if (fo === 'fortime') x += inp('rondas', 'Rondas', '4', true) + inp('tc_min', 'Time cap (min)', '20', true);
+    if (fo === 'tabata') x += inp('trabalho', 'Trabalho (s)', '20', true) + inp('descanso', 'Descanso (s)', '10', true) + inp('rondas', 'Rondas', '8', true);
     if (fo === 'amrap') x += inp('duracao_min', 'Duração (min ou m:ss)', '12', false);
     if (fo === 'emom') x += inp('intervalo_min', 'A cada (min ou m:ss)', '1 ou 2:30', false) + inp('duracao_min', 'Duração total (min ou m:ss)', '12', false);
     x += '<label class="gn" style="flex:1 1 100%">Descrição / como é o circuito<textarea class="dt" rows="2" data-cf="descricao" ' + at + ' placeholder="ex.: 4 rondas, 5 exercícios por ronda…">' + esc(f.descricao || '') + '</textarea></label>' +
@@ -6161,7 +6172,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   }
   function gSecHtml(i, d, bcode, c) {
     var its = d.itens.map(function (it, k) { return { it: it, k: k }; }).filter(function (o) { return o.it.bloco === bcode && (o.it.c || 0) === c; });
-    var emom = c > 0 && !!(d.circ[bcode] && d.circ[bcode][c]) && /^(emom|amrap)$/.test(d.circ[bcode][c].formato);
+    var emom = c > 0 && !!(d.circ[bcode] && d.circ[bcode][c]) && /^(emom|amrap|tabata)$/.test(d.circ[bcode][c].formato);
     var x = its.map(function (o, pos) {
       var ex = gExByName(o.it.ex), reg = ex ? ex.registo : 'feito';
       var lig = !emom && pos > 0 && !!o.it.lig, nxt = emom ? null : its[pos + 1], ult = !(nxt && nxt.it.lig);
@@ -6266,7 +6277,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   function gAddItem(d, bloco, nome, c) {
     var ex = gExByName(nome);
     if (!ex) { gMsg('g-msg-plano', '"' + nome + '" não está na biblioteca. Cria-o primeiro no separador Exercícios.', true); return false; }
-    G.plan[d].itens.push({ bloco: bloco, c: c || 0, ex: ex.nome, series: (c && G.plan[d].circ[bloco] && G.plan[d].circ[bloco][c] && /^(emom|amrap)$/.test(G.plan[d].circ[bloco][c].formato)) ? '1' : '3', reps: '', unid: '', pede: ex.registo !== 'feito', mreg: '', lig: false, desc: '', nota: '' });
+    G.plan[d].itens.push({ bloco: bloco, c: c || 0, ex: ex.nome, series: (c && G.plan[d].circ[bloco] && G.plan[d].circ[bloco][c] && /^(emom|amrap|tabata)$/.test(G.plan[d].circ[bloco][c].formato)) ? '1' : '3', reps: '', unid: '', pede: ex.registo !== 'feito', mreg: '', lig: false, desc: '', nota: '' });
     return true;
   }
   function gFetchPlan(aid, mon) {
@@ -6280,7 +6291,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
           var mm = /^(principal|aquecimento|preparacao|acessorio)(?:#(\d+))?$/.exec(b.bloco);
           if (!mm) return;
           var cfg = { formato: b.formato, nome: b.nome || '', rondas: b.rondas == null ? '' : String(b.rondas), tc_min: b.tc_min == null ? '' : String(b.tc_min),
-            duracao_min: (b.duracao_s || b.duracao_min) ? fmtMS(duS(b)) : '', intervalo_min: (b.intervalo_s || b.intervalo_min) ? fmtMS(ivS(b)) : '', descricao: b.descricao || '' };
+            duracao_min: (b.duracao_s || b.duracao_min) ? fmtMS(duS(b)) : '', trabalho: b.formato === 'tabata' && b.intervalo_s ? String(b.intervalo_s) : '', descanso: b.formato === 'tabata' && b.descanso_s != null ? String(b.descanso_s) : '', intervalo_min: (b.intervalo_s || b.intervalo_min) ? fmtMS(ivS(b)) : '', descricao: b.descricao || '' };
           if (mm[2]) { (plan[i].circ[mm[1]] = plan[i].circ[mm[1]] || {})[+mm[2]] = cfg; } else legacy[mm[1]] = cfg;
         });
         plan[i].tipo = t.tipo === 'agua' ? 'none' : t.tipo; plan[i].nome = t.tipo === 'agua' ? '' : (t.nome || '');
@@ -6365,9 +6376,9 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
           var fm = d.circ[b[0]][cn];
           if (!fm || !d.itens.some(function (it) { return it.bloco === b[0] && it.c === cn && it.ex; })) return;
           var fo = fm.formato || 'fortime';
-          blk.push({ data: data, bloco: b[0] + '#' + cn, formato: fo, nome: String(fm.nome || '').trim(), rondas: fo === 'fortime' ? pi(fm.rondas) : null, tc_min: fo === 'fortime' ? pi(fm.tc_min) : null,
+          blk.push({ data: data, bloco: b[0] + '#' + cn, formato: fo, nome: String(fm.nome || '').trim(), rondas: fo === 'fortime' ? pi(fm.rondas) : fo === 'tabata' ? (pi(fm.rondas) || 8) : null, tc_min: fo === 'fortime' ? pi(fm.tc_min) : null,
             duracao_min: (fo === 'amrap' || fo === 'emom') && parseMS(fm.duracao_min) ? Math.max(1, Math.round(parseMS(fm.duracao_min) / 60)) : null, duracao_s: (fo === 'amrap' || fo === 'emom') ? parseMS(fm.duracao_min) : null,
-            intervalo_min: fo === 'emom' ? Math.max(1, Math.round((parseMS(fm.intervalo_min) || 60) / 60)) : null, intervalo_s: fo === 'emom' ? (parseMS(fm.intervalo_min) || 60) : null, descricao: String(fm.descricao || '').trim() });
+            intervalo_min: fo === 'emom' ? Math.max(1, Math.round((parseMS(fm.intervalo_min) || 60) / 60)) : null, intervalo_s: fo === 'emom' ? (parseMS(fm.intervalo_min) || 60) : fo === 'tabata' ? (pi(fm.trabalho) || 20) : null, descanso_s: fo === 'tabata' ? (String(fm.descanso || '').trim() === '' ? 10 : Math.max(0, parseInt(fm.descanso, 10) || 0)) : null, descricao: String(fm.descricao || '').trim() });
         });
         var bi = d.itens.filter(function (it) { return it.bloco === b[0] && it.ex; }).map(function (it, ix) { return { it: it, ix: ix }; })
           .sort(function (p, q) { return ((p.it.c || 0) - (q.it.c || 0)) || (p.ix - q.ix); }).map(function (o) { return o.it; }), cur = null, ser = null;
@@ -6376,7 +6387,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
           var same = function (o) { return o && (o.c || 0) === (it.c || 0); };
           var lig = pos > 0 && !!it.lig && same(bi[pos - 1]), nxt = same(bi[pos + 1]) ? bi[pos + 1] : null, ult = !(nxt && nxt.lig), grupo = null;
           if (lig) { grupo = cur; } else if (nxt && nxt.lig) { grupo = cur = ++gn; ser = String(parseInt(it.series, 10) || 3); } else { cur = null; ser = null; }
-          var emomIt = (it.c || 0) > 0 && !!(d.circ[b[0]] && d.circ[b[0]][it.c]) && /^(emom|amrap)$/.test(d.circ[b[0]][it.c].formato);
+          var emomIt = (it.c || 0) > 0 && !!(d.circ[b[0]] && d.circ[b[0]][it.c]) && /^(emom|amrap|tabata)$/.test(d.circ[b[0]][it.c].formato);
           var sr = lig ? ser : String(parseInt(it.series, 10) || (emomIt ? 1 : 3)), ds = parseInt(it.desc, 10), psa = null, pst = String(it.pse == null ? '' : it.pse).trim().replace(',', '.');
           if (pst !== '') { psa = parseFloat(pst); if (!isFinite(psa) || psa < 0 || psa > 10) { avisos.push(DIASL[i] + ': a PSE alvo de “' + it.ex + '” tem de ser de 0 a 10.'); psa = null; } }
           linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: sr, reps: (String(it.reps || '').trim() + (it.unid && String(it.reps || '').trim() ? ' ' + it.unid : '')), pede_registo: gPede(it), registo_item: it.mreg || '',
