@@ -2194,7 +2194,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     return {
       pr: mr ? +mr[1] : undefined,
       c: it.circuito || undefined,
-      pu: /^\s*\d+([.,]\d+)?\s*(km|m|cal|s)\s*$/i.test(reps) ? reps : undefined,
+      pu: /^\s*\d+([.,]\d+)?\s*(km|min|m|cal|s)\s*$/i.test(reps) ? reps : undefined,
       id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, pa: it.pse_alvo != null ? it.pse_alvo : undefined, pv: it.pede_video ? true : undefined, hn: it.nota_item || undefined,
       pad: it.padrao && it.padrao !== 'core' ? it.padrao : undefined,
       core: it.core_tipo || undefined,
@@ -6179,7 +6179,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       return '<div class="gitem' + (lig ? ' gin' : '') + '"><div class="gname">' + (emom ? '<small>Exercício ' + (pos + 1) + ' · </small>' : '') + '<b>' + esc(o.it.ex) + '</b>' + (lig ? '<small> · no mesmo grupo que o anterior (as voltas são as do primeiro)</small>' : '') + '</div><div class="gctl">' +
         (lig || emom ? '' : '<label class="gn">' + ((nxt && nxt.it.lig) ? 'Voltas' : 'Séries') + '<input inputmode="numeric" data-f="series" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.series) + '"></label>') +
         '<label class="gn">Quantidade<input data-f="reps" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.reps) + '"></label>' +
-        '<label class="gn">Em<select data-f="unid" data-d="' + i + '" data-k="' + o.k + '">' + [['', 'reps'], ['s', 'segundos'], ['m', 'metros'], ['km', 'km'], ['cal', 'calorias']].map(function (u) { return '<option value="' + u[0] + '"' + ((o.it.unid || '') === u[0] ? ' selected' : '') + '>' + u[1] + '</option>'; }).join('') + '</select></label>' +
+        '<label class="gn">Em<select data-f="unid" data-d="' + i + '" data-k="' + o.k + '">' + [['', 'reps'], ['s', 'segundos'], ['min', 'minutos'], ['m', 'metros'], ['km', 'km'], ['cal', 'calorias']].map(function (u) { return '<option value="' + u[0] + '"' + ((o.it.unid || '') === u[0] ? ' selected' : '') + '>' + u[1] + '</option>'; }).join('') + '</select></label>' +
         (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
         '<label class="gn">PSE alvo (0 a 10)<input inputmode="decimal" data-f="pse" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.pse || '') + '"></label>' +
         '<button class="chip" data-act="pv" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + (!!o.it.pv) + '">Pedir vídeo</button>' +
@@ -6305,7 +6305,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
             return;
           }
           var arr = plan[i].itens, pv = arr.length ? arr[arr.length - 1] : null;
-          var um = /^\s*(\d+(?:[.,]\d+)?)\s*(km|m|cal|s)\s*$/i.exec(it.reps || '');
+          var um = /^\s*(\d+(?:[.,]\d+)?)\s*(km|min|m|cal|s)\s*$/i.exec(it.reps || '');
           plan[i].itens.push({ bloco: it.bloco, c: it.circuito || 0, ex: ex.nome, series: String(it.series), reps: um ? um[1] : (it.reps || ''), unid: um ? um[2].toLowerCase() : '', pede: !!it.pede_registo, mreg: it.registo || (it.pede_registo ? '' : 'feito'),
             lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', pse: it.pse_alvo != null ? String(it.pse_alvo) : '', pv: !!it.pede_video, nota: it.nota || '' }); byId[it.id] = plan[i].itens[plan[i].itens.length - 1]; n++;
         });
