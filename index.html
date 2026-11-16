@@ -3167,7 +3167,8 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       n = Math.floor(du / iv); if (n < 1) return null;
       var ss = 0; items.forEach(function (e) { ss += e.series || 1; });
       var rod = items.length > 1 && ss === n;
-      for (i = 0; i < n; i++) S.push({ kind: 'work', dur: iv, i: i, N: n, cyc: rod ? items.length : 1, ex: (rod ? [items[i % items.length]] : items).map(lab) });
+      var pr = items.length === 1 && (items[0].series || 1) === n ? String(items[0].pres || '').replace(/^\s*\d+\s*×\s*/, '').split(/\s*[·,]\s*/) : null;   /* 1 exercício com reps diferentes por intervalo (5 · 3 · 1 …) */
+      for (i = 0; i < n; i++) S.push({ kind: 'work', dur: iv, i: i, N: n, cyc: rod ? items.length : 1, ex: (rod ? [items[i % items.length]] : items).map(function (e) { var l = lab(e); if (pr && pr.length === n) l.r = pr[i]; return l; }) });
     } else if (f === 'amrap') { var da = duS(c); if (!da) return null; S.push({ kind: 'amrap', dur: da, ex: items.map(lab) }); }
     else if (f === 'fortime') { if (!c.tc_min) return null; S.push({ kind: 'ft', dur: c.tc_min * 60, ex: items.map(lab) }); }
     else if (f === 'tabata') {
