@@ -2195,7 +2195,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       pr: mr ? +mr[1] : undefined,
       c: it.circuito || undefined,
       pu: /^\s*\d+([.,]\d+)?\s*(km|min|m|cal|s)\s*$/i.test(reps) ? reps : undefined,
-      id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, pa: it.pse_alvo != null ? it.pse_alvo : undefined, pv: it.pede_video ? true : undefined, hn: it.nota_item || undefined,
+      id: it.id, n: it.nome, pres: pres, rr: reps, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, pa: it.pse_alvo != null ? it.pse_alvo : undefined, pv: it.pede_video ? true : undefined, hn: it.nota_item || undefined,
       pad: it.padrao && it.padrao !== 'core' ? it.padrao : undefined,
       core: it.core_tipo || undefined,
       lat: (it.padrao || uni) ? it.lateralidade : undefined, ald: ald || undefined,
@@ -3161,14 +3161,20 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     });
     if (!items.length) return null;
     var f = c.formato, S = [{ kind: 'prep', dur: 10 }], i, n;
-    var lab = function (e) { return { n: e.n, r: e.pres || '' }; };
+    var lab = function (e) {   /* o que fazer neste intervalo: reps, tempo, distância, calorias… */
+      var r = String(e.rr || '').trim();
+      if (r && /^\d+$/.test(r)) r += ' reps';
+      if (r && e.lat === 'uni' && !e.ald && !/lado|perna|side|leg/i.test(r)) r += ' / lado';
+      if (r && e.ald && !/altern/i.test(r)) r += ' alternadas';
+      return { n: e.n, r: r };
+    };
     if (f === 'emom') {
       var iv = ivS(c), du = duS(c); if (!du) return null;
       n = Math.floor(du / iv); if (n < 1) return null;
       var ss = 0; items.forEach(function (e) { ss += e.series || 1; });
       var rod = items.length > 1 && ss === n;
-      var pr = items.length === 1 && (items[0].series || 1) === n ? String(items[0].pres || '').replace(/^\s*\d+\s*×\s*/, '').split(/\s*[·,]\s*/) : null;   /* 1 exercício com reps diferentes por intervalo (5 · 3 · 1 …) */
-      for (i = 0; i < n; i++) S.push({ kind: 'work', dur: iv, i: i, N: n, cyc: rod ? items.length : 1, ex: (rod ? [items[i % items.length]] : items).map(function (e) { var l = lab(e); if (pr && pr.length === n) l.r = pr[i]; return l; }) });
+      var pr = items.length === 1 && (items[0].series || 1) === n ? String(items[0].rr || '').split(/\s*[·,]\s*/) : null;   /* 1 exercício com reps diferentes por intervalo (5 · 3 · 1 …) */
+      for (i = 0; i < n; i++) S.push({ kind: 'work', dur: iv, i: i, N: n, cyc: rod ? items.length : 1, ex: (rod ? [items[i % items.length]] : items).map(function (e) { var l = lab(e); if (pr && pr.length === n) l.r = /^\d+$/.test(pr[i]) ? pr[i] + ' reps' : pr[i]; return l; }) });
     } else if (f === 'amrap') { var da = duS(c); if (!da) return null; S.push({ kind: 'amrap', dur: da, ex: items.map(lab) }); }
     else if (f === 'fortime') { if (!c.tc_min) return null; S.push({ kind: 'ft', dur: c.tc_min * 60, ex: items.map(lab) }); }
     else if (f === 'tabata') {
@@ -3225,18 +3231,18 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     st.textContent = '#ckov{position:fixed;inset:0;background:var(--bg);color:var(--fg);display:none;flex-direction:column;padding:max(16px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));z-index:2000;overflow:auto}' +
       '#ckov.on{display:flex}#ckov .ckt{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}#ckov .ckt b{font-family:var(--font-display);font-size:1.4rem}#ckov .ckt span{display:block;color:var(--muted);font-size:.85rem}' +
       '#ckov .ckph{text-align:center;margin-top:16px;color:var(--muted);font-size:.9rem;letter-spacing:.06em;text-transform:uppercase;min-height:44px}' +
-      '#ckov .cknum{font-family:var(--font-display);font-variant-numeric:tabular-nums;text-align:center;font-weight:700;font-size:min(150px,27vw);line-height:.95;color:var(--accent)}' +
+      '#ckov .cknum{font-family:var(--font-display);font-variant-numeric:tabular-nums;text-align:center;font-weight:700;font-size:var(--ckfs,min(220px,42vw));line-height:.92;color:var(--accent)}' +
       '#ckov.warn .cknum{color:var(--warn)}#ckov.prep .cknum,#ckov.rest .cknum{color:var(--muted)}' +
       '#ckov .ckbar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin:8px 0 16px}#ckov .ckbar i{display:block;height:100%;width:0;background:var(--accent)}' +
       '#ckov .cknow{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px}#ckov .cknow .k,#ckov .cknext .k{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}' +
-      '#ckov .cknow .n{font-size:1.35rem;font-weight:700}#ckov .cknow .r{color:var(--accent);font-weight:600}' +
-      '#ckov .cknext{margin-top:10px;border:1px solid var(--line);border-radius:16px;padding:10px 14px;opacity:.35;transition:all .25s}#ckov .cknext .n{font-weight:700}#ckov .cknext.show{opacity:1;border-color:var(--warn);background:var(--warn-soft)}#ckov .cknext.show .k{color:var(--warn)}' +
+      '#ckov .cknow .n{font-size:1.5rem;font-weight:700;line-height:1.15}#ckov .cknow .r{color:var(--accent);font-weight:700;font-size:1.7rem;line-height:1.15;margin-top:2px}#ckov .cknext .r{font-weight:600;color:var(--muted)}#ckov .cknow .n div{margin:3px 0}#ckov .ckr{display:block;color:var(--accent);font-weight:700;font-size:1.25em}' +
+      '#ckov .cknext{margin-top:10px;border:1px solid var(--line);border-radius:16px;padding:10px 14px;opacity:.35;transition:all .25s}#ckov .cknext .n{font-weight:700;font-size:1.05rem}#ckov .cknext.show{opacity:1;border-color:var(--warn);background:var(--warn-soft)}#ckov .cknext.show .k{color:var(--warn)}' +
       '#ckov .ckcnt{display:none;margin-top:10px;align-items:center;gap:8px}#ckov .ckcnt.on{display:flex}#ckov .ckcnt button{border:1px solid var(--line);background:var(--surface);border-radius:14px;font-size:1.3rem;padding:12px 16px;color:var(--fg)}#ckov .ckcnt .big{flex:1;text-align:center;font-weight:700;white-space:nowrap}#ckov .ckcnt .plus{flex:2;background:var(--accent);color:var(--accent-fg);border:0;font-weight:700}' +
       '#ckov .ckfill{display:none;width:100%;margin-top:10px;padding:12px;border-radius:12px;border:0;background:var(--accent);color:var(--accent-fg);font-weight:700}#ckov .ckfill.on{display:block}' +
       '#ckov .cksp{flex:1}#ckov .ckctl{display:flex;gap:8px;margin-top:10px}#ckov .ckctl button,#ckov .ckx{padding:11px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);flex:1}#ckov .ckx{flex:none;border-radius:99px;padding:6px 14px}' +
-      '@media (orientation:landscape) and (max-height:560px){#ckov.on{display:grid;grid-template-columns:1.7fr 1fr;grid-template-rows:auto minmax(0,1fr) auto;column-gap:18px;padding:max(8px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left))}' +
+      '@media (orientation:landscape) and (max-height:560px){#ckov.on{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;column-gap:18px;padding:max(8px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left))}' +
       '#ckov .ckt{grid-column:1/3}#ckov .ckmain{grid-column:1;grid-row:2;display:flex;flex-direction:column;justify-content:center;min-height:0}#ckov .ckside{grid-column:2;grid-row:2;display:flex;flex-direction:column;justify-content:center;min-height:0;overflow:auto}#ckov .cksp{display:none}#ckov .ckctl{grid-column:1/3;grid-row:3;margin-top:6px}' +
-      '#ckov .ckph{min-height:0;margin-top:0;font-size:.8rem}#ckov .cknum{font-size:clamp(80px,min(52vh,25vw),240px);line-height:.9}#ckov .ckbar{margin:4px 0 6px}#ckov .cknow{padding:8px 10px}#ckov .cknow .n{font-size:.95rem}#ckov .cknow .r{font-size:.8rem}#ckov .cknext{margin-top:6px;padding:6px 10px}#ckov .cknext .n{font-size:.85rem}}';
+      '#ckov .ckph{min-height:0;margin-top:0;font-size:.8rem}#ckov .cknum{font-size:var(--ckfs,clamp(90px,min(64vh,32vw),300px));line-height:.88}#ckov .ckbar{margin:4px 0 6px}#ckov .cknow{padding:8px 10px}#ckov .cknow .n{font-size:1.05rem}#ckov .cknow .r{font-size:1.25rem}#ckov .cknext{margin-top:6px;padding:6px 10px}#ckov .cknext .n{font-size:.9rem}#ckov .ckcnt{gap:6px}#ckov .ckcnt .big{font-size:1rem}#ckov .ckcnt button{font-size:1rem;padding:9px 10px}#ckov .ckcnt .plus{flex:1.6}}';
     document.head.appendChild(st);
     el = document.createElement('div'); el.id = 'ckov'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Relógio do bloco');
     el.innerHTML = '<div class="ckt"><div><b id="ck-t"></b><span id="ck-s"></span></div><button type="button" class="ckx" id="ck-x">Sair</button></div>' +
@@ -3286,11 +3292,15 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       else if (c.f === 'emom') fase = 'Ronda ' + (Math.floor(s.i / s.cyc) + 1) + ' de ' + Math.ceil(s.N / s.cyc) + (s.cyc > 1 ? ' · estação ' + (s.i % s.cyc + 1) + '/' + s.cyc : '') + ' · intervalo ' + (s.i + 1) + '/' + s.N;
       else if (c.f === 'amrap') fase = 'AMRAP ' + Math.round(s.dur / 60) + ' min · ' + CK.ron + (CK.ron === 1 ? ' ronda' : ' rondas');
       nowN = lst(s.ex, 'n'); nowR = lst(s.ex, 'r');
-      var nx = S[i + 1]; if (c.f === 'emom' || c.f === 'tabata') { nextN = nx ? lst(nx.ex, 'n') : 'Fim do bloco'; showNext = rem <= 10; }
+      var nx = S[i + 1]; if (c.f === 'emom' || c.f === 'tabata') { nextN = nx ? lst(nx.ex, 'n') + (lst(nx.ex, 'r') ? ' · ' + lst(nx.ex, 'r') : '') : 'Fim do bloco'; showNext = rem <= 10; }
     }
     el.className = 'on ' + cls;
+    el.style.setProperty('--ckfs', (document.documentElement.clientWidth > document.documentElement.clientHeight && document.documentElement.clientHeight < 560) ? (num.length > 4 ? 'clamp(80px,min(50vh,21vw),240px)' : 'clamp(90px,min(64vh,31vw),300px)') : (num.length > 4 ? 'min(190px,33vw)' : 'min(230px,43vw)'));
     document.getElementById('ck-n').textContent = num; document.getElementById('ck-ph').textContent = fase;
-    document.getElementById('ck-k').textContent = nowK; document.getElementById('ck-en').textContent = nowN; document.getElementById('ck-er').textContent = nowR;
+    document.getElementById('ck-k').textContent = nowK; var multi = !fim && s.ex && s.ex.length > 1 && s.kind !== 'prep';
+    var en = document.getElementById('ck-en'), er = document.getElementById('ck-er');
+    if (multi) { en.innerHTML = s.ex.map(function (x) { return '<div>' + esc(x.n) + (x.r ? ' <span class="ckr">' + esc(x.r) + '</span>' : '') + '</div>'; }).join(''); er.textContent = ''; }
+    else { en.textContent = nowN; er.textContent = nowR; }
     document.getElementById('ck-b').style.width = (fim ? 100 : 100 * (1 - rem / s.dur)) + '%';
     var nxe = document.getElementById('ck-nx'); nxe.classList.toggle('show', showNext); nxe.style.display = (c.f === 'emom' || c.f === 'tabata') ? 'block' : 'none'; document.getElementById('ck-nn').textContent = nextN;
     document.getElementById('ck-rd').textContent = CK.ron + (CK.ron === 1 ? ' ronda' : ' rondas');
