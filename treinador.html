@@ -229,6 +229,24 @@ details > .frow, details > div { margin-top: 10px; }
 .when small { display: block; font-family: var(--font-body); font-weight: 500; font-size: .75rem; }
 
 /* relatorio */
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body.pr > *:not(#print-root) { display: none !important; }
+  body.pr { background: #fff !important; padding: 0 !important; color: #0D120F;
+    --bg: #fff; --surface: #fff; --fg: #0D120F; --muted: #5A665E; --line: #DEE4DF; --axis: #B9C3BB;
+    --accent: #16803F; --accent-soft: #DCEFE2; --warn: #A85F00; --warn-soft: #F8E9D2; --crit: #B3261E; --crit-soft: #F8DEDB; }
+  body.pr * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #print-root .paper { border: 0; padding: 0; background: #fff; }
+  #print-root .ra ~ .ra { break-before: page; }
+  #print-root .ra > * { break-inside: avoid; }
+  #print-root .ra { display: block; }
+  #print-root .ra > * { margin-bottom: 10px; }
+  #print-root .cbarr { display: inline-block; width: 48.5%; vertical-align: top; margin-right: 1%; margin-top: 0; }
+  #print-root .cb-hd { display: block; }
+  #print-root h3, #print-root .kicker { break-after: avoid; }
+  #print-root .scroll { overflow: visible; }
+  #print-root table, #print-root svg, #print-root .kv { break-inside: avoid; }
+}
 .checks { display: grid; gap: 8px; }
 .paper { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 18px; min-width: 0; }
 .ra { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
@@ -901,16 +919,21 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
         <span class="kicker">Atletas e período</span>
       </header>
       <p class="small">Usa o período escolhido em "Evolução da época". Escolhe os atletas a incluir.</p>
+      <div class="tags" id="rep-mods" style="gap:8px"></div>
       <div class="checks" id="rep-list"></div>
+      <p class="kicker">O que mostrar no relatório</p>
+      <div class="tags" style="gap:8px"><button type="button" class="chip" id="rep-ptodos">Tudo</button><button type="button" class="chip" id="rep-pnenhum">Nada</button></div>
+      <div class="checks" id="rep-par"></div>
       <label class="check"><input type="checkbox" id="rep-motivos">Incluir os motivos das faltas (por exemplo, lesão ou dor)</label>
       <button class="primary" id="rep-go">Gerar relatório</button>
       <div id="rep-out" hidden></div>
       <div id="rep-actions" hidden style="display:grid;gap:8px">
+        <button class="primary" id="rep-pdf">Descarregar PDF</button>
         <button class="chip" id="rep-copy">Copiar resumo em texto</button>
         <p class="small" id="rep-msg" role="status"></p>
       </div>
       <textarea id="rep-text" hidden readonly aria-label="Resumo em texto"></textarea>
-      <p class="small">Vês o relatório aqui e podes copiar o resumo em texto para enviar.</p>
+      <p class="small">Vês o relatório aqui. Podes descarregá-lo em PDF (escolhe "Guardar como PDF" na janela que abre) ou copiar o resumo em texto.</p>
     </div>
 
     <div class="panel">
@@ -1980,7 +2003,57 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       if (FMOD && a.m !== FMOD) return '';
       return '<label class="check"><input type="checkbox" data-ra="' + i + '"' + (a.g === 'atleta' ? ' checked' : '') + '>' + esc(a.n) + ' · ' + esc(a.m) + '</label>';
     }).join('');
+    repMods(); repParInit();
   }
+  /* parâmetros a mostrar no relatório (guardados neste dispositivo) */
+  var REP_PAR = [['ass', 'Assiduidade (presença e faltas)'], ['well', 'Wellness (Hooper)'], ['pse', 'PSE'], ['carga', 'Carga (UA)'], ['ton', 'Tonelagem (e por padrão)'], ['ex', 'Cargas por exercício'], ['core', 'Core'], ['acwr', 'ACWR'], ['aval', 'Avaliações (CMJ, broad jump, VBT)'], ['notas', 'Notas do atleta'], ['sem', 'Semana a semana'], ['dia', 'Última semana, dia a dia']];
+  function repPar() {
+    var o = {}, boxes = document.querySelectorAll('#rep-par input');
+    if (!boxes.length) { REP_PAR.forEach(function (p) { o[p[0]] = true; }); return o; }
+    boxes.forEach(function (c) { o[c.getAttribute('data-rp')] = c.checked; });
+    try { localStorage.setItem('rep_par', JSON.stringify(o)); } catch (e) { }
+    return o;
+  }
+  function repParInit() {
+    var saved = {}; try { saved = JSON.parse(localStorage.getItem('rep_par') || '{}') || {}; } catch (e) { }
+    $('#rep-par').innerHTML = REP_PAR.map(function (p) { return '<label class="check"><input type="checkbox" data-rp="' + p[0] + '"' + (saved[p[0]] === false ? '' : ' checked') + '>' + p[1] + '</label>'; }).join('');
+  }
+  $('#rep-par').addEventListener('change', function () { repPar(); if (!$('#rep-out').hidden) renderReport(); });
+  $('#rep-ptodos').addEventListener('click', function () { document.querySelectorAll('#rep-par input').forEach(function (c) { c.checked = true; }); repPar(); if (!$('#rep-out').hidden) renderReport(); });
+  $('#rep-pnenhum').addEventListener('click', function () { document.querySelectorAll('#rep-par input').forEach(function (c) { c.checked = false; }); repPar(); if (!$('#rep-out').hidden) renderReport(); });
+  /* seleção rápida por modalidade (Natação, Triatlo…) */
+  function repMods() {
+    var ms = [];
+    ATLETAS.forEach(function (a) { if ((!FMOD || a.m === FMOD) && ms.indexOf(a.m) < 0) ms.push(a.m); });
+    var boxes = [].slice.call(document.querySelectorAll('#rep-list input'));
+    function of(m) { return boxes.filter(function (c) { return m === '*' || ATLETAS[+c.getAttribute('data-ra')].m === m; }); }
+    function on(m) { var l = of(m); return l.length > 0 && l.every(function (c) { return c.checked; }); }
+    $('#rep-mods').innerHTML = '<button type="button" class="chip" data-rm="*" aria-pressed="' + on('*') + '">Todos</button><button type="button" class="chip" data-rm="" aria-pressed="false">Nenhum</button>' +
+      ms.map(function (m) { return '<button type="button" class="chip" data-rm="' + esc(m) + '" aria-pressed="' + on(m) + '">' + esc(m) + '</button>'; }).join('');
+  }
+  $('#rep-mods').addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-rm]'); if (!b) return;
+    var m = b.getAttribute('data-rm'), boxes = [].slice.call(document.querySelectorAll('#rep-list input'));
+    var sel = boxes.filter(function (c) { return m === '*' || m === '' || ATLETAS[+c.getAttribute('data-ra')].m === m; });
+    var all = sel.length > 0 && sel.every(function (c) { return c.checked; });
+    if (m === '') boxes.forEach(function (c) { c.checked = false; });
+    else if (m === '*') boxes.forEach(function (c) { c.checked = true; });
+    else sel.forEach(function (c) { c.checked = !all; });
+    repMods();
+    if (!$('#rep-out').hidden) renderReport();
+  });
+  $('#rep-list').addEventListener('change', repMods);
+  /* descarregar em PDF: abre a impressão só com o relatório (Guardar como PDF) */
+  $('#rep-pdf').addEventListener('click', function () {
+    var paper = document.querySelector('#rep-out .paper'); if (!paper) return;
+    var old = document.getElementById('print-root'); if (old) old.remove();
+    var root = document.createElement('div'); root.id = 'print-root'; root.innerHTML = paper.outerHTML; document.body.appendChild(root);
+    document.body.classList.add('pr');
+    var t = document.title; document.title = 'Relatorio 1% ' + toISO(range.i0) + ' a ' + toISO(range.i1);
+    function done() { window.removeEventListener('afterprint', done); document.body.classList.remove('pr'); root.remove(); document.title = t; }
+    window.addEventListener('afterprint', done);
+    setTimeout(function () { window.print(); }, 60);
+  });
   function renderReport() {
     var idx = [];
     document.querySelectorAll('#rep-list input').forEach(function (c) { if (c.checked) idx.push(+c.getAttribute('data-ra')); });
@@ -1991,16 +2064,19 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       $('#rep-actions').hidden = true;
       return;
     }
-    var motivos = $('#rep-motivos').checked;
+    var motivos = $('#rep-motivos').checked, P = repPar();
     var periodo = fmtDate(range.i0) + ' a ' + fmtDate(range.i1);
     var td = '<td>';
     var pk = ['squat', 'hinge', 'push', 'pull', 'olympic', 'plyo'], ck = CORE_KEYS;
+    var hasSum = P.ass || P.well || P.pse || P.carga || P.ton;
+    var cols = { h: P.well, p: P.pse, u: P.carga, t: P.ton, z: P.acwr };
+    var anyWk = P.well || P.pse || P.carga || P.ton;
     var rows = '', secs = '', txt = ['Relatório de acompanhamento · ' + periodo, ''];
     idx.forEach(function (ai) {
       var a = ATLETAS[ai], st = stats(a, range.i0, range.i1), nw = st.order.length || 1;
       var pres = st.pres == null ? '–' : st.pres + '%';
       var faltas = st.nf ? 'Faltas: ' + st.nf + (motivos ? ' (' + Object.keys(st.faltas).map(function (k) { return k.toLowerCase() + ' ' + st.faltas[k]; }).join(', ') + ')' : '') : 'Sem faltas';
-      rows += '<tr>' + td + esc(a.n) + '</td>' + td + pres + '</td>' + td + (st.ph == null ? '–' : num(st.ph)) + '</td>' + td + (st.pm == null ? '–' : num(st.pm)) + '</td>' + td + fmtN(st.ua) + '</td>' + td + num(st.ton / 1000) + ' t</td></tr>';
+      rows += '<tr>' + td + esc(a.n) + '</td>' + (P.ass ? td + pres + '</td>' : '') + (P.well ? td + (st.ph == null ? '–' : num(st.ph)) + '</td>' : '') + (P.pse ? td + (st.pm == null ? '–' : num(st.pm)) + '</td>' : '') + (P.carga ? td + fmtN(st.ua) + '</td>' : '') + (P.ton ? td + num(st.ton / 1000) + ' t</td>' : '') + '</tr>';
       var ex = '', exTxt = [];
       EXS.forEach(function (e) {
         var pts = a.loads[e.n].filter(inR);
@@ -2022,33 +2098,45 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       var cSub = 'extensão ' + cv(0) + ' · flexão ' + cv(1) + ' · flexão lateral ' + cv(2) + ' · rotação ' + cv(3) + ' · anti-extensão ' + cv(4) + ' · anti-flexão ' + cv(5) + ' · anti-flexão lateral ' + cv(6) + ' · anti-rotação ' + cv(7);
       var upct = st.ton ? Math.round(100 * st.tu / st.ton) : 0;
       var awc = acwrCalc(a, range.i1), awz = awc.ult && awc.ult.acwr != null ? acwrZona(awc.ult.acwr) : null;
-      secs += '<section class="ra"><h3>' + esc(a.n) + '<small>' + esc(a.m) + '</small></h3><div class="rgrid">' +
-        kv('Presença', pres, st.done + ' de ' + st.plan + ' sessões') +
-        kv('Wellness', st.ph == null ? '–' : num(st.ph), 'Hooper médio · ' + st.att + (st.att === 1 ? ' dia' : ' dias') + ' em atenção') +
-        kv('PSE', st.pm == null ? '–' : num(st.pm), 'média · ' + fmtN(st.ua / nw) + ' UA por semana') +
-        kv('Tonelagem', num(st.ton / 1000) + ' t', num(st.ton / 1000 / nw) + ' t por semana') +
-        kv('Core', ctot, cSub) +
-        kv('Unilateral', upct + '%', 'da tonelagem') +
-        kv('ACWR', awz ? acwrFmt(awc.ult.acwr) : '–', awz ? awz[2] + ' · semana de ' + fmtDate(awc.ult.k) : 'dados insuficientes') +
-        '</div><p class="small">' + faltas + '</p>' + notasRel(a, toISO(range.i0), toISO(range.i1)) +
-        '<p class="kicker">Semana a semana: Hooper, PSE, carga e tonelagem</p>' + compHtml(a, range.i0, range.i1, 12) + (function () { var kk = compSemKeys(a); return kk.length ? '<p class="kicker">Última semana, dia a dia (' + fmtDate(kk[kk.length - 1]) + ')</p>' + compGraficos(a, kk[kk.length - 1]) : ''; })() +
-        '<p class="kicker">Tonelagem por padrão</p><div class="scroll"><table class="rt"><thead><tr><th>Padrão</th><th>Tonelagem</th><th>%</th></tr></thead><tbody>' + pr + '</tbody></table></div>' +
-        (ex ? '<p class="kicker">Cargas por exercício</p><div class="scroll"><table class="rt"><thead><tr><th>Exercício</th><th>Evolução</th><th>Variação</th></tr></thead><tbody>' + ex + '</tbody></table></div>' : '<p class="small">Sem cargas registadas neste período.</p>') + '</section>';
+      /* avaliações: CMJ, broad jump e VBT no período (primeiro → último) */
+      var av = '', avTxt = [];
+      [['CMJ', a.cmj, 'cm', num], ['Broad jump', a.bj, 'cm', num], ['VBT · ' + VBTN, a.vbt, 'm/s', v2]].forEach(function (t) {
+        var pts = (t[1] || []).filter(inR); if (!pts.length) return;
+        var f1 = pts[0].y, l1 = pts[pts.length - 1].y, best = Math.max.apply(null, pts.map(function (p) { return p.y; }));
+        av += '<tr>' + td + t[0] + '</td>' + td + t[3](f1) + ' → ' + t[3](l1) + ' ' + t[2] + '</td>' + td + t[3](best) + ' ' + t[2] + '</td>' + td + pts.length + '</td></tr>';
+        avTxt.push(t[0] + ' ' + t[3](f1) + ' → ' + t[3](l1) + ' ' + t[2] + ' (melhor ' + t[3](best) + ', ' + pts.length + ' testes)');
+      });
+      var kvs = '';
+      if (P.ass) kvs += kv('Presença', pres, st.done + ' de ' + st.plan + ' sessões');
+      if (P.well) kvs += kv('Wellness', st.ph == null ? '–' : num(st.ph), 'Hooper médio · ' + st.att + (st.att === 1 ? ' dia' : ' dias') + ' em atenção');
+      if (P.pse) kvs += kv('PSE', st.pm == null ? '–' : num(st.pm), 'média');
+      if (P.carga) kvs += kv('Carga', fmtN(st.ua) + ' UA', fmtN(st.ua / nw) + ' UA por semana');
+      if (P.ton) kvs += kv('Tonelagem', num(st.ton / 1000) + ' t', num(st.ton / 1000 / nw) + ' t por semana') + kv('Unilateral', upct + '%', 'da tonelagem');
+      if (P.core) kvs += kv('Core', ctot, cSub);
+      if (P.acwr) kvs += kv('ACWR', awz ? acwrFmt(awc.ult.acwr) : '–', awz ? awz[2] + ' · semana de ' + fmtDate(awc.ult.k) : 'dados insuficientes');
+      secs += '<section class="ra"><h3>' + esc(a.n) + '<small>' + esc(a.m) + '</small></h3>' + (kvs ? '<div class="rgrid">' + kvs + '</div>' : '') +
+        (P.ass ? '<p class="small">' + faltas + '</p>' : '') + (P.notas ? notasRel(a, toISO(range.i0), toISO(range.i1)) : '') +
+        (P.sem && anyWk ? '<p class="kicker">Semana a semana</p>' + compHtml(a, range.i0, range.i1, 12, cols) : '') +
+        (P.dia && (anyWk || P.acwr) ? (function () { var kk = compSemKeys(a); return kk.length ? '<p class="kicker">Última semana, dia a dia (' + fmtDate(kk[kk.length - 1]) + ')</p>' + compGraficos(a, kk[kk.length - 1], cols) : ''; })() : '') +
+        (P.ton ? '<p class="kicker">Tonelagem por padrão</p><div class="scroll"><table class="rt"><thead><tr><th>Padrão</th><th>Tonelagem</th><th>%</th></tr></thead><tbody>' + pr + '</tbody></table></div>' : '') +
+        (P.ex ? (ex ? '<p class="kicker">Cargas por exercício</p><div class="scroll"><table class="rt"><thead><tr><th>Exercício</th><th>Evolução</th><th>Variação</th></tr></thead><tbody>' + ex + '</tbody></table></div>' : '<p class="small">Sem cargas registadas neste período.</p>') : '') +
+        (P.aval ? (av ? '<p class="kicker">Avaliações</p><div class="scroll"><table class="rt"><thead><tr><th>Teste</th><th>Evolução</th><th>Melhor</th><th>Testes</th></tr></thead><tbody>' + av + '</tbody></table></div>' : '<p class="small">Sem avaliações neste período.</p>') : '') + '</section>';
       txt.push(a.n + ' (' + a.m + ')');
-      txt.push('Presença: ' + pres + ' (' + st.done + ' de ' + st.plan + ' sessões). ' + faltas);
-      txt.push('Wellness: Hooper médio ' + (st.ph == null ? '–' : num(st.ph)) + ', dias em atenção ' + st.att);
-      txt.push('PSE média ' + (st.pm == null ? '–' : num(st.pm)) + ' · carga ' + fmtN(st.ua) + ' UA (' + fmtN(st.ua / nw) + ' UA por semana)');
-      txt.push('Tonelagem: ' + num(st.ton / 1000) + ' t (' + num(st.ton / 1000 / nw) + ' t por semana). Unilaterais: ' + upct + '%');
-      txt.push('Por padrão: ' + prTxt);
-      compSemanas(a, range.i0, range.i1).slice(-12).forEach(function (x) { txt.push('  Semana de ' + fmtDate(x.k) + ': Hooper ' + (x.h == null ? '–' : num(x.h)) + ' · PSE ' + (x.pse == null ? '–' : num(x.pse)) + ' · carga ' + fmtN(x.ua) + ' UA · tonelagem ' + num(x.ton / 1000) + ' t'); });
-      txt.push('ACWR (carga da semana / média das 4 anteriores): ' + acwrFrase(awc));
-      var ntx = notasTxt(a, toISO(range.i0), toISO(range.i1)); if (ntx) txt.push(ntx);
-      txt.push('Core: ' + ctot + ' (' + cSub + ')');
-      if (exTxt.length) txt.push('Cargas: ' + exTxt.join('; '));
+      if (P.ass) txt.push('Presença: ' + pres + ' (' + st.done + ' de ' + st.plan + ' sessões). ' + faltas);
+      if (P.well) txt.push('Wellness: Hooper médio ' + (st.ph == null ? '–' : num(st.ph)) + ', dias em atenção ' + st.att);
+      if (P.pse) txt.push('PSE média ' + (st.pm == null ? '–' : num(st.pm)));
+      if (P.carga) txt.push('Carga: ' + fmtN(st.ua) + ' UA (' + fmtN(st.ua / nw) + ' UA por semana)');
+      if (P.ton) { txt.push('Tonelagem: ' + num(st.ton / 1000) + ' t (' + num(st.ton / 1000 / nw) + ' t por semana). Unilaterais: ' + upct + '%'); txt.push('Por padrão: ' + prTxt); }
+      if (P.sem && anyWk) compSemanas(a, range.i0, range.i1).slice(-12).forEach(function (x) { txt.push('  Semana de ' + fmtDate(x.k) + (P.well ? ': Hooper ' + (x.h == null ? '–' : num(x.h)) : '') + (P.pse ? ' · PSE ' + (x.pse == null ? '–' : num(x.pse)) : '') + (P.carga ? ' · carga ' + fmtN(x.ua) + ' UA' : '') + (P.ton ? ' · tonelagem ' + num(x.ton / 1000) + ' t' : '')); });
+      if (P.acwr) txt.push('ACWR (carga da semana / média das 4 anteriores): ' + acwrFrase(awc));
+      if (P.notas) { var ntx = notasTxt(a, toISO(range.i0), toISO(range.i1)); if (ntx) txt.push(ntx); }
+      if (P.core) txt.push('Core: ' + ctot + ' (' + cSub + ')');
+      if (P.ex && exTxt.length) txt.push('Cargas: ' + exTxt.join('; '));
+      if (P.aval && avTxt.length) txt.push('Avaliações: ' + avTxt.join('; '));
       txt.push('');
     });
     out.innerHTML = '<article class="paper"><header><p class="kicker">1% · Relatório de acompanhamento</p><h2>' + periodo + '</h2><p class="small">' + idx.length + (idx.length === 1 ? ' atleta' : ' atletas') + (LIVE ? '' : ' · dados de exemplo') + '</p></header>' +
-      '<div class="scroll"><table class="rt sum"><thead><tr><th>Atleta</th><th>Pres.</th><th>Hooper</th><th>PSE</th><th>UA</th><th>Ton.</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + secs + '</article>';
+      (hasSum ? '<div class="scroll"><table class="rt sum"><thead><tr><th>Atleta</th>' + (P.ass ? '<th>Pres.</th>' : '') + (P.well ? '<th>Hooper</th>' : '') + (P.pse ? '<th>PSE</th>' : '') + (P.carga ? '<th>UA</th>' : '') + (P.ton ? '<th>Ton.</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' : '') + secs + '</article>';
     lastText = txt.join('\n');
     $('#rep-actions').hidden = false;
     $('#rep-msg').textContent = '';
@@ -4108,19 +4196,20 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   function compBar(v, max, cls) {
     return '<span class="cbar ' + cls + '"><i style="width:' + (max > 0 && v != null ? Math.max(3, Math.round(100 * v / max)) : 0) + '%"></i></span>';
   }
-  function compHtml(a, i0, i1, lim) {
+  function compHtml(a, i0, i1, lim, cols) {
+    var C = cols || { h: 1, p: 1, u: 1, t: 1 };
     var L = compSemanas(a, i0, i1);
     if (!L.length) return '<p class="small">Sem dados neste período.</p>';
     if (lim) L = L.slice(-lim);
     var mh = 20, mp = 10, mu = Math.max.apply(null, L.map(function (x) { return x.ua; })), mt = Math.max.apply(null, L.map(function (x) { return x.ton; }));
     var rows = L.map(function (x) {
       return '<tr><th scope="row">' + fmtDate(x.k) + '</th>' +
-        '<td>' + (x.h == null ? '–' : '<b>' + num(x.h) + '</b>' + compBar(x.h, mh, 'h')) + '</td>' +
-        '<td>' + (x.pse == null ? '–' : '<b>' + num(x.pse) + '</b>' + compBar(x.pse, mp, 'p')) + '</td>' +
-        '<td><b>' + fmtN(x.ua) + '</b>' + compBar(x.ua, mu, 'u') + '</td>' +
-        '<td><b>' + num(x.ton / 1000) + ' t</b>' + compBar(x.ton, mt, 't') + '</td></tr>';
+        (C.h ? '<td>' + (x.h == null ? '–' : '<b>' + num(x.h) + '</b>' + compBar(x.h, mh, 'h')) + '</td>' : '') +
+        (C.p ? '<td>' + (x.pse == null ? '–' : '<b>' + num(x.pse) + '</b>' + compBar(x.pse, mp, 'p')) + '</td>' : '') +
+        (C.u ? '<td><b>' + fmtN(x.ua) + '</b>' + compBar(x.ua, mu, 'u') + '</td>' : '') +
+        (C.t ? '<td><b>' + num(x.ton / 1000) + ' t</b>' + compBar(x.ton, mt, 't') + '</td>' : '') + '</tr>';
     }).join('');
-    return '<div class="scroll"><table class="rt comp"><thead><tr><th>Semana de</th><th>Hooper<br><span class="small">médio</span></th><th>PSE<br><span class="small">média</span></th><th>Carga<br><span class="small">UA</span></th><th>Tonelagem</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    return '<div class="scroll"><table class="rt comp"><thead><tr><th>Semana de</th>' + (C.h ? '<th>Hooper<br><span class="small">médio</span></th>' : '') + (C.p ? '<th>PSE<br><span class="small">média</span></th>' : '') + (C.u ? '<th>Carga<br><span class="small">UA</span></th>' : '') + (C.t ? '<th>Tonelagem</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
   /* gráficos de barras verticais, um dia por barra, cor pelo ACWR da semana */
   var COMPW = { id: null, k: null };
@@ -4153,17 +4242,18 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     }
     return '<div class="cbarr"><h3>' + tit + '</h3><p class="small">' + sub + '</p><svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="' + esc(tit) + ' por dia">' + svg + '</svg></div>';
   }
-  function compGraficos(a, k) {
+  function compGraficos(a, k, cols) {
+    var C = cols || { h: 1, p: 1, u: 1, t: 1, z: 1 };
     var c = acwrCalc(a, TODAY_I), row = null;
     c.rows.forEach(function (r) { if (r.k === k) row = r; });
     var cor = compCor(row), o = compDia(a, k), z = row && row.acwr != null ? acwrZona(row.acwr) : null;
     var mu = Math.max(300, Math.max.apply(null, o.u.map(function (v) { return v || 0; })) * 1.15), mt = Math.max(6, Math.max.apply(null, o.t.map(function (v) { return v || 0; })) * 1.15);
     var n1 = function (v) { return num(v); };
-    return '<div class="cb-hd"><span class="chip cb-z" style="background:' + cor + ';color:#fff;border-color:' + cor + '">' + (z ? 'ACWR ' + acwrFmt(row.acwr) + ' · ' + z[2] : 'ACWR sem dados suficientes') + '</span></div>' +
-      compBarras('Wellness (Hooper)', '4 a 20 · menor é melhor', o.h, 20, function (v) { return String(v); }, cor) +
-      compBarras('PSE', '0 a 10', o.p, 10, n1, cor) +
-      compBarras('Carga (UA)', 'PSE × minutos', o.u, mu, function (v) { return fmtN(v); }, cor, row && row.cron ? row.cron / 7 : null) +
-      compBarras('Tonelagem', 'toneladas levantadas', o.t, mt, n1, cor);
+    return (C.z ? '<div class="cb-hd"><span class="chip cb-z" style="background:' + cor + ';color:#fff;border-color:' + cor + '">' + (z ? 'ACWR ' + acwrFmt(row.acwr) + ' · ' + z[2] : 'ACWR sem dados suficientes') + '</span></div>' : '') +
+      (C.h ? compBarras('Wellness (Hooper)', '4 a 20 · menor é melhor', o.h, 20, function (v) { return String(v); }, cor) : '') +
+      (C.p ? compBarras('PSE', '0 a 10', o.p, 10, n1, cor) : '') +
+      (C.u ? compBarras('Carga (UA)', 'PSE × minutos', o.u, mu, function (v) { return fmtN(v); }, cor, row && row.cron ? row.cron / 7 : null) : '') +
+      (C.t ? compBarras('Tonelagem', 'toneladas levantadas', o.t, mt, n1, cor) : '');
   }
   function compSemKeys(a) {
     var ks = {}, i; for (i = range.i0; i <= Math.min(range.i1, a.rec.length - 1); i++) { var r = a.rec[i]; if (r && ((r.ses && r.ses.length) || r.w || r.ton)) ks[i - dow(i)] = true; }
