@@ -2178,13 +2178,15 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
         tx = tx.concat(lt);
       }
     } else {
-      var a0 = atl[0], rows1 = '';
+      var a0 = atl[0], rows1 = '', aw = [], am = [], af = [], at2 = [], aua = 0;
       for (i = ini; i <= i1; i++) {
         var d1 = natDiaDados(a0, i); if (!d1 || !d1.any) continue;
         nd++;
+        if (d1.w != null) aw.push(d1.w); if (d1.m) am.push(d1.m.pse); if (d1.f) af.push(d1.f.pse); if (d1.t) at2.push(d1.t.pse); aua += d1.ua;
         rows1 += '<tr><td>' + WDN[new Date(START + i * DAY).getUTCDay()] + ' <small>' + fmtDate(i) + '</small></td><td>' + W(d1) + '</td><td>' + natCelH(d1.m) + '</td><td>' + natCelH(d1.f) + '</td><td>' + natCelH(d1.t) + '</td><td><b>' + (d1.ua || '–') + '</b></td></tr>';
         tx.push('  ' + WDN[new Date(START + i * DAY).getUTCDay()] + ' ' + fmtDate(i) + ': W ' + (d1.w != null ? d1.w : '–') + ' | manhã ' + (d1.m ? num(d1.m.pse) + ' (' + d1.m.min + "')" : '–') + ' | físico ' + (d1.f ? num(d1.f.pse) + ' (' + d1.f.min + "')" : '–') + ' | tarde ' + (d1.t ? num(d1.t.pse) + ' (' + d1.t.min + "')" : '–') + ' = ' + d1.ua + ' UA');
       }
+      if (nd) rows1 += '<tr class="avg"><td>Média</td><td>' + natMedia(aw) + '</td><td>' + natMedia(am) + '</td><td>' + natMedia(af) + '</td><td>' + natMedia(at2) + '</td><td>' + aua + ' <small>total</small></td></tr>';
       if (nd) h += '<div class="natw nd"><table class="rt nat"><thead><tr><th>Dia</th>' + cab + '<th>UA</th></tr></thead><tbody>' + rows1 + '</tbody></table></div>';
     }
     if (!nd) return { h: '<p class="small">Sem registos de natação neste período.</p>', t: '' };
