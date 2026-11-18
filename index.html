@@ -518,6 +518,8 @@ textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
 
 /* fiz / falhei por série de carga */
 .set.has-ok{grid-template-columns:2.2rem 1fr 1fr auto}
+/* ecrãs estreitos: o campo de kg ficava minúsculo; o prescrito/reps passa para a linha de baixo */
+@media (max-width:440px){.set.has-ok{grid-template-columns:3rem minmax(0,1fr) auto;row-gap:4px}.set.has-ok .f{padding:0 8px;gap:4px}.set.has-ok .okb{min-width:3.6rem;padding:9px 6px}.set.has-ok>:nth-child(3){grid-column:2/4;grid-row:2}.set.has-ok>:nth-child(4){grid-column:3;grid-row:1}}
 .okb{border:1px solid var(--line,#dfe3e0);background:var(--bg,#fff);border-radius:12px;padding:9px 10px;font:inherit;font-size:.85rem;font-weight:600;color:var(--muted);white-space:nowrap;min-width:4.6rem}
 .okb[data-v="1"]{background:#e3f4e8;border-color:#2e9b57;color:#1a6d3a}
 .okb[data-v="0"]{background:#fdeaea;border-color:#c0392b;color:#a02a1e}
