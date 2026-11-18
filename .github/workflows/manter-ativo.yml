@@ -1,0 +1,21 @@
+# Mantém o projeto Supabase ativo (o plano gratuito pausa após 7 dias sem atividade).
+# Corre à segunda e à quinta-feira e chama uma função inofensiva da base de dados.
+name: Manter Supabase ativo
+
+on:
+  schedule:
+    - cron: '17 8 * * 1,4'   # segunda e quinta, 08:17 UTC
+  workflow_dispatch: {}       # permite correr à mão (separador Actions)
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar hoje_pt()
+        run: |
+          code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST \
+            'https://fkvuboinveyesapgikoi.supabase.co/rest/v1/rpc/hoje_pt' \
+            -H 'apikey: sb_publishable_xKvLi7tTXtDeXddFlxumSg_ZacV0p0a' \
+            -H 'Content-Type: application/json' -d '{}')
+          echo "HTTP $code"; cat resp.txt; echo
+          test "$code" = "200"
