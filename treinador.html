@@ -540,6 +540,14 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
 .hm-fase{background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:10px;padding:8px 10px;margin-bottom:10px;display:grid;gap:2px}
 .hm-fase .kicker{margin:0}
 .hm-wl{grid-column:1/-1;font-size:.68rem;color:var(--muted);margin-top:4px}.hm-wl.cur{color:var(--accent);font-weight:700}
+
+.ac-b{display:inline-block;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700;white-space:nowrap}
+.ac-ok{background:var(--accent-soft);color:var(--accent)} .ac-w{background:var(--warn-soft);color:var(--warn)} .ac-c{background:var(--crit-soft);color:var(--crit)} .ac-n{background:var(--surface);color:var(--muted);border:1px solid var(--line)}
+table.ac{table-layout:fixed;min-width:0;width:100%;font-size:.8rem} table.ac th{font-size:.64rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 3px;border-bottom:1px solid var(--line)} table.ac td{padding:8px 3px;border-bottom:1px solid var(--line);white-space:normal;overflow:hidden} table.ac td:not(:first-child),table.ac th:not(:first-child){text-align:center}
+table.ac th:nth-child(1),table.ac td:nth-child(1){width:23%} table.ac th:nth-child(2),table.ac td:nth-child(2){width:26%} table.ac th:nth-child(3),table.ac td:nth-child(3),table.ac th:nth-child(4),table.ac td:nth-child(4){width:10%} table.ac th:nth-child(5),table.ac td:nth-child(5){width:31%}
+table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;padding:8px 2px} .ac-h i{width:11px;height:11px;border-radius:3px;border:1px solid var(--line);display:block} .ac-h i.on{background:var(--accent);border-color:var(--accent)}
+.mais-l{display:grid;gap:8px} .mais-l button{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:14px;font-weight:700;text-align:left;font-size:.95rem}
+#t-tabs{flex-wrap:nowrap;gap:4px} #t-tabs .chip{flex:0 0 auto;padding:6px 10px;font-size:.8rem} @media (max-width: 420px) { #t-tabs{gap:2px} #t-tabs .chip{flex:1 1 auto;padding:6px 4px;font-size:.72rem;text-align:center} table.ac td:nth-child(2){white-space:nowrap;font-size:.74rem} table.ac th{white-space:nowrap} }
 </style>
 </head>
 <body>
@@ -2731,6 +2739,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       lsSet('alvo.sessao', JSON.stringify(sess));
       livePinPanel(!!r.pin_provisorio && !lsGet('alvo.skip.' + id), !!r.pin_provisorio);
       liveMacProbe(); liveBday(); liveTourSoon();
+      rpc('atleta_registar_acesso', { p_atleta: id, p_pin: pin }).catch(function () { /* o registo de entradas nunca bloqueia a app */ });
       return { ok: true };
     });
   }
@@ -3861,9 +3870,11 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   $('#f-atleta').addEventListener('change', function () { if (OBS) opRender(); });
   /* ---------- separadores do treinador + quem preencheu esta semana ---------- */
   var DSUB = lsGet('alvo.dsub') || 'resumo';
-  var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-comp', 'Comparar'], ['p-notas', 'Notas'], ['p-hooper', 'Wellness'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-acwr', 'ACWR'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-hist', 'Histórico de treinos'], ['p-rep', 'Relatório']];
+  var DGRP = [['resumo', 'Resumo', ['resumo']], ['bem', 'Bem-estar e carga', ['p-hooper', 'p-pse', 'p-carga', 'p-acwr', 'p-comp']], ['forca', 'Força e testes', ['p-ton', 'p-pad', 'p-ex', 'p-met', 'p-core']], ['cal', 'Calendário e notas', ['p-cal', 'p-notas', 'p-wod']], ['p-hist', 'Histórico', ['p-hist']], ['p-rep', 'Relatório', ['p-rep']]];
+  var DSECS = DGRP.map(function (g) { return [g[0], g[1]]; });
+  function dgHas(k, id) { return DGRP.some(function (g) { return g[0] === k && g[2].indexOf(id) >= 0; }); }
   var TAB = lsGet('alvo.tab') || 'semana';
-  if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados' && TAB !== 'online' && TAB !== 'eu') TAB = 'semana';
+  if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados' && TAB !== 'online' && TAB !== 'eu' && TAB !== 'mais') TAB = 'semana';
   var ONSUB = lsGet('alvo.osub') || 'alunos';
   var ONSECS = [['semana', 'Esta semana'], ['alunos', 'Alunos'], ['macro', 'Macro'], ['plano', 'Planear'], ['planos', 'Ver planos'], ['registar', 'Registar sessão'], ['pagamentos', 'Pagamentos'], ['dados', 'Dados'], ['evolucao', 'Evolução'], ['testes', 'Testes'], ['rep', 'Relatório']];
   var ONG = { alunos: 'atletas', macro: 'macro', plano: 'plano', planos: 'planos', registar: 'registar', pagamentos: 'pagamentos', evolucao: 'evolucao', testes: 'testes' };
@@ -3876,11 +3887,23 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     document.head.appendChild(st);
     var nav = document.createElement('div'); nav.className = 'panel'; nav.id = 't-nav'; nav.hidden = true;
     nav.innerHTML = '<div class="chips" id="t-tabs" role="group" aria-label="Secções">' +
-      [['semana', 'Esta semana'], ['gestao', 'Planear e gerir'], ['dados', 'Dados dos atletas'], ['online', 'Online training'], ['eu', 'Eu']].map(function (t) { return '<button class="chip" data-t2="' + t[0] + '" aria-pressed="false">' + t[1] + '</button>'; }).join('') +
-      '<button class="chip" id="t-exp2">Exportar dados</button><button class="chip" id="t-sair2">Sair</button></div>';
+      [['semana', 'Esta semana'], ['dados', 'Atletas'], ['gestao', 'Planear'], ['online', 'Online'], ['mais', 'Mais']].map(function (t) { return '<button class="chip" data-t2="' + t[0] + '" aria-pressed="false">' + t[1] + '</button>'; }).join('') +
+      '</div>';
     var sm = document.createElement('div'); sm.className = 'panel'; sm.id = 'p-semana'; sm.hidden = true;
-    sm.innerHTML = '<header><div><p class="kicker">Semana corrente</p><h2>Quem preencheu</h2></div></header><div id="sem-out"></div>';
-    v.insertBefore(nav, ref); v.insertBefore(sm, ref);
+    sm.innerHTML = '<header><div><p class="kicker">Semana corrente</p><h2>Quem preencheu</h2></div></header><div class="chips" id="sem-modo" role="group" aria-label="Esta semana"><button class="chip" data-sm2="preencheu" aria-pressed="true">Quem preencheu</button><button class="chip" data-sm2="acessos" aria-pressed="false">Acessos</button></div><div id="sem-out"></div><div id="ac-out" hidden></div>';
+    var ms = document.createElement('div'); ms.className = 'panel'; ms.id = 'p-mais'; ms.hidden = true;
+    ms.innerHTML = '<header><div><p class="kicker">Mais</p><h2>Ferramentas</h2></div></header><div class="mais-l"><button type="button" id="t-exp2">Exportar dados (Excel)</button><button type="button" data-t2="eu">Eu (os meus treinos e dados)</button><button type="button" id="t-sair2">Sair</button></div>';
+    sm.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-sm2]'); if (b) { SEMM = b.getAttribute('data-sm2'); semModo(); return; }
+      var f = e.target.closest('[data-acf]'); if (f) { ACF = f.getAttribute('data-acf'); acRender(); return; }
+      var r = e.target.closest('[data-aco]'); if (r) { ACO = ACO === r.getAttribute('data-aco') ? '' : r.getAttribute('data-aco'); acRender(); }
+    });
+    ms.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-t2]'); if (b) { TAB = b.getAttribute('data-t2'); lsSet('alvo.tab', TAB); applyTab(); window.scrollTo(0, 0); return; }
+      if (e.target.closest('#t-exp2')) liveExport(e.target.closest('#t-exp2'));
+      if (e.target.closest('#t-sair2')) $('#t-sair').click();
+    });
+    v.insertBefore(nav, ref); v.insertBefore(sm, ref); v.insertBefore(ms, ref);
     var on = document.createElement('div'); on.className = 'panel'; on.id = 'o-nav'; on.hidden = true;
     on.innerHTML = '<p class="kicker">Online training</p><div class="chips" id="o-tabs" role="group" aria-label="Online training"></div>';
     v.insertBefore(on, ref);
@@ -4011,6 +4034,64 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       out.innerHTML = h;
     }).catch(function (e) { if (n === HIST_N) out.innerHTML = nav + '<p class="err">' + esc(netErr(e)) + '</p>'; });
   }
+
+  /* ---------- Acessos: entradas dos atletas na app (separador dentro de "Esta semana") ---------- */
+  var ACC = null, ACINI = null, ACF = 'todos', ACO = '', ACMSG = '', SEMM = 'preencheu';
+  function acNum(iso) { return Math.round(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5); }
+  function acHora(ts) { try { return new Date(ts).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' }); } catch (e) { return ''; } }
+  function acCarregar() {
+    var hj = localISO();
+    ACMSG = 'A carregar…'; acRender();
+    return Promise.all([
+      tGet('acessos_dia', 'select=atleta_id,dia,n,ultima&dia=gte.' + isoAdd(hj, -30) + '&order=dia.desc'),
+      tReq('/rest/v1/acessos_dia?select=dia&order=dia.asc&limit=1')
+    ]).then(function (r) { ACC = r[0] || []; ACINI = r[1] && r[1][0] ? r[1][0].dia : null; ACMSG = ''; acRender(); })
+      .catch(function (e) { ACMSG = 'Não foi possível carregar os acessos.'; acRender(); });
+  }
+  function acRender() {
+    var out = $('#ac-out'); if (!out) return;
+    if (!ACC) { out.innerHTML = '<p class="small">' + esc(ACMSG) + '</p>'; return; }
+    var hj = localISO(), hn = acNum(hj), obs = ACINI ? hn - acNum(ACINI) + 1 : 0, w = Math.max(1, Math.min(7, obs));
+    var por = {}; ACC.forEach(function (x) { (por[x.atleta_id] = por[x.atleta_id] || []).push(x); });
+    var base = ATLETAS.filter(function (a) { return a.id && (!FMOD || a.m === FMOD); });
+    var rows = base.map(function (a) {
+      var L = por[a.id] || [], d7 = 0, d30 = L.length, last = L.length ? L[0] : null, dj = L.filter(function (x) { return hn - acNum(x.dia) < w; }).length;
+      L.forEach(function (x) { if (hn - acNum(x.dia) < 7) d7++; });
+      var reg = false, i0 = fromISO(hj), k;
+      for (k = 0; k < w; k++) { var r = a.rec[i0 - k]; if (r && (r.w || (r.ses && r.ses.length))) reg = true; }
+      var est = 'n', txt = 'A recolher';
+      if (obs >= 3 && dj === 0) { est = 'c'; txt = 'Sem entrar'; }
+      else if (dj > 0 && !reg) { est = 'w'; txt = 'Não regista'; }
+      else if (dj > 0) { est = 'ok'; txt = 'Regista'; }
+      var ult = '–', dias = last ? hn - acNum(last.dia) : null;
+      if (last) ult = dias === 0 ? 'hoje ' + acHora(last.ultima) : dias === 1 ? 'ontem' : 'há ' + dias + ' dias';
+      return { a: a, L: L, d7: d7, d30: d30, est: est, txt: txt, ult: ult, dias: dias == null ? 999 : dias, hoje: !!(last && dias === 0) };
+    });
+    var ord = { c: 0, w: 1, n: 2, ok: 3 };
+    rows.sort(function (p, q) { return ord[p.est] - ord[q.est] || q.dias - p.dias || p.a.n.localeCompare(q.a.n, 'pt'); });
+    var nh = rows.filter(function (x) { return x.hoje; }).length, ns = rows.filter(function (x) { return x.est === 'c'; }).length;
+    var vis = rows.filter(function (x) { return ACF === 'todos' || (ACF === 'nao' && x.est === 'w') || (ACF === 'sem' && x.est === 'c'); });
+    var h = '<div class="tl" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"><div class="tile"><p class="kicker">Entraram hoje</p><p class="big">' + nh + '<span class="unit"> / ' + rows.length + '</span></p></div><div class="tile"><p class="kicker">Sem entrar' + (obs >= 7 ? ' há 7+ dias' : ' (últimos ' + w + ' d)') + '</p><p class="big"' + (ns ? ' style="color:var(--crit)"' : '') + '>' + ns + '</p></div></div>';
+    h += '<div class="chips">' + [['todos', 'Todos'], ['nao', 'Entra mas não regista'], ['sem', 'Sem entrar']].map(function (f) { return '<button class="chip" data-acf="' + f[0] + '" aria-pressed="' + (ACF === f[0]) + '">' + f[1] + '</button>'; }).join('') + '</div>';
+    h += '<table class="ac"><thead><tr><th>Atleta</th><th>Última</th><th>7 d</th><th>30 d</th><th>Estado</th></tr></thead><tbody>' + (vis.length ? vis.map(function (x) {
+      var s = '<tr class="ac-r" data-aco="' + esc(x.a.id) + '"><td><b>' + esc(x.a.n) + '</b></td><td>' + x.ult + '</td><td>' + x.d7 + '</td><td>' + x.d30 + '</td><td><span class="ac-b ac-' + x.est + '">' + x.txt + '</span></td></tr>';
+      if (ACO === x.a.id) {
+        var m = {}; x.L.forEach(function (y) { m[y.dia] = y.n; });
+        var sq = '', j; for (j = 29; j >= 0; j--) { var dd = isoAdd(hj, -j); sq += '<i class="' + (m[dd] ? 'on' : '') + '" title="' + dd.slice(8, 10) + '/' + dd.slice(5, 7) + (m[dd] ? ' · ' + m[dd] + (m[dd] === 1 ? ' entrada' : ' entradas') : ' · sem entrada') + '"></i>'; }
+        s += '<tr><td colspan="5"><p class="small">Últimos 30 dias (verde = entrou):</p><div class="ac-h">' + sq + '</div></td></tr>';
+      }
+      return s;
+    }).join('') : '<tr><td colspan="5" class="small">Nenhum atleta neste filtro.</td></tr>') + '</tbody></table>';
+    h += '<p class="small">Entrada = abriu a app com o PIN (conta no máximo 1 por hora). 7 d e 30 d = dias com pelo menos uma entrada. Toca num atleta para ver os últimos 30 dias.' + (ACINI ? ' Registo ativo desde ' + ACINI.slice(8, 10) + '/' + ACINI.slice(5, 7) + '.' : ' Ainda sem entradas registadas.') + '</p>';
+    out.innerHTML = h;
+  }
+  function semModo() {
+    var a = $('#sem-out'), b = $('#ac-out'); if (!a || !b) return;
+    a.hidden = SEMM !== 'preencheu'; b.hidden = SEMM !== 'acessos';
+    document.querySelectorAll('#sem-modo [data-sm2]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.getAttribute('data-sm2') === SEMM)); });
+    var t = $('#p-semana > header h2'); if (t) t.textContent = SEMM === 'acessos' ? 'Acessos' : 'Quem preencheu';
+    if (SEMM === 'acessos') acCarregar();
+  }
   function applyTab() {
     var nav = $('#t-nav'); if (nav) nav.hidden = false;
     var on = TAB === 'online';
@@ -4019,20 +4100,21 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     if (!ONSECS.some(function (s) { return s[0] === ONSUB; })) ONSUB = 'alunos';
     var showDados = TAB === 'dados' || TAB === 'eu' || (on && ONSUB === 'dados');
     var gKey = on ? ONG[ONSUB] : null;
-    var secs = DSECS.filter(function (s) { return (s[0] !== 'p-wod' || WODD.res.length > 0) && true && !(on && s[0] === 'p-rep'); });
+    var secs = DSECS.filter(function (s) { return !(on && s[0] === 'p-rep'); });
     if (!secs.some(function (s) { return s[0] === DSUB; })) DSUB = 'resumo';
     document.querySelectorAll('#view-treinador > .panel').forEach(function (p) {
       if (p.id === 't-login' || p.id === 't-reset' || p.id === 't-nav' || p.id === 'p-obs-plano' || p.id === 'd-nav' || p.id === 'o-nav') return;
       p.style.order = '';
       if (p.id === 'g-panel') { p.hidden = !(TAB === 'gestao' || gKey); return; }
       if (p.querySelector('#paste')) { p.hidden = TAB !== 'gestao'; return; }
+      if (p.id === 'p-mais') { p.hidden = TAB !== 'mais'; return; }
       if (p.id === 'p-semana') { p.hidden = !(TAB === 'semana' || (on && ONSUB === 'semana')); return; }
       if (p.id === 'p-wod' && WODD.res.length === 0) { p.hidden = true; return; }
       if (p.id === 'p-rep' && on) { p.hidden = ONSUB !== 'rep'; return; }
       if (p.id === 'filtros' && on && ONSUB === 'rep') { p.hidden = false; p.style.order = '-2'; return; }
       if (showDados) {
         var key = p.querySelector('#t-date') ? 'resumo' : p.id;
-        p.hidden = !(key === DSUB || (p.id === 'filtros' && !(DSUB === 'p-hist' && TAB === 'eu')));
+        p.hidden = !(dgHas(DSUB, key) || (p.id === 'filtros' && !(DSUB === 'p-hist' && TAB === 'eu')));
         p.style.order = p.id === 'filtros' ? '-2' : '';
         return;
       }
@@ -4051,14 +4133,14 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     if (nav) nav.style.order = '-5';
     $('#tiles').hidden = !(showDados && DSUB === 'resumo'); $('#tiles').style.order = '-1';
     var fp = $('#filtros'); if (fp) fp.classList.toggle('fcomp', showDados && DSUB !== 'resumo');
-    document.querySelectorAll('#t-tabs [data-t2]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-t2') === TAB)); });
+    document.querySelectorAll('#t-tabs [data-t2]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-t2') === TAB || (b.getAttribute('data-t2') === 'mais' && TAB === 'eu'))); });
     var gh = document.querySelector('#g-panel > header h2'), gk = document.querySelector('#g-panel > header .kicker');
     if (gh) gh.textContent = on ? 'Online training' : 'Gestão'; if (gk) gk.textContent = on ? 'Alunos · Planos · Pagamentos' : 'Atletas · Exercícios · Treinos';
     if (typeof G !== 'undefined' && G.all) {
       if (on && gKey) { G.tab = gKey; if (typeof gRender === 'function') gRender(); }
       else if (TAB === 'gestao') { if (G.tab === 'pagamentos') G.tab = 'plano'; if (typeof gRender === 'function') gRender(); }
     }
-    if (TAB === 'semana' || (on && ONSUB === 'semana')) renderSemana();
+    if (TAB === 'semana' || (on && ONSUB === 'semana')) { renderSemana(); semModo(); }
     if (showDados && DSUB === 'p-hist') renderHist();
   }
   /* ---------- Esta semana: quem preencheu (semana a semana, filtros, detalhe) ---------- */
