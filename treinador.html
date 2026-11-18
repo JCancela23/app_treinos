@@ -228,6 +228,24 @@ details > .frow, details > div { margin-top: 10px; }
 .when { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; white-space: nowrap; text-align: right; line-height: 1.1; }
 .when small { display: block; font-family: var(--font-body); font-weight: 500; font-size: .75rem; }
 
+/* semana */
+.sw-nav{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sw-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sw-sum div{background:var(--bg);border-radius:10px;padding:8px;text-align:center}
+.sw-sum b{display:block;font-family:var(--font-display);font-size:1.6rem;line-height:1}
+.sw-sum span{font-size:.68rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.sw-g{display:grid;grid-template-columns:minmax(84px,1.6fr) repeat(7,1fr) 42px;gap:3px;align-items:stretch}
+.sw-h span{font-size:.62rem;text-align:center;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.sw-n{display:grid;text-align:left;background:none;border:0;padding:4px 0;font-size:.82rem;line-height:1.15;min-width:0}
+.sw-n b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sw-n small{color:var(--muted);font-size:.68rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sw-c{border-radius:7px;background:var(--bg);text-align:center;padding:4px 0;font-size:.68rem;font-weight:700;line-height:1.1;min-height:36px;display:grid;align-content:center;justify-items:center;gap:2px}
+.sw-c.fut{opacity:.35}.sw-c.hoje{outline:2px solid var(--accent)}
+.sw-d{display:block;width:7px;height:7px;border-radius:50%}.sw-d.ok{background:var(--accent)}.sw-d.no{border:1.5px solid var(--crit)}
+.sw-t{font-family:var(--font-display);font-weight:700;text-align:right;align-self:center;font-size:.95rem}
+.sw-det{display:grid;gap:6px;background:var(--bg);border-radius:10px;padding:10px;margin:2px 0 8px}
+.sw-r{display:flex;justify-content:space-between;gap:10px;font-size:.82rem}.sw-r span{text-align:right}
+
 /* relatorio */
 @media print {
   @page { size: A4; margin: 12mm; }
@@ -246,6 +264,8 @@ details > .frow, details > div { margin-top: 10px; }
   #print-root h3, #print-root .kicker { break-after: avoid; }
   #print-root .scroll { overflow: visible; }
   #print-root table, #print-root svg, #print-root .kv { break-inside: avoid; }
+  #print-root .nd { break-inside: avoid; } #print-root .nd-res { break-before: page; }
+  #print-root .ra > .natw { break-inside: auto; } #print-root table.nat { break-inside: auto; } #print-root table.nat tr { break-inside: avoid; }
 }
 .checks { display: grid; gap: 8px; }
 .paper { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 18px; min-width: 0; }
@@ -258,6 +278,7 @@ details > .frow, details > div { margin-top: 10px; }
 .kv .s { font-size: .8rem; color: var(--muted); }
 .calh .chip { font-size: 1.3rem; line-height: 1; padding: 6px 18px; }
 table.rt { min-width: 0; font-size: .85rem; }
+.nd { margin-bottom: 12px; } .nd-h { font-weight: 700; background: var(--accent-soft); padding: 6px 8px; border-radius: 6px 6px 0 0; margin: 0; } .nd-h span { font-weight: 400; color: var(--muted, #666); margin-left: 6px; font-size: .85rem; } .nd .rt td:not(:first-child), .nd .rt th:not(:first-child) { text-align: center; } .nd small { color: var(--muted, #666); } .nd-n { color: #999; } .rt tr.avg td { background: var(--accent-soft); font-weight: 700; border-top: 1px solid var(--accent); }
 .rt th { padding: 6px 4px; letter-spacing: .04em; }
 .rt td { padding: 8px 4px; white-space: nowrap; }
 .rt td:first-child { white-space: normal; }
@@ -584,12 +605,12 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       <div class="panel" id="gate">
         <header>
           <h2>Como estás hoje?</h2>
-          <span class="kicker">Wellness · Hooper</span>
+          <span class="kicker">Wellness</span>
         </header>
         <p class="small">Antes de veres o treino, preenche o wellness de hoje.</p>
         <div id="hooper" style="display:grid;gap:16px"></div>
         <div class="total">
-          <span class="small">Índice de Hooper (4 a 20, menor é melhor)</span>
+          <span class="small">Índice de wellness (4 a 20, menor é melhor)</span>
           <span><span class="big" id="htotal">–</span> <span class="pill ok" id="hstate" hidden>Bom</span></span>
         </div>
         <button class="primary" id="hsave" disabled>Guardar e ver o treino</button>
@@ -717,7 +738,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       <div class="chips" id="filters" role="group" aria-label="Filtrar"></div>
       <div class="scroll">
         <table>
-          <thead><tr><th>Atleta</th><th>Hooper</th><th>Semana (UA)</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Atleta</th><th>Wellness</th><th>Semana (UA)</th><th>Estado</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
@@ -765,6 +786,10 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
             <input id="c-n" class="dt" type="text" placeholder="Ex.: Etapa do circuito nacional">
           </div>
           <div class="field">
+            <label for="c-r">Referência <span class="small">(até 4 letras, aparece no calendário; se vazia, usa as iniciais)</span></label>
+            <input id="c-r" class="dt" type="text" maxlength="4" placeholder="Ex.: CNI" style="text-transform:uppercase">
+          </div>
+          <div class="field">
             <label for="c-l">Local</label>
             <input id="c-l" class="dt" type="text" placeholder="Ex.: Peniche">
           </div>
@@ -809,13 +834,13 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       <div id="op-out"></div>
     </div>
 
-    <div class="panel" id="p-comp"><header><div><p class="kicker">Semana a semana</p><h2>Hooper, PSE, carga e tonelagem</h2></div></header><div id="comp-body"></div></div>
+    <div class="panel" id="p-comp"><header><div><p class="kicker">Semana a semana</p><h2>Wellness, PSE, carga e tonelagem</h2></div></header><div id="comp-body"></div></div>
 
     <div class="panel" id="p-hooper">
       <header>
         <div>
           <p class="kicker">Wellness</p>
-          <h2>Índice de Hooper</h2>
+          <h2>Índice de wellness</h2>
         </div>
         <button class="chip" data-tab="hooper" aria-pressed="false">Ver tabela</button>
       </header>
@@ -1231,7 +1256,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     $('#wsum').hidden = !wellDone;
     if (wellDone) {
       var t = hooperTotal();
-      $('#wsum-t').textContent = 'Wellness de hoje · Hooper ' + t + ' · ' + estado(t).t;
+      $('#wsum-t').textContent = 'Wellness de hoje · índice ' + t + ' · ' + estado(t).t;
     }
   }
   $('#hsave').addEventListener('click', function () {
@@ -1792,7 +1817,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
 
     $('#tiles').innerHTML =
       tile('Presença', st.pres == null ? '–' : st.pres, st.pres == null ? '' : '%') +
-      tile('Hooper médio', st.ph == null ? '–' : num(st.ph)) +
+      tile('Wellness médio', st.ph == null ? '–' : num(st.ph)) +
       tile('PSE média', st.pm == null ? '–' : num(st.pm)) +
       tile('Carga total', fmtN(st.ua), 'UA') +
       tile('Tonelagem', num(st.ton / 1000), 't') +
@@ -1802,11 +1827,11 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     drawLine($('#c-hooper'), {
       pts: st.hp, x0: range.i0, x1: range.i1, y0: 4, y1: 20, yt: [4, 8, 12, 16, 20], marks: marks,
       ref: { v: 14, label: 'Atenção' },
-      label: 'Índice de Hooper de ' + a.n + ' ao longo do período',
-      tipv: function (p) { return 'Hooper ' + p.y; },
+      label: 'Índice de wellness de ' + a.n + ' ao longo do período',
+      tipv: function (p) { return 'Wellness ' + p.y; },
       tipl: function (p) { return fmtDate(p.x) + ' · ' + estado(p.y).t; }
     });
-    $('#t-hooper').innerHTML = tableOrEmpty(['Data', 'Hooper', 'Estado'], st.hp.map(function (p) { return [fmtDate(p.x), p.y, estado(p.y).t]; }));
+    $('#t-hooper').innerHTML = tableOrEmpty(['Data', 'Wellness', 'Estado'], st.hp.map(function (p) { return [fmtDate(p.x), p.y, estado(p.y).t]; }));
 
     /* PSE */
     drawLine($('#c-pse'), {
@@ -1918,9 +1943,13 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     return COMP.filter(function (c) { return c.i === i && calOk(c); });
   }
   /* agrupa as entradas de um dia por prova (nome + local): 20 atletas na mesma prova = 1 grupo */
+  function autoRef(n) {   /* referência curta da prova: iniciais das palavras principais (ex.: Campeonato Nacional de Inverno → CNI) */
+    var w = String(n || '').split(/\s+/).filter(function (x) { return x.length > 2; });
+    return (w.length > 1 ? w.map(function (x) { return x.charAt(0); }).join('') : String(n || '').replace(/\s+/g, '').slice(0, 3)).toUpperCase().slice(0, 4);
+  }
   function compGrupos(cs) {
     var o = {}, r = [];
-    cs.forEach(function (c) { var k = c.n + '|' + (c.l || ''); if (!o[k]) { o[k] = { n: c.n, l: [], loc: c.l || '' }; r.push(o[k]); } o[k].l.push(c); });
+    cs.forEach(function (c) { var k = c.n + '|' + (c.l || ''); if (!o[k]) { o[k] = { n: c.n, l: [], loc: c.l || '', r: c.r || autoRef(c.n) }; r.push(o[k]); } o[k].l.push(c); });
     return r;
   }
   function dayName(i) { return DAYS[dow(i)] + ', ' + fmtDate(i); }
@@ -1935,7 +1964,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       var i = Math.round((Date.UTC(cal.y, cal.m, d) - START) / DAY);
       var cs = compsOn(i);
       var gr = compGrupos(cs);
-      var tags = gr.slice(0, 2).map(function (g) { return '<span class="tag">' + (g.l.length === 1 ? esc(ini(ATLETAS[g.l[0].a].n)) : g.l.length + ' atl.') + '</span>'; }).join('') + (gr.length > 2 ? '<span class="more">+' + (gr.length - 2) + '</span>' : '');
+      var tags = gr.slice(0, 2).map(function (g) { return '<span class="tag">' + esc(g.r) + '</span>'; }).join('') + (gr.length > 2 ? '<span class="more">+' + (gr.length - 2) + '</span>' : '');
       h += '<button class="cd' + (i === TODAY_I ? ' today' : '') + '" data-ci="' + i + '" aria-pressed="' + (cal.sel === i) + '" aria-label="' + d + ' de ' + MESES[cal.m] + (cs.length ? ', ' + cs.length + (cs.length === 1 ? ' competição' : ' competições') : '') + '"><span class="dn">' + d + '</span>' + tags + '</button>';
     }
     $('#cal').innerHTML = h;
@@ -1946,7 +1975,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     var cs = compsOn(cal.sel);
     el.innerHTML = '<p class="kicker">' + dayName(cal.sel) + '</p>' + (cs.length ? compGrupos(cs).map(function (g) {
       var multi = compGrupo(g.l[0]).length > g.l.length || g.l.length > 1 || compGrupo(g.l[0]).length > 1;
-      return '<div class="ci" style="display:block"><b>' + esc(g.n) + '</b><small style="display:block">' + (g.loc ? esc(g.loc) + ' · ' : '') + g.l.length + (g.l.length === 1 ? ' atleta' : ' atletas') + '</small>' +
+      return '<div class="ci" style="display:block"><b>' + esc(g.r) + ' · ' + esc(g.n) + '</b><small style="display:block">' + (g.loc ? esc(g.loc) + ' · ' : '') + g.l.length + (g.l.length === 1 ? ' atleta' : ' atletas') + '</small>' +
         '<div class="tags" style="margin-top:8px">' + g.l.map(function (c) { return '<span class="chip" style="display:inline-flex;gap:8px;align-items:center;padding:4px 6px 4px 12px">' + esc(ATLETAS[c.a].n) + '<button type="button" data-del="' + COMP.indexOf(c) + '" aria-label="Remover ' + esc(ATLETAS[c.a].n) + ' desta prova" style="border:0;background:none;font-weight:700;padding:2px 6px">×</button></span>'; }).join('') + '</div>' +
         (multi ? '<button class="chip" style="margin-top:10px" data-delg="' + COMP.indexOf(g.l[0]) + '">Remover a prova inteira</button>' : '') + '</div>';
     }).join('') : '<p class="note">Sem competições neste dia.</p>');
@@ -2033,12 +2062,13 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     $('#c-err').textContent = '';
     var list = [], d, k;
     for (d = i0; d <= i1; d++) for (k = 0; k < ids.length; k++) list.push({ a: ids[k], i: d });
-    if (LIVE) return liveAddComps(list, nome, loc, i0);
-    list.forEach(function (x) { COMP.push({ a: x.a, i: x.i, n: nome, l: loc }); });
+    var ref = $('#c-r').value.trim().toUpperCase().slice(0, 4);
+    if (LIVE) return liveAddComps(list, nome, loc, i0, ref);
+    list.forEach(function (x) { COMP.push({ a: x.a, i: x.i, n: nome, l: loc, r: ref }); });
     cDone(i0);
   });
   function cDone(i0) {
-    $('#c-n').value = ''; $('#c-l').value = ''; $('#c-d2').value = '';
+    $('#c-n').value = ''; $('#c-l').value = ''; $('#c-r').value = ''; $('#c-d2').value = '';
     var dt = new Date(START + i0 * DAY);
     cal.y = dt.getUTCFullYear(); cal.m = dt.getUTCMonth(); cal.sel = i0;
     renderCal(); renderCalDet(); renderUp(); renderRows(); renderPainel();
@@ -2058,7 +2088,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     repMods(); repParInit();
   }
   /* parâmetros a mostrar no relatório (guardados neste dispositivo) */
-  var REP_PAR = [['ass', 'Assiduidade (presença e faltas)'], ['well', 'Wellness (Hooper)'], ['pse', 'PSE'], ['carga', 'Carga (UA)'], ['ton', 'Tonelagem (e por padrão)'], ['ex', 'Cargas por exercício'], ['core', 'Core'], ['acwr', 'ACWR'], ['aval', 'Avaliações (CMJ, broad jump, VBT)'], ['notas', 'Notas do atleta'], ['sem', 'Semana a semana'], ['dia', 'Última semana, dia a dia']];
+  var REP_PAR = [['ass', 'Assiduidade (presença e faltas)'], ['well', 'Wellness'], ['pse', 'PSE'], ['carga', 'Carga (UA)'], ['ton', 'Tonelagem (e por padrão)'], ['ex', 'Cargas por exercício'], ['core', 'Core'], ['acwr', 'ACWR'], ['nat', 'Natação: sessões por dia (manhã/tarde)'], ['aval', 'Avaliações (CMJ, broad jump, VBT)'], ['notas', 'Notas do atleta'], ['sem', 'Semana a semana'], ['dia', 'Última semana, dia a dia']];
   function repPar() {
     var o = {}, boxes = document.querySelectorAll('#rep-par input');
     if (!boxes.length) { REP_PAR.forEach(function (p) { o[p[0]] = true; }); return o; }
@@ -2106,6 +2136,70 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     window.addEventListener('afterprint', done);
     setTimeout(function () { window.print(); }, 60);
   });
+  /* natação: sessões registadas pelo atleta, dia a dia (manhã/tarde), com PSE, minutos, UA e distância */
+  var RPER = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' }, RFOCO = { aerobio: 'Aeróbio', tecnica: 'Técnica', velocidade: 'Velocidade', misto: 'Misto' };
+  /* natação: tabelas por dia (atletas em linhas; wellness | natação manhã | treino físico | natação tarde) + resumo da semana/período */
+  var WDN = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  function natCel(ss) {   /* junta as sessões de um período: PSE ponderada pelos minutos, minutos totais */
+    if (!ss.length) return null;
+    var mn = 0, ua = 0; ss.forEach(function (x) { mn += x.min; ua += x.ua; });
+    return { pse: mn ? ua / mn : 0, min: mn, ua: ua };
+  }
+  function natDiaDados(a, i) {
+    var r = a.rec[i]; if (!r) return null;
+    var nat = r.ses.filter(function (x) { return x.nat; }), fis = r.ses.filter(function (x) { return !x.nat; });
+    var d = { w: r.w ? r.w[0] + r.w[1] + r.w[2] + r.w[3] : null, m: natCel(nat.filter(function (x) { return x.per === 'manha'; })), t: natCel(nat.filter(function (x) { return x.per !== 'manha'; })), f: natCel(fis) };
+    d.ua = (d.m ? d.m.ua : 0) + (d.t ? d.t.ua : 0) + (d.f ? d.f.ua : 0);
+    d.any = d.w != null || !!(d.m || d.t || d.f);
+    return d;
+  }
+  function natCelH(c) { return c ? '<b>' + num(c.pse) + '</b> <small>' + c.min + "'</small>" : '<span class="nd-n">–</span>'; }
+  function natMedia(v) { return v.length ? num(v.reduce(function (s, x) { return s + x; }, 0) / v.length) : '–'; }
+  function natDiasRel(idx, i0, i1) {
+    var atl = idx.map(function (k) { return ATLETAS[k]; }), multi = atl.length > 1, ini = Math.max(i0, i1 - 13), i, h = '', tx = [];
+    var W = function (d) { return d.w != null ? '<b>' + d.w + '</b>' : '<span class="nd-n">–</span>'; };
+    var cab = '<th>Wellness</th><th>Natação manhã</th><th>Treino físico</th><th>Natação tarde</th>';
+    var nd = 0;
+    if (multi) {
+      for (i = ini; i <= i1; i++) {
+        var ds = atl.map(function (a) { return natDiaDados(a, i); });
+        if (!ds.some(function (d) { return d && d.any; })) continue;
+        nd++;
+        var rows = '', cw = [], cm = [], cf = [], ct = [], lt = [];
+        atl.forEach(function (a, k) {
+          var d = ds[k] || { w: null, m: null, t: null, f: null };
+          if (d.w != null) cw.push(d.w); if (d.m) cm.push(d.m.pse); if (d.f) cf.push(d.f.pse); if (d.t) ct.push(d.t.pse);
+          rows += '<tr><td>' + esc(a.n) + '</td><td>' + W(d) + '</td><td>' + natCelH(d.m) + '</td><td>' + natCelH(d.f) + '</td><td>' + natCelH(d.t) + '</td></tr>';
+          lt.push('  ' + a.n + ': W ' + (d.w != null ? d.w : '–') + ' | manhã ' + (d.m ? num(d.m.pse) + ' (' + d.m.min + "')" : '–') + ' | físico ' + (d.f ? num(d.f.pse) + ' (' + d.f.min + "')" : '–') + ' | tarde ' + (d.t ? num(d.t.pse) + ' (' + d.t.min + "')" : '–'));
+        });
+        rows += '<tr class="avg"><td>Média do grupo</td><td>' + natMedia(cw) + '</td><td>' + natMedia(cm) + '</td><td>' + natMedia(cf) + '</td><td>' + natMedia(ct) + '</td></tr>';
+        h += '<div class="natw nd"><p class="nd-h">' + WDN[new Date(START + i * DAY).getUTCDay()] + ' <span>' + fmtDate(i) + '</span></p><table class="rt nat"><thead><tr><th>Atleta</th>' + cab + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+        tx.push(WDN[new Date(START + i * DAY).getUTCDay()] + ' ' + fmtDate(i) + ' (média grupo: W ' + natMedia(cw) + ' | manhã ' + natMedia(cm) + ' | físico ' + natMedia(cf) + ' | tarde ' + natMedia(ct) + ')');
+        tx = tx.concat(lt);
+      }
+    } else {
+      var a0 = atl[0], rows1 = '';
+      for (i = ini; i <= i1; i++) {
+        var d1 = natDiaDados(a0, i); if (!d1 || !d1.any) continue;
+        nd++;
+        rows1 += '<tr><td>' + WDN[new Date(START + i * DAY).getUTCDay()] + ' <small>' + fmtDate(i) + '</small></td><td>' + W(d1) + '</td><td>' + natCelH(d1.m) + '</td><td>' + natCelH(d1.f) + '</td><td>' + natCelH(d1.t) + '</td><td><b>' + (d1.ua || '–') + '</b></td></tr>';
+        tx.push('  ' + WDN[new Date(START + i * DAY).getUTCDay()] + ' ' + fmtDate(i) + ': W ' + (d1.w != null ? d1.w : '–') + ' | manhã ' + (d1.m ? num(d1.m.pse) + ' (' + d1.m.min + "')" : '–') + ' | físico ' + (d1.f ? num(d1.f.pse) + ' (' + d1.f.min + "')" : '–') + ' | tarde ' + (d1.t ? num(d1.t.pse) + ' (' + d1.t.min + "')" : '–') + ' = ' + d1.ua + ' UA');
+      }
+      if (nd) h += '<div class="natw nd"><table class="rt nat"><thead><tr><th>Dia</th>' + cab + '<th>UA</th></tr></thead><tbody>' + rows1 + '</tbody></table></div>';
+    }
+    if (!nd) return { h: '<p class="small">Sem registos de natação neste período.</p>', t: '' };
+    /* resumo do período, por atleta */
+    var sr = '', st = [];
+    atl.forEach(function (a) {
+      var wv = [], ns = 0, mn = 0, ua = 0;
+      for (i = i0; i <= i1; i++) { var d = natDiaDados(a, i); if (!d) continue; if (d.w != null) wv.push(d.w); a.rec[i].ses.forEach(function (x) { ns++; mn += x.min; ua += x.ua; }); }
+      sr += '<tr><td>' + esc(a.n) + '</td><td>' + natMedia(wv) + '</td><td>' + ns + '</td><td>' + mn + "'</td><td>" + (mn ? num(ua / mn) : '–') + '</td><td><b>' + (ua || '–') + '</b></td></tr>';
+      st.push('  ' + a.n + ': wellness médio ' + natMedia(wv) + ', ' + ns + ' sessões, ' + mn + " min, PSE média " + (mn ? num(ua / mn) : '–') + ', ' + ua + ' UA');
+    });
+    var tit = fmtDate(i0) + ' a ' + fmtDate(i1);
+    h += '<div class="natw nd nd-res"><p class="nd-h">Resumo ' + (i1 - i0 > 7 ? 'do período' : 'da semana') + ' <span>' + tit + '</span></p><table class="rt nat"><thead><tr><th>Atleta</th><th>Wellness médio</th><th>Sessões</th><th>Minutos</th><th>PSE média*</th><th>Carga (UA)</th></tr></thead><tbody>' + sr + '</tbody></table><p class="small">* PSE média ponderada pela duração (PSE × minutos ÷ minutos totais), natação e físico. Wellness: índice de 4 a 20, menor é melhor. "–" = sem registo.' + (i1 - ini > 13 ? ' Tabelas diárias dos últimos 14 dias do período.' : '') + '</p></div>';
+    return { h: '<p class="kicker">Natação · por dia</p>' + h, t: 'Natação por dia (PSE e minutos):\n' + tx.join('\n') + '\nResumo ' + tit + ':\n' + st.join('\n') };
+  }
   function renderReport() {
     var idx = [];
     document.querySelectorAll('#rep-list input').forEach(function (c) { if (c.checked) idx.push(+c.getAttribute('data-ra')); });
@@ -2160,26 +2254,27 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       });
       var kvs = '';
       if (P.ass) kvs += kv('Presença', pres, st.done + ' de ' + st.plan + ' sessões');
-      if (P.well) kvs += kv('Wellness', st.ph == null ? '–' : num(st.ph), 'Hooper médio · ' + st.att + (st.att === 1 ? ' dia' : ' dias') + ' em atenção');
+      if (P.well) kvs += kv('Wellness', st.ph == null ? '–' : num(st.ph), 'Wellness médio · ' + st.att + (st.att === 1 ? ' dia' : ' dias') + ' em atenção');
       if (P.pse) kvs += kv('PSE', st.pm == null ? '–' : num(st.pm), 'média');
       if (P.carga) kvs += kv('Carga', fmtN(st.ua) + ' UA', fmtN(st.ua / nw) + ' UA por semana');
       if (P.ton) kvs += kv('Tonelagem', num(st.ton / 1000) + ' t', num(st.ton / 1000 / nw) + ' t por semana') + kv('Unilateral', upct + '%', 'da tonelagem');
       if (P.core) kvs += kv('Core', ctot, cSub);
       if (P.acwr) kvs += kv('ACWR', awz ? acwrFmt(awc.ult.acwr) : '–', awz ? awz[2] + ' · semana de ' + fmtDate(awc.ult.k) : 'dados insuficientes');
-      secs += '<section class="ra"><h3>' + esc(a.n) + '<small>' + esc(a.m) + '</small></h3>' + (kvs ? '<div class="rgrid">' + kvs + '</div>' : '') +
+      var secH = '<section class="ra"><h3>' + esc(a.n) + '<small>' + esc(a.m) + '</small></h3>' + (kvs ? '<div class="rgrid">' + kvs + '</div>' : '') +
         (P.ass ? '<p class="small">' + faltas + '</p>' : '') + (P.notas ? notasRel(a, toISO(range.i0), toISO(range.i1)) : '') +
         (P.sem && anyWk ? '<p class="kicker">Semana a semana</p>' + compHtml(a, range.i0, range.i1, 12, cols) : '') +
         (P.dia && (anyWk || P.acwr) ? (function () { var kk = compSemKeys(a); return kk.length ? '<p class="kicker">Última semana, dia a dia (' + fmtDate(kk[kk.length - 1]) + ')</p>' + compGraficos(a, kk[kk.length - 1], cols) : ''; })() : '') +
         (P.ton ? '<p class="kicker">Tonelagem por padrão</p><div class="scroll"><table class="rt"><thead><tr><th>Padrão</th><th>Tonelagem</th><th>%</th></tr></thead><tbody>' + pr + '</tbody></table></div>' : '') +
         (P.ex ? (ex ? '<p class="kicker">Cargas por exercício</p><div class="scroll"><table class="rt"><thead><tr><th>Exercício</th><th>Evolução</th><th>Variação</th></tr></thead><tbody>' + ex + '</tbody></table></div>' : '<p class="small">Sem cargas registadas neste período.</p>') : '') +
         (P.aval ? (av ? '<p class="kicker">Avaliações</p><div class="scroll"><table class="rt"><thead><tr><th>Teste</th><th>Evolução</th><th>Melhor</th><th>Testes</th></tr></thead><tbody>' + av + '</tbody></table></div>' : '<p class="small">Sem avaliações neste período.</p>') : '') + '</section>';
+      if (secH.indexOf('</small></h3></section>') < 0) secs += secH;
       txt.push(a.n + ' (' + a.m + ')');
       if (P.ass) txt.push('Presença: ' + pres + ' (' + st.done + ' de ' + st.plan + ' sessões). ' + faltas);
-      if (P.well) txt.push('Wellness: Hooper médio ' + (st.ph == null ? '–' : num(st.ph)) + ', dias em atenção ' + st.att);
+      if (P.well) txt.push('Wellness: Wellness médio ' + (st.ph == null ? '–' : num(st.ph)) + ', dias em atenção ' + st.att);
       if (P.pse) txt.push('PSE média ' + (st.pm == null ? '–' : num(st.pm)));
       if (P.carga) txt.push('Carga: ' + fmtN(st.ua) + ' UA (' + fmtN(st.ua / nw) + ' UA por semana)');
       if (P.ton) { txt.push('Tonelagem: ' + num(st.ton / 1000) + ' t (' + num(st.ton / 1000 / nw) + ' t por semana). Unilaterais: ' + upct + '%'); txt.push('Por padrão: ' + prTxt); }
-      if (P.sem && anyWk) compSemanas(a, range.i0, range.i1).slice(-12).forEach(function (x) { txt.push('  Semana de ' + fmtDate(x.k) + (P.well ? ': Hooper ' + (x.h == null ? '–' : num(x.h)) : '') + (P.pse ? ' · PSE ' + (x.pse == null ? '–' : num(x.pse)) : '') + (P.carga ? ' · carga ' + fmtN(x.ua) + ' UA' : '') + (P.ton ? ' · tonelagem ' + num(x.ton / 1000) + ' t' : '')); });
+      if (P.sem && anyWk) compSemanas(a, range.i0, range.i1).slice(-12).forEach(function (x) { txt.push('  Semana de ' + fmtDate(x.k) + (P.well ? ': wellness ' + (x.h == null ? '–' : num(x.h)) : '') + (P.pse ? ' · PSE ' + (x.pse == null ? '–' : num(x.pse)) : '') + (P.carga ? ' · carga ' + fmtN(x.ua) + ' UA' : '') + (P.ton ? ' · tonelagem ' + num(x.ton / 1000) + ' t' : '')); });
       if (P.acwr) txt.push('ACWR (carga da semana / média das 4 anteriores): ' + acwrFrase(awc));
       if (P.notas) { var ntx = notasTxt(a, toISO(range.i0), toISO(range.i1)); if (ntx) txt.push(ntx); }
       if (P.core) txt.push('Core: ' + ctot + ' (' + cSub + ')');
@@ -2187,8 +2282,10 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       if (P.aval && avTxt.length) txt.push('Avaliações: ' + avTxt.join('; '));
       txt.push('');
     });
+    var natBloco = '';
+    if (P.nat) { var nrr = natDiasRel(idx, range.i0, range.i1); natBloco = '<div>' + nrr.h + '</div>'; if (nrr.t) txt.push(nrr.t, ''); }
     out.innerHTML = '<article class="paper"><header><p class="kicker">1% · Relatório de acompanhamento</p><h2>' + periodo + '</h2><p class="small">' + idx.length + (idx.length === 1 ? ' atleta' : ' atletas') + (LIVE ? '' : ' · dados de exemplo') + '</p></header>' +
-      (hasSum ? '<div class="scroll"><table class="rt sum"><thead><tr><th>Atleta</th>' + (P.ass ? '<th>Pres.</th>' : '') + (P.well ? '<th>Hooper</th>' : '') + (P.pse ? '<th>PSE</th>' : '') + (P.carga ? '<th>UA</th>' : '') + (P.ton ? '<th>Ton.</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' : '') + secs + '</article>';
+      (hasSum ? '<div class="scroll"><table class="rt sum"><thead><tr><th>Atleta</th>' + (P.ass ? '<th>Pres.</th>' : '') + (P.well ? '<th>Wellness</th>' : '') + (P.pse ? '<th>PSE</th>' : '') + (P.carga ? '<th>UA</th>' : '') + (P.ton ? '<th>Ton.</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' : '') + natBloco + secs + '</article>';
     lastText = txt.join('\n');
     $('#rep-actions').hidden = false;
     $('#rep-msg').textContent = '';
@@ -3021,7 +3118,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       h += P.slice().reverse().map(function (q) { return '<div class="row2"><span class="small">' + fmtD(q.data) + (q.treino ? ' · ' + esc(q.treino) : '') + '</span><b>PSE ' + q.valor + '</b></div>'; }).join('');
     } else {
       var B = d.hooper || [], ult = B.length ? B[B.length - 1].valor : null;
-      h += '<p class="small">Índice de Hooper: soma de sono, fadiga, dor e stress (4 a 20). Quanto mais baixo, melhor. Cada ponto é um registo teu das últimas 4 semanas.</p>' + evChart(B.map(function (q) { return { s: q.data, v: q.valor }; }), evNum);
+      h += '<p class="small">Índice de wellness: soma de sono, fadiga, dor e stress (4 a 20). Quanto mais baixo, melhor. Cada ponto é um registo teu das últimas 4 semanas.</p>' + evChart(B.map(function (q) { return { s: q.data, v: q.valor }; }), evNum);
       if (ult != null) h += '<div class="row2"><span class="small">Último registo · ' + fmtD(B[B.length - 1].data) + '</span><b>' + evNum(ult) + ' · ' + (ult <= 8 ? 'Bom' : ult <= 13 ? 'Moderado' : 'Atenção') + '</b></div>';
     }
     return h;
@@ -3443,8 +3540,8 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   });
 
   /* ---------- exportar dados (cópia de segurança) ---------- */
-  var EXP_TAB = ['atletas', 'exercicios', 'treinos', 'treino_blocos', 'treino_itens', 'registos_serie', 'sessoes', 'wellness', 'notas_bloco', 'resultados_bloco', 'faltas'];
-  var EXP_VER = { treinos: 1, treino_blocos: 1, treino_itens: 1, registos_serie: 1, sessoes: 1, wellness: 1, notas_bloco: 1, resultados_bloco: 1, faltas: 1 };
+  var EXP_TAB = ['atletas', 'exercicios', 'treinos', 'treino_blocos', 'treino_itens', 'registos_serie', 'sessoes', 'wellness', 'notas_bloco', 'resultados_bloco', 'faltas', 'aulas_externas', 'sessoes_modalidade', 'competicoes'];
+  var EXP_VER = { treinos: 1, treino_blocos: 1, treino_itens: 1, registos_serie: 1, sessoes: 1, wellness: 1, notas_bloco: 1, resultados_bloco: 1, faltas: 1, aulas_externas: 1, sessoes_modalidade: 1, competicoes: 1 };
   function expTabela(t) {
     return tGet(t, 'select=*&order=id').catch(function () { return tGet(t, 'select=*'); }).then(function (rows) {
       rows = rows || [];
@@ -3541,7 +3638,10 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
         treino_blocos: ['atleta', 'data', 'treino', 'bloco', 'nome', 'formato'],
         faltas: ['atleta', 'data', 'treino', 'motivo', 'nota'],
         notas_bloco: ['atleta', 'data', 'bloco', 'motivo', 'nota'],
-        resultados_bloco: ['atleta', 'data', 'treino', 'bloco', 'formato', 'tempo_s', 'rondas', 'reps', 'completo', 'nota']
+        resultados_bloco: ['atleta', 'data', 'treino', 'bloco', 'formato', 'tempo_s', 'rondas', 'reps', 'completo', 'nota'],
+        aulas_externas: ['atleta', 'data', 'nome', 'minutos', 'pse', 'ua'],
+        sessoes_modalidade: ['atleta', 'data', 'modalidade', 'periodo', 'foco', 'minutos', 'pse', 'ua', 'distancia_m'],
+        competicoes: ['atleta', 'data', 'nome', 'ref', 'local']
       };
       Object.keys(out).forEach(function (t) {
         if (!EXP_VER[t]) return;
@@ -3599,6 +3699,10 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       var x = at(s.atleta_id, s.data);
       if (x) x.r.ses.push({ t: TREIN[s.atleta_id + '|' + s.data] === 'agua' ? 'agua' : 'gym', pse: s.pse, min: s.minutos, ua: s.pse * s.minutos });
     });
+    (D.aulasnat || []).forEach(function (s) {   /* natação: sessões registadas pelos atletas (manhã/tarde…), somam à carga do dia */
+      var x = at(s.atleta_id, s.data);
+      if (x) x.r.ses.push({ t: 'agua', pse: s.pse, min: s.minutos, ua: s.pse * s.minutos, nat: true, per: s.periodo, foco: s.foco, dist: s.distancia_m });
+    });
     D.notas.forEach(function (n) { var x = at(n.atleta_id, n.data); if (x && n.motivo && !x.r.falta) x.r.falta = n.motivo; });
     var agg = {};
     D.registos.forEach(function (row) {
@@ -3650,7 +3754,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     COMP = [];
     D.competicoes.forEach(function (c) {
       var k = idx[c.atleta_id], i = fromISO(c.data);
-      if (k != null && !isNaN(i)) COMP.push({ id: c.id, a: k, i: i, n: c.nome, l: c.local || '' });
+      if (k != null && !isNaN(i)) COMP.push({ id: c.id, a: k, i: i, n: c.nome, l: c.local || '', r: c.ref || '' });
     });
   }
   function refreshTrainerUI() {
@@ -3755,7 +3859,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   $('#f-atleta').addEventListener('change', function () { if (OBS) opRender(); });
   /* ---------- separadores do treinador + quem preencheu esta semana ---------- */
   var DSUB = lsGet('alvo.dsub') || 'resumo';
-  var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-comp', 'Comparar'], ['p-notas', 'Notas'], ['p-hooper', 'Hooper'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-acwr', 'ACWR'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-hist', 'Histórico de treinos'], ['p-rep', 'Relatório']];
+  var DSECS = [['resumo', 'Resumo'], ['p-cal', 'Competições'], ['p-comp', 'Comparar'], ['p-notas', 'Notas'], ['p-hooper', 'Wellness'], ['p-pse', 'PSE'], ['p-carga', 'Carga semanal'], ['p-acwr', 'ACWR'], ['p-ton', 'Tonelagem'], ['p-pad', 'Por padrão'], ['p-ex', 'Cargas'], ['p-met', 'CMJ e VBT'], ['p-core', 'Core'], ['p-wod', 'WODs'], ['p-hist', 'Histórico de treinos'], ['p-rep', 'Relatório']];
   var TAB = lsGet('alvo.tab') || 'semana';
   if (TAB !== 'semana' && TAB !== 'gestao' && TAB !== 'dados' && TAB !== 'online' && TAB !== 'eu') TAB = 'semana';
   var ONSUB = lsGet('alvo.osub') || 'alunos';
@@ -3955,36 +4059,79 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     if (TAB === 'semana' || (on && ONSUB === 'semana')) renderSemana();
     if (showDados && DSUB === 'p-hist') renderHist();
   }
+  /* ---------- Esta semana: quem preencheu (semana a semana, filtros, detalhe) ---------- */
+  var SEMW = 0, SEMF = { m: '*', sel: {} }, SEMO = null, SEMMSG = '';
+  var SPER = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' }, SFOCO = { aerobio: 'Aeróbio', tecnica: 'Técnica', velocidade: 'Velocidade', misto: 'Misto' };
+  function semK(a) { return a.id || a.n; }
+  function semDia(a, i) {
+    var r = a.rec[i], ua = 0, n = 0;
+    if (r) r.ses.forEach(function (s) { ua += s.ua || 0; n++; });
+    return { r: r, ua: ua, n: n, w: !!(r && r.w) };
+  }
   function renderSemana() {
     var out = $('#sem-out'); if (!out) return;
-    var hj = localISO(), mon = isoAdd(hj, -isoDow(hj)), hI = fromISO(hj);
+    var hj = localISO(), mon = isoAdd(isoAdd(hj, -isoDow(hj)), -7 * SEMW), hI = fromISO(hj);
     var idxs = [0, 1, 2, 3, 4, 5, 6].map(function (k) { return fromISO(isoAdd(mon, k)); });
-    var L = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+    var DL = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
     if (!ATLETAS.length) { out.innerHTML = '<p class="note">Ainda não há atletas.</p>'; return; }
-    function dots(arr) {
-      return '<span class="sdots">' + arr.map(function (v, k) { return '<span class="sd' + (v ? ' ok' : '') + (idxs[k] > hI ? ' fut' : '') + (idxs[k] === hI ? ' hoje' : '') + '"></span>'; }).join('') + '</span>';
-    }
-    var lista = ATLETAS.slice().filter(function (x) { return !FMOD || x.m === FMOD; }).sort(function (x, y) { return (x.m + x.n).localeCompare(y.m + y.n, 'pt'); });
-    var faltaW = [];
-    var rows = lista.map(function (a) {
-      var w = idxs.map(function (i) { return a.rec[i] && a.rec[i].w ? 1 : 0; });
-      var c = idxs.map(function (i) { return a.cdias[i] ? 1 : 0; });
-      var p = idxs.map(function (i) { return a.rec[i] && a.rec[i].ses.length ? 1 : 0; });
-      var plan = idxs.filter(function (i) { return a.plan[i] === 'gym'; }).length;
-      var nw = w.reduce(function (x, y) { return x + y; }, 0), nc = c.reduce(function (x, y) { return x + y; }, 0), np = p.reduce(function (x, y) { return x + y; }, 0);
-      if (!a.pres && !(a.rec[hI] && a.rec[hI].w)) faltaW.push(a.n);
-      var nf = a.faltas.filter(function (f) { return f.iso >= mon && f.iso <= isoAdd(mon, 6); });
-      var ftxt = nf.length ? '<small class="err">' + nf.length + (nf.length === 1 ? ' falta' : ' faltas') + ': ' + esc(nf.map(function (f) { return f.m === 'lesao' ? 'lesão' : f.m; }).join(', ')) + '</small>' : '';
-      return '<tr><td><span class="who"><b>' + esc(a.n) + '</b><small>' + esc(a.m) + '</small>' + notasBadge(a.id) + '</span></td>' +
-        '<td class="scell"><b>' + nw + ' / 7</b>' + dots(w) + '</td>' +
-        '<td class="scell"><b>' + nc + (plan ? ' / ' + plan : '') + '</b>' + dots(c) + ftxt + '</td>' +
-        '<td class="scell"><b>' + np + '</b>' + dots(p) + '</td></tr>';
+    var base = ATLETAS.map(function (a, i) { return { a: a, i: i }; }).filter(function (x) { return !FMOD || x.a.m === FMOD; });
+    var mods = []; base.forEach(function (x) { if (mods.indexOf(x.a.m) < 0) mods.push(x.a.m); });
+    mods.sort(function (p, q) { return p.localeCompare(q, 'pt'); });
+    if (SEMF.m !== '*' && SEMF.m !== 'sel' && mods.indexOf(SEMF.m) < 0) SEMF.m = '*';
+    var rows = base.filter(function (x) { return SEMF.m === '*' || (SEMF.m === 'sel' ? SEMF.sel[semK(x.a)] : x.a.m === SEMF.m); })
+      .sort(function (p, q) { return (p.a.m + p.a.n).localeCompare(q.a.m + q.a.n, 'pt'); });
+    var wf = 0, wt = 0, comReg = 0, semReg = 0, faltaHoje = [];
+    var body = rows.map(function (x) {
+      var a = x.a, tot = 0, cells = '', nreg = 0;
+      idxs.forEach(function (i, k) {
+        var d = semDia(a, i), fut = i > hI;
+        if (fut) { cells += '<div class="sw-c fut">·</div>'; return; }
+        tot += d.ua; if (d.ua || d.w) nreg++;
+        if (!a.pres) { wt++; if (d.w) wf++; }
+        if (i === hI && !a.pres && !d.w && !d.n) faltaHoje.push(a.n);
+        cells += '<div class="sw-c' + (i === hI ? ' hoje' : '') + '"><span>' + (d.ua ? d.ua : '–') + '</span>' + (a.pres ? '' : '<i class="sw-d' + (d.w ? ' ok' : ' no') + '"></i>') + '</div>';
+      });
+      if (nreg) comReg++; else semReg++;
+      var det = '';
+      if (SEMO === semK(a)) {
+        det = '<div class="sw-det">' + idxs.map(function (i, k) {
+          if (i > hI) return '';
+          var d = semDia(a, i), lin = [];
+          if (d.r) d.r.ses.forEach(function (s) {
+            lin.push(s.nat ? (SPER[s.per] || '') + (s.foco ? ' · ' + SFOCO[s.foco] : '') + ': ' + s.min + "' · PSE " + s.pse + ' = ' + s.ua + ' UA' + (s.dist ? ' · ' + s.dist + ' m' : '') : (s.t === 'gym' ? 'Ginásio' : 'Água') + ': ' + s.min + "' · PSE " + s.pse + ' = ' + s.ua + ' UA');
+          });
+          if (a.cdias && a.cdias[i]) lin.push('Cargas registadas');
+          if (d.r && d.r.falta) lin.push('<span class="err">Não treinou (' + esc(d.r.falta === 'lesao' ? 'lesão' : d.r.falta) + ')</span>');
+          return '<div class="sw-r"><b>' + DL[idxs.indexOf(i)] + ' ' + fmtD(isoAdd(mon, idxs.indexOf(i))) + '</b><span>' + (lin.length ? lin.join('<br>') : 'sem treino registado') + (a.pres ? '' : '<br>wellness ' + (d.w ? '✓ índice ' + d.r.w.reduce(function (p, q) { return p + q; }, 0) : '<span class="err">✗ em falta</span>')) + '</span></div>';
+        }).join('') + '</div>';
+      }
+      return '<div class="sw-g"><button class="sw-n" data-so="' + esc(semK(a)) + '" aria-expanded="' + (SEMO === semK(a)) + '"><b>' + esc(a.n) + '</b><small>' + esc(a.m) + notasBadge(a.id) + '</small></button>' + cells + '<div class="sw-t">' + tot + '</div></div>' + det;
     }).join('');
-    out.innerHTML = '<p class="small">Semana de ' + fmtD(mon) + ' a ' + fmtD(isoAdd(mon, 6)) + '. Cada quadrado é um dia (' + L.join(' ') + '); verde = preenchido, o contornado é hoje.</p>' +
-      '<p class="small"><b>Wellness de hoje em falta (' + faltaW.length + ' de ' + ATLETAS.filter(function (x) { return !x.pres; }).length + '):</b> ' + (faltaW.length ? esc(faltaW.join(', ')) : 'ninguém, todos preencheram.') + '</p>' +
-      '<div class="scroll"><table class="rt"><thead><tr><th>Atleta</th><th>Wellness</th><th>Cargas</th><th>PSE</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      '<p class="small">Wellness: dias preenchidos. Cargas: dias com carga registada / treinos de ginásio planeados; a vermelho, treinos que o atleta marcou como não feitos. PSE: sessões com esforço registado. O wellness só é obrigatório nos dias em que o atleta treina.</p>';
+    var wk = '<div class="sw-nav"><button class="chip" data-sw="1" aria-label="Semana anterior">‹</button><b>' + fmtD(mon) + ' a ' + fmtD(isoAdd(mon, 6)) + (SEMW === 0 ? ' · esta semana' : '') + '</b><button class="chip" data-sw="-1" aria-label="Semana seguinte"' + (SEMW === 0 ? ' disabled' : '') + '>›</button></div>';
+    var chips = '<div class="chips"><button class="chip" data-sm="*" aria-pressed="' + (SEMF.m === '*') + '">Todos</button>' + mods.map(function (m) { return '<button class="chip" data-sm="' + esc(m) + '" aria-pressed="' + (SEMF.m === m) + '">' + esc(m) + '</button>'; }).join('') + '<button class="chip" data-sm="sel" aria-pressed="' + (SEMF.m === 'sel') + '">Escolher atletas</button></div>';
+    var pick = SEMF.m === 'sel' ? '<div class="chips">' + base.map(function (x) { return '<button class="chip" data-sp="' + esc(semK(x.a)) + '" aria-pressed="' + !!SEMF.sel[semK(x.a)] + '">' + esc(x.a.n) + '</button>'; }).join('') + '</div>' : '';
+    var tiles = '<div class="sw-sum"><div><b>' + wf + '/' + wt + '</b><span>Wellness feito</span></div><div><b>' + comReg + '/' + rows.length + '</b><span>Com registo</span></div><div><b class="' + (semReg ? 'err' : '') + '">' + semReg + '</b><span>Sem nada</span></div></div>';
+    var copia = SEMW === 0 ? '<div><button class="chip" id="sem-copia">Copiar lista de quem falta hoje (' + faltaHoje.length + ')</button> <span class="small">' + esc(SEMMSG) + '</span></div>' : '';
+    window.SEMFALTA = faltaHoje;
+    out.innerHTML = wk + chips + pick + tiles + copia +
+      '<div class="sw-g sw-h"><span></span>' + DL.map(function (d) { return '<span>' + d + '</span>'; }).join('') + '<span>UA</span></div>' +
+      (rows.length ? body : '<p class="note">Nenhum atleta selecionado.</p>') +
+      '<p class="small">Cada quadrado: carga do dia (UA, natação + ginásio) e, por baixo, o ponto do wellness (cheio = preenchido, vazio = falta). "–" é sem registo. Toca no nome para ver o detalhe do dia: sessões (manhã/tarde), PSE, distância e cargas. Atletas presenciais não têm wellness.</p>';
   }
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest || !t.closest('#sem-out')) return;
+    var b = t.closest('button'); if (!b) return;
+    if (b.dataset.sw) { SEMW = Math.max(0, SEMW + (+b.dataset.sw)); SEMO = null; renderSemana(); return; }
+    if (b.dataset.sm !== undefined) { SEMF.m = b.dataset.sm; renderSemana(); return; }
+    if (b.dataset.sp) { SEMF.sel[b.dataset.sp] = !SEMF.sel[b.dataset.sp]; renderSemana(); return; }
+    if (b.dataset.so) { SEMO = SEMO === b.dataset.so ? null : b.dataset.so; renderSemana(); return; }
+    if (b.id === 'sem-copia') {
+      var txt = (window.SEMFALTA || []).join(', ') || 'ninguém';
+      var ok = function () { SEMMSG = 'Copiado.'; renderSemana(); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText('Falta registo hoje: ' + txt).then(ok).catch(function () { SEMMSG = 'Falta hoje: ' + txt; renderSemana(); });
+      else { SEMMSG = 'Falta hoje: ' + txt; renderSemana(); }
+    }
+  });
   var RAWD = null, SCOPE = 'main';
   function isEu(a) { return a.grupo !== 'pt' && String(a.modalidade || '').trim().toLowerCase() === 'treinador'; }
   function scopeDe(a) { return a.grupo === 'pt' ? 'pt' : isEu(a) ? 'eu' : 'main'; }
@@ -4012,14 +4159,15 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       tGet('treinos', 'select=atleta_id,data,tipo&order=data,id'),
       tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,pse_ex,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id'),
       tGet('notas_bloco', 'select=id,atleta_id,data,bloco,motivo,nota&order=data,id'),
-      tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id'),
+      tGet('competicoes', 'select=id,atleta_id,data,nome,local,ref&order=data,id').catch(function () { return tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id'); }),
       tGet('faltas', 'select=id,atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id').catch(function () { return []; }),
       tGet('resultados_bloco', 'select=atleta_id,treino_id,data,bloco,formato,tempo_s,rondas,reps,completo,nota&order=data,id').catch(function () { return []; }),
       tGet('treino_blocos', 'select=treino_id,bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s').catch(function () { return []; }),
-      tGet('notas_vistas', 'select=tipo,nota_id,hash').catch(function () { return []; })
+      tGet('notas_vistas', 'select=tipo,nota_id,hash').catch(function () { return []; }),
+      tGet('sessoes_modalidade', 'select=atleta_id,data,periodo,foco,minutos,pse,distancia_m&order=data,id').catch(function () { return []; })
     ]).then(function (r) {
       notasCarregarVistas(r[10]);
-      RAWD = { D: { atletas: r[0], wellness: r[1], sessoes: r[2], treinos: r[3], registos: r[4], notas: r[5], competicoes: r[6], faltas: r[7] }, wod: { res: r[8] || [], cfg: r[9] || [] }, hoje: hojeISO };
+      RAWD = { D: { atletas: r[0], wellness: r[1], sessoes: r[2], treinos: r[3], registos: r[4], notas: r[5], competicoes: r[6], faltas: r[7], aulasnat: r[11] || [] }, wod: { res: r[8] || [], cfg: r[9] || [] }, hoje: hojeISO };
       SCOPE = TAB === 'online' ? 'pt' : TAB === 'eu' ? 'eu' : 'main';
       liveBuildScope();
       showTrainer(true);
@@ -4034,7 +4182,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       $('#t-err').textContent = e && e.status === 401 ? 'A sessão expirou. Entra outra vez.' : netErr(e);
     });
   }
-  /* aviso no painel do treinador: atletas com bem-estar (Hooper) em atenção (>= 14) hoje ou ontem */
+  /* aviso no painel do treinador: atletas com bem-estar (wellness) em atenção (>= 14) hoje ou ontem */
   /* ---------- pequeno guia na primeira entrada (só uma vez por atleta neste telemóvel) ---------- */
   function tourSlides() {
     var nome = sess && sess.nome ? String(sess.nome).split(' ')[0] : '';
@@ -4231,7 +4379,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     v.insertBefore(el, v.firstChild);
     $('#t-notas-ok').addEventListener('click', function () { notasMarcar(nv).then(function () { el.remove(); try { renderSemana(); } catch (e) { /* opcional */ } }); });
   }
-  /* ---------- comparação semanal: Hooper, PSE, carga (UA) e tonelagem ---------- */
+  /* ---------- comparação semanal: Wellness, PSE, carga (UA) e tonelagem ---------- */
   function compSemanas(a, i0, i1) {
     var wk = {}, i;
     for (i = i0; i <= Math.min(i1, a.rec.length - 1); i++) {
@@ -4261,7 +4409,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
         (C.u ? '<td><b>' + fmtN(x.ua) + '</b>' + compBar(x.ua, mu, 'u') + '</td>' : '') +
         (C.t ? '<td><b>' + num(x.ton / 1000) + ' t</b>' + compBar(x.ton, mt, 't') + '</td>' : '') + '</tr>';
     }).join('');
-    return '<div class="scroll"><table class="rt comp"><thead><tr><th>Semana de</th>' + (C.h ? '<th>Hooper<br><span class="small">médio</span></th>' : '') + (C.p ? '<th>PSE<br><span class="small">média</span></th>' : '') + (C.u ? '<th>Carga<br><span class="small">UA</span></th>' : '') + (C.t ? '<th>Tonelagem</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+    return '<div class="scroll"><table class="rt comp"><thead><tr><th>Semana de</th>' + (C.h ? '<th>Wellness<br><span class="small">médio</span></th>' : '') + (C.p ? '<th>PSE<br><span class="small">média</span></th>' : '') + (C.u ? '<th>Carga<br><span class="small">UA</span></th>' : '') + (C.t ? '<th>Tonelagem</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
   /* gráficos de barras verticais, um dia por barra, cor pelo ACWR da semana */
   var COMPW = { id: null, k: null };
@@ -4302,7 +4450,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     var mu = Math.max(300, Math.max.apply(null, o.u.map(function (v) { return v || 0; })) * 1.15), mt = Math.max(6, Math.max.apply(null, o.t.map(function (v) { return v || 0; })) * 1.15);
     var n1 = function (v) { return num(v); };
     return (C.z ? '<div class="cb-hd"><span class="chip cb-z" style="background:' + cor + ';color:#fff;border-color:' + cor + '">' + (z ? 'ACWR ' + acwrFmt(row.acwr) + ' · ' + z[2] : 'ACWR sem dados suficientes') + '</span></div>' : '') +
-      (C.h ? compBarras('Wellness (Hooper)', '4 a 20 · menor é melhor', o.h, 20, function (v) { return String(v); }, cor) : '') +
+      (C.h ? compBarras('Wellness', '4 a 20 · menor é melhor', o.h, 20, function (v) { return String(v); }, cor) : '') +
       (C.p ? compBarras('PSE', '0 a 10', o.p, 10, n1, cor) : '') +
       (C.u ? compBarras('Carga (UA)', 'PSE × minutos', o.u, mu, function (v) { return fmtN(v); }, cor, row && row.cron ? row.cron / 7 : null) : '') +
       (C.t ? compBarras('Tonelagem', 'toneladas levantadas', o.t, mt, n1, cor) : '');
@@ -4315,7 +4463,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     var b = $('#comp-body'); if (!b) return;
     var ks = compSemKeys(a);
     if (COMPW.id !== a.id || ks.indexOf(COMPW.k) < 0) { COMPW.id = a.id; COMPW.k = ks.length ? ks[ks.length - 1] : null; }
-    var h = '<p class="small">Por semana, lado a lado: bem-estar (Hooper, 4 a 20, menor é melhor), esforço percebido (PSE, 0 a 10), carga (PSE × minutos) e tonelagem levantada. A cor das barras mostra o ACWR da semana (verde adequado, laranja atenção, vermelho risco, azul abaixo do habitual).</p>';
+    var h = '<p class="small">Por semana, lado a lado: bem-estar (wellness, 4 a 20, menor é melhor), esforço percebido (PSE, 0 a 10), carga (PSE × minutos) e tonelagem levantada. A cor das barras mostra o ACWR da semana (verde adequado, laranja atenção, vermelho risco, azul abaixo do habitual).</p>';
     if (COMPW.k != null) {
       var ix = ks.indexOf(COMPW.k);
       h += '<div class="cb-nav"><button type="button" class="chip" data-cw="-1"' + (ix <= 0 ? ' disabled' : '') + '>‹</button><b>Semana de ' + fmtDate(COMPW.k) + '</b><button type="button" class="chip" data-cw="1"' + (ix >= ks.length - 1 ? ' disabled' : '') + '>›</button></div>' + compGraficos(a, COMPW.k);
@@ -4773,7 +4921,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     if (!el) { el = document.createElement('div'); el.id = 't-walert'; el.className = 'mac-warn'; el.setAttribute('role', 'alert'); el.style.margin = '10px 14px'; v.insertBefore(el, v.firstChild); }
     el.hidden = (typeof TAB !== 'undefined' && TAB === 'eu');
     el.innerHTML = '<b>Bem-estar em atenção (' + L.length + ')</b><br>' + L.map(function (x) {
-      return esc(x.a.nome) + ' <span class="small">· ' + (x.a.grupo === 'pt' ? 'Online training' : esc(x.a.modalidade || '')) + ' · Hooper ' + x.t + ' · ' + (x.data === hj ? 'hoje' : 'ontem') + '</span>';
+      return esc(x.a.nome) + ' <span class="small">· ' + (x.a.grupo === 'pt' ? 'Online training' : esc(x.a.modalidade || '')) + ' · wellness ' + x.t + ' · ' + (x.data === hj ? 'hoje' : 'ontem') + '</span>';
     }).join('<br>') + '<br><button class="chip" id="t-walert-ok" type="button">Ok, vi</button>';
     $('#t-walert-ok').addEventListener('click', function () { seenAdd(L.map(function (x) { return 'w:' + x.a.id + ':' + x.data; })); el.remove(); });
   }
@@ -4789,12 +4937,12 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       renderCal(); renderCalDet(); renderUp(); renderRows(); renderPainel();
     }).catch(function (e) { $('#c-err').textContent = netErr(e); });
   }
-  function liveAddComps(list, nome, loc, i0) {
-    var body = list.map(function (x) { return { atleta_id: ATLETAS[x.a].id, data: toISO(x.i), nome: nome, local: loc || null }; });
+  function liveAddComps(list, nome, loc, i0, ref) {
+    var body = list.map(function (x) { return { atleta_id: ATLETAS[x.a].id, data: toISO(x.i), nome: nome, local: loc || null, ref: ref || null }; });
     tReq('/rest/v1/competicoes', { method: 'POST', body: body, headers: { Prefer: 'return=representation' } }).then(function (r) {
       list.forEach(function (x) {
         var row = (r || []).filter(function (q) { return q.atleta_id === ATLETAS[x.a].id && q.data === toISO(x.i); })[0];
-        COMP.push({ id: row ? row.id : null, a: x.a, i: x.i, n: nome, l: loc });
+        COMP.push({ id: row ? row.id : null, a: x.a, i: x.i, n: nome, l: loc, r: ref || '' });
       });
       cDone(i0);
     }).catch(function (e) { $('#c-err').textContent = netErr(e); });
