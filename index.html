@@ -608,7 +608,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     </div>
 
     <div class="wrap" style="padding:0" id="atleta-app" hidden>
-      <div class="bar"><b id="ola"></b><span class="chips"><button class="chip" id="mac-btn" hidden>Macro</button><button class="chip" id="evo-btn" hidden>Evolução</button><button class="chip" id="nat-btn" hidden>Natação</button><button class="chip" id="tes-btn">Testes</button><button class="chip" id="per-btn" hidden>Perfil</button><button class="chip" id="pin-alt">Alterar PIN</button><button class="chip" id="sair">Sair</button></span></div>
+      <div class="bar"><b id="ola"></b><span class="chips"><button class="chip" id="mac-btn" hidden>Macro</button><button class="chip" id="evo-btn" hidden>Evolução</button><button class="chip" id="nat-btn" hidden>PSE treino de natação</button><button class="chip" id="tes-btn">Testes</button><button class="chip" id="per-btn" hidden>Perfil</button><button class="chip" id="pin-alt">Alterar PIN</button><button class="chip" id="sair">Sair</button></span></div>
 
       <div class="panel" id="pin-panel" hidden>
         <header><h2 id="pinp-t">Escolhe o teu PIN</h2><span class="kicker">PIN</span></header>
@@ -622,7 +622,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
 
       <div class="panel" id="mac-panel" hidden><header><h2>Macro</h2><span class="kicker">Mês</span></header><div id="mac-body"></div><div id="aul-box"></div></div>
 
-      <div class="panel" id="nat-panel" hidden><header><h2>Natação</h2><span class="kicker">Esta semana</span></header><div id="nat-body"></div></div>
+      <div class="panel" id="nat-panel" hidden><header><h2>PSE treino de natação</h2><span class="kicker">Esta semana</span></header><div id="nat-body"></div></div>
 
       <div class="panel" id="evo-panel" hidden><header><h2>Evolução</h2><span class="kicker">Semana a semana</span></header><div id="evo-body"></div></div>
 
@@ -3005,15 +3005,16 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   });
 
   /* ---------- natação: wellness e PSE por sessão, dia a dia, só da semana corrente (segunda a domingo) ---------- */
-  var NAT = null, NATD = null, NATW = [null, null, null, null], NATP = { per: 'manha', foco: 'misto', pse: null, min: '60', dist: '' }, NATMSG = '', NATWMSG = '';
+  var NAT = null, NATD = null, NATW = [null, null, null, null], NATP = { per: 'manha', foco: null, pse: null, min: '60', dist: '' }, NATMSG = '', NATWMSG = '';
   var NDIAS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'], NDIASL = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
   var NPER = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' }, NFOCO = { aerobio: 'Aeróbio', tecnica: 'Técnica', velocidade: 'Velocidade', misto: 'Misto' };
   function natFmt(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
+  var NAT_TESTE = '337131db-7970-4434-ae4e-04a5170ed2f7';   /* conta do treinador: vê o registo de natação já hoje, para testar */
   var NAT_INICIO = '2026-11-19';   /* o registo de natação só fica visível para os atletas a partir desta data (quinta-feira, 19 nov) */
   function natProbe() {
     $('#nat-btn').hidden = true;
     if (!sess) return;
-    rpc('atleta_nat_semana', { p_atleta: sess.id, p_pin: sess.pin }).then(function (d) { if (d && d.ok && d.hoje >= NAT_INICIO) { NAT = d; $('#nat-btn').hidden = false; } }).catch(function () {});
+    rpc('atleta_nat_semana', { p_atleta: sess.id, p_pin: sess.pin }).then(function (d) { if (d && d.ok && (d.hoje >= NAT_INICIO || sess.id === NAT_TESTE)) { NAT = d; $('#nat-btn').hidden = false; } }).catch(function () {});
   }
   function natCarregar() {
     return rpc('atleta_nat_semana', { p_atleta: sess.id, p_pin: sess.pin }).then(function (d) {
@@ -3065,7 +3066,6 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       var m = parseInt(NATP.min, 10), ld = NATP.pse != null && m > 0 ? NATP.pse * m : 0;
       h += '<details id="nat-det"' + (NATP.open || !d.aulas.length ? ' open' : '') + '><summary><b>+ Adicionar treino</b></summary><div style="display:grid;gap:12px;margin-top:10px">' +
         '<div class="field"><label>Quando</label><div class="chips">' + ['manha', 'tarde'].map(function (k) { return '<button type="button" class="chip" data-np="' + k + '" aria-pressed="' + (NATP.per === k) + '">' + NPER[k] + '</button>'; }).join('') + '</div></div>' +
-        '<div class="field"><label>Foco <span class="small">(opcional)</span></label><div class="chips">' + Object.keys(NFOCO).map(function (k) { return '<button type="button" class="chip" data-nf="' + k + '" aria-pressed="' + (NATP.foco === k) + '">' + NFOCO[k] + '</button>'; }).join('') + '</div></div>' +
         '<div class="inline"><div class="field"><label for="nat-min">Tempo total (min)</label><input class="dt" id="nat-min" inputmode="numeric" maxlength="3" value="' + esc(NATP.min) + '"></div><div class="field"><label for="nat-dist">Distância total (m) <span class="small">(opcional)</span></label><input class="dt" id="nat-dist" inputmode="numeric" maxlength="5" placeholder="ex.: 3500" value="' + esc(NATP.dist) + '"></div></div>' +
         '<p class="small"><b>Uma só PSE por treino.</b> Escolhe o esforço da <b>sessão inteira</b> (aquecimento, séries de várias distâncias e estilos, técnica e retorno à calma), uns 30 min depois de saíres da água. O tempo é o total na piscina, do primeiro ao último mergulho. Não registes cada série.</p>' +
         '<div class="field"><label>Esforço (PSE)</label><div class="pse" role="group" aria-label="PSE de 0 a 10">' + PSEDESC.map(function (t, n) { return '<button type="button" data-nse="' + n + '" aria-pressed="' + (NATP.pse === n) + '" aria-label="PSE ' + n + ', ' + t + '">' + n + '</button>'; }).join('') + '</div><p class="pse-label">' + (NATP.pse == null ? 'Escolhe o esforço da sessão' : NATP.pse + ' · ' + PSEDESC[NATP.pse]) + '</p></div>' +
