@@ -748,12 +748,17 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
         <summary>Adicionar competição</summary>
         <div class="frow">
           <div class="field">
-            <label for="c-a">Atleta</label>
-            <select id="c-a" class="sel"></select>
+            <label>Atletas</label>
+            <div class="tags" id="c-mods" style="gap:8px"></div>
+            <div class="checks" id="c-list"></div>
           </div>
           <div class="field">
-            <label for="c-d">Data</label>
+            <label for="c-d">Primeiro dia</label>
             <input id="c-d" class="dt" type="date">
+          </div>
+          <div class="field">
+            <label for="c-d2">Último dia <span class="small">(só se a prova durar mais de um dia)</span></label>
+            <input id="c-d2" class="dt" type="date">
           </div>
           <div class="field">
             <label for="c-n">Competição</label>
@@ -1283,7 +1288,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
               } else if (T === 'vbt') {
                 body += '<div class="set"><span class="sn">' + (e.g ? 'Volta ' : 'S') + (s + 1) + '</span>' + field(k + '_a', 'kg', 'decimal', '0') + field(k + '_b', 'm/s', 'decimal', '0,00') + '</div>';
               } else if (T === 'reps') {
-                body += '<div class="set single"><span class="sn">' + (e.g ? 'Volta ' : 'S') + (s + 1) + '</span>' + field(k + '_a', uni ? 'reps/side' : 'reps', 'numeric', '0') + '</div>';
+                body += '<div class="set single"><span class="sn">' + (e.g ? 'Volta ' : 'S') + (s + 1) + '</span>' + field(k + '_a', repLab(e.rr, uni, 'side'), 'numeric', '0') + '</div>';
               } else if (T === 'tempo') {
                 body += '<div class="set single"><span class="sn">' + (e.g ? 'Volta ' : 'S') + (s + 1) + '</span>' + field(k + '_a', uni ? 's/side' : 's', 'numeric', '0') + '</div>';
               } else {
@@ -1912,6 +1917,12 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
   function compsOn(i) {
     return COMP.filter(function (c) { return c.i === i && calOk(c); });
   }
+  /* agrupa as entradas de um dia por prova (nome + local): 20 atletas na mesma prova = 1 grupo */
+  function compGrupos(cs) {
+    var o = {}, r = [];
+    cs.forEach(function (c) { var k = c.n + '|' + (c.l || ''); if (!o[k]) { o[k] = { n: c.n, l: [], loc: c.l || '' }; r.push(o[k]); } o[k].l.push(c); });
+    return r;
+  }
   function dayName(i) { return DAYS[dow(i)] + ', ' + fmtDate(i); }
   function renderCal() {
     $('#cal-title').textContent = MESES[cal.m] + ' ' + cal.y;
@@ -1923,7 +1934,8 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     for (d = 1; d <= n; d++) {
       var i = Math.round((Date.UTC(cal.y, cal.m, d) - START) / DAY);
       var cs = compsOn(i);
-      var tags = cs.slice(0, 2).map(function (c) { return '<span class="tag">' + esc(ini(ATLETAS[c.a].n)) + '</span>'; }).join('') + (cs.length > 2 ? '<span class="more">+' + (cs.length - 2) + '</span>' : '');
+      var gr = compGrupos(cs);
+      var tags = gr.slice(0, 2).map(function (g) { return '<span class="tag">' + (g.l.length === 1 ? esc(ini(ATLETAS[g.l[0].a].n)) : g.l.length + ' atl.') + '</span>'; }).join('') + (gr.length > 2 ? '<span class="more">+' + (gr.length - 2) + '</span>' : '');
       h += '<button class="cd' + (i === TODAY_I ? ' today' : '') + '" data-ci="' + i + '" aria-pressed="' + (cal.sel === i) + '" aria-label="' + d + ' de ' + MESES[cal.m] + (cs.length ? ', ' + cs.length + (cs.length === 1 ? ' competição' : ' competições') : '') + '"><span class="dn">' + d + '</span>' + tags + '</button>';
     }
     $('#cal').innerHTML = h;
@@ -1932,17 +1944,22 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     var el = $('#cal-det');
     if (cal.sel == null) { el.innerHTML = '<p class="note">Toca num dia para ver quem compete.</p>'; return; }
     var cs = compsOn(cal.sel);
-    el.innerHTML = '<p class="kicker">' + dayName(cal.sel) + '</p>' + (cs.length ? '<div class="clist">' + cs.map(function (c) {
-      return '<div class="ci"><div><b>' + esc(ATLETAS[c.a].n) + '</b><small>' + esc(c.n) + (c.l ? ' · ' + esc(c.l) : '') + '</small></div><button class="chip" data-del="' + COMP.indexOf(c) + '">Remover</button></div>';
-    }).join('') + '</div>' : '<p class="note">Sem competições neste dia.</p>');
+    el.innerHTML = '<p class="kicker">' + dayName(cal.sel) + '</p>' + (cs.length ? compGrupos(cs).map(function (g) {
+      var multi = compGrupo(g.l[0]).length > g.l.length || g.l.length > 1 || compGrupo(g.l[0]).length > 1;
+      return '<div class="ci" style="display:block"><b>' + esc(g.n) + '</b><small style="display:block">' + (g.loc ? esc(g.loc) + ' · ' : '') + g.l.length + (g.l.length === 1 ? ' atleta' : ' atletas') + '</small>' +
+        '<div class="tags" style="margin-top:8px">' + g.l.map(function (c) { return '<span class="chip" style="display:inline-flex;gap:8px;align-items:center;padding:4px 6px 4px 12px">' + esc(ATLETAS[c.a].n) + '<button type="button" data-del="' + COMP.indexOf(c) + '" aria-label="Remover ' + esc(ATLETAS[c.a].n) + ' desta prova" style="border:0;background:none;font-weight:700;padding:2px 6px">×</button></span>'; }).join('') + '</div>' +
+        (multi ? '<button class="chip" style="margin-top:10px" data-delg="' + COMP.indexOf(g.l[0]) + '">Remover a prova inteira</button>' : '') + '</div>';
+    }).join('') : '<p class="note">Sem competições neste dia.</p>');
   }
   function renderUp() {
     var list = COMP.filter(function (c) {
       return c.i >= TODAY_I && c.i <= TODAY_I + 30 && calOk(c);
     }).sort(function (x, y) { return x.i - y.i; });
-    $('#cal-up').innerHTML = list.length ? list.map(function (c) {
-      var n = c.i - TODAY_I;
-      return '<div class="ci"><div><b>' + esc(ATLETAS[c.a].n) + '</b><small>' + esc(c.n) + (c.l ? ' · ' + esc(c.l) : '') + '</small></div><div class="when">' + fmtDate(c.i) + '<small>' + (n === 0 ? 'hoje' : n === 1 ? 'amanhã' : 'em ' + n + ' dias') + '</small></div></div>';
+    var gs = [], mp = {};
+    list.forEach(function (c) { var k = c.n + '|' + (c.l || ''); var g = mp[k]; if (!g || c.i - g.i1 > 1) { g = { n: c.n, loc: c.l || '', i0: c.i, i1: c.i, at: {} }; mp[k] = g; gs.push(g); } g.i1 = c.i; g.at[c.a] = 1; });
+    $('#cal-up').innerHTML = gs.length ? gs.map(function (g) {
+      var n = g.i0 - TODAY_I, ids = Object.keys(g.at), nm = ids.length === 1 ? esc(ATLETAS[+ids[0]].n) : ids.length + ' atletas';
+      return '<div class="ci"><div><b>' + nm + '</b><small>' + esc(g.n) + (g.loc ? ' · ' + esc(g.loc) : '') + '</small></div><div class="when">' + fmtDate(g.i0) + (g.i1 > g.i0 ? ' – ' + fmtDate(g.i1) : '') + '<small>' + (n === 0 ? 'hoje' : n === 1 ? 'amanhã' : 'em ' + n + ' dias') + '</small></div></div>';
     }).join('') : '<p class="note">Sem competições nos próximos 30 dias.</p>';
   }
   function calAtl() {
@@ -1954,7 +1971,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     var opts = ATLETAS.map(function (a, i) { return '<option value="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</option>'; }).join('');
     cal.mod = FMOD;
     calAtl();
-    $('#c-a').innerHTML = opts;
+    cAtl();
     var nx = COMP.filter(function (c) { return c.i >= TODAY_I; }).sort(function (x, y) { return x.i - y.i; })[0];
     if (nx) {
       cal.sel = nx.i;
@@ -1973,24 +1990,59 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
     renderCal(); renderCalDet();
   });
   $('#cal-det').addEventListener('click', function (e) {
+    var g = e.target.closest('[data-delg]');
+    if (g) return delGrupo(+g.getAttribute('data-delg'));
     var b = e.target.closest('[data-del]');
     if (!b) return;
     if (LIVE) return liveDelComp(+b.getAttribute('data-del'));
     COMP.splice(+b.getAttribute('data-del'), 1);
     renderCal(); renderCalDet(); renderUp(); renderRows(); renderPainel();
   });
+  /* escolher vários atletas (ou uma modalidade inteira) para a mesma prova */
+  function cAtl() {
+    $('#c-list').innerHTML = ATLETAS.map(function (a, i) { return '<label class="check"><input type="checkbox" data-ca="' + i + '">' + esc(a.n) + ' · ' + esc(a.m) + '</label>'; }).join('');
+    cMods();
+  }
+  function cMods() {
+    var ms = [], boxes = [].slice.call(document.querySelectorAll('#c-list input'));
+    ATLETAS.forEach(function (a) { if (ms.indexOf(a.m) < 0) ms.push(a.m); });
+    function of(m) { return boxes.filter(function (c) { return m === '*' || ATLETAS[+c.getAttribute('data-ca')].m === m; }); }
+    function on(m) { var l = of(m); return l.length > 0 && l.every(function (c) { return c.checked; }); }
+    $('#c-mods').innerHTML = '<button type="button" class="chip" data-cm="*" aria-pressed="' + on('*') + '">Todos</button><button type="button" class="chip" data-cm="" aria-pressed="false">Nenhum</button>' +
+      ms.map(function (m) { return '<button type="button" class="chip" data-cm="' + esc(m) + '" aria-pressed="' + on(m) + '">' + esc(m) + '</button>'; }).join('');
+  }
+  $('#c-mods').addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-cm]'); if (!b) return;
+    var m = b.getAttribute('data-cm'), boxes = [].slice.call(document.querySelectorAll('#c-list input'));
+    var sel = boxes.filter(function (c) { return m === '*' || m === '' || ATLETAS[+c.getAttribute('data-ca')].m === m; });
+    var all = sel.length > 0 && sel.every(function (c) { return c.checked; });
+    if (m === '') boxes.forEach(function (c) { c.checked = false; });
+    else if (m === '*') boxes.forEach(function (c) { c.checked = true; });
+    else sel.forEach(function (c) { c.checked = !all; });
+    cMods();
+  });
+  $('#c-list').addEventListener('change', cMods);
   $('#c-add').addEventListener('click', function () {
-    var i = fromISO($('#c-d').value), nome = $('#c-n').value.trim(), loc = $('#c-l').value.trim();
-    if (isNaN(i)) { $('#c-err').textContent = 'Escolhe a data da competição.'; return; }
+    var i0 = fromISO($('#c-d').value), i1 = $('#c-d2').value ? fromISO($('#c-d2').value) : i0, nome = $('#c-n').value.trim(), loc = $('#c-l').value.trim();
+    var ids = [].slice.call(document.querySelectorAll('#c-list input')).filter(function (c) { return c.checked; }).map(function (c) { return +c.getAttribute('data-ca'); });
+    if (!ids.length) { $('#c-err').textContent = 'Escolhe pelo menos um atleta.'; return; }
+    if (isNaN(i0)) { $('#c-err').textContent = 'Escolhe o primeiro dia da competição.'; return; }
+    if (isNaN(i1) || i1 < i0) { $('#c-err').textContent = 'O último dia tem de ser igual ou depois do primeiro.'; return; }
+    if (i1 - i0 > 20) { $('#c-err').textContent = 'Uma prova pode ter no máximo 21 dias.'; return; }
     if (!nome) { $('#c-err').textContent = 'Escreve o nome da competição.'; return; }
     $('#c-err').textContent = '';
-    if (LIVE) return liveAddComp(+$('#c-a').value, i, nome, loc);
-    COMP.push({ a: +$('#c-a').value, i: i, n: nome, l: loc });
-    $('#c-n').value = ''; $('#c-l').value = '';
-    var dt = new Date(START + i * DAY);
-    cal.y = dt.getUTCFullYear(); cal.m = dt.getUTCMonth(); cal.sel = i;
-    renderCal(); renderCalDet(); renderUp(); renderRows(); renderPainel();
+    var list = [], d, k;
+    for (d = i0; d <= i1; d++) for (k = 0; k < ids.length; k++) list.push({ a: ids[k], i: d });
+    if (LIVE) return liveAddComps(list, nome, loc, i0);
+    list.forEach(function (x) { COMP.push({ a: x.a, i: x.i, n: nome, l: loc }); });
+    cDone(i0);
   });
+  function cDone(i0) {
+    $('#c-n').value = ''; $('#c-l').value = ''; $('#c-d2').value = '';
+    var dt = new Date(START + i0 * DAY);
+    cal.y = dt.getUTCFullYear(); cal.m = dt.getUTCMonth(); cal.sel = i0;
+    renderCal(); renderCalDet(); renderUp(); renderRows(); renderPainel();
+  }
 
   /* ---------- relatório ---------- */
   var lastText = '';
@@ -2250,13 +2302,15 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       return r;
     });
   }
+  /* etiqueta do campo de registo: exercícios prescritos em calorias (ex.: Air bike, 'máx. cal') registam calorias, não reps */
+  function repLab(rr, uni, lado) { return /cal/i.test(rr || '') ? 'cal' : (uni ? 'reps/' + lado : 'reps'); }
   function lastTxt(it, T) {
     var u = it.ultima;
     if (!T || !u || !u.series || !u.series.length) return undefined;
     var s = u.series[0];
     if (T === 'carga' && s.carga_kg != null) return pt(s.carga_kg) + ' kg' + (s.reps != null ? ' × ' + s.reps : '');
     if (T === 'vbt' && s.carga_kg != null) return pt(s.carga_kg) + ' kg' + (s.vbt_ms != null ? ' · ' + pt(s.vbt_ms) + ' m/s' : '');
-    if (T === 'reps' && s.reps != null) return s.reps + ' reps';
+    if (T === 'reps' && s.reps != null) return s.reps + (/cal/i.test(it.reps || '') ? ' cal' : ' reps');
     if (T === 'tempo' && s.tempo_s != null) return s.tempo_s + ' s';
     if (T === 'cmj' && s.cmj_cm != null) return pt(s.cmj_cm) + ' cm';
     if (T === 'bj' && s.bj_cm != null) return pt(s.bj_cm) + ' cm';
@@ -4919,6 +4973,29 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
       renderCal(); renderCalDet(); renderUp(); renderRows(); renderPainel();
     }).catch(function (e) { $('#c-err').textContent = netErr(e); });
   }
+  function liveAddComps(list, nome, loc, i0) {
+    var body = list.map(function (x) { return { atleta_id: ATLETAS[x.a].id, data: toISO(x.i), nome: nome, local: loc || null }; });
+    tReq('/rest/v1/competicoes', { method: 'POST', body: body, headers: { Prefer: 'return=representation' } }).then(function (r) {
+      list.forEach(function (x) {
+        var row = (r || []).filter(function (q) { return q.atleta_id === ATLETAS[x.a].id && q.data === toISO(x.i); })[0];
+        COMP.push({ id: row ? row.id : null, a: x.a, i: x.i, n: nome, l: loc });
+      });
+      cDone(i0);
+    }).catch(function (e) { $('#c-err').textContent = netErr(e); });
+  }
+  /* remover a prova inteira: todos os atletas e todos os dias (mesmo nome e local, até 20 dias à volta) */
+  function compGrupo(c) { return COMP.filter(function (x) { return x.n === c.n && (x.l || '') === (c.l || '') && Math.abs(x.i - c.i) <= 20; }); }
+  function delGrupo(k) {
+    var c = COMP[k]; if (!c) return;
+    var g = compGrupo(c), at = {}, di = {};
+    g.forEach(function (x) { at[x.a] = 1; di[x.i] = 1; });
+    if (!window.confirm('Remover "' + c.n + '" (' + Object.keys(at).length + (Object.keys(at).length === 1 ? ' atleta, ' : ' atletas, ') + Object.keys(di).length + (Object.keys(di).length === 1 ? ' dia' : ' dias') + ')?')) return;
+    function fim() { g.forEach(function (x) { COMP.splice(COMP.indexOf(x), 1); }); renderCal(); renderCalDet(); renderUp(); renderRows(); renderPainel(); }
+    if (!LIVE) return fim();
+    var ids = g.map(function (x) { return x.id; }).filter(Boolean);
+    if (!ids.length) return fim();
+    tReq('/rest/v1/competicoes?id=in.(' + ids.map(encodeURIComponent).join(',') + ')', { method: 'DELETE' }).then(fim).catch(function (e) { $('#c-err').textContent = netErr(e); });
+  }
   function liveDelComp(k) {
     var c = COMP[k];
     if (!c) return;
@@ -5640,7 +5717,7 @@ html:not(.onl) #mac-btn{display:none !important}  /* Online training mantém o M
             function inp(suf, lab, val, mode) { return '<label class="f"><input id="' + ids + '-' + suf + '" inputmode="' + mode + '" value="' + esc(gRegVal(val)) + '" aria-label="' + lab + '"><span>' + lab + '</span></label>'; }
             if (T === 'carga') inner += '<div class="set"><span class="sn">S' + s + '</span>' + inp('a', 'kg', r0.carga_kg, 'decimal') + inp('b', uni ? 'reps/lado' : 'reps', r0.reps != null ? r0.reps : pr, 'numeric') + '</div>';
             else if (T === 'vbt') inner += '<div class="set"><span class="sn">S' + s + '</span>' + inp('a', 'kg', r0.carga_kg, 'decimal') + inp('b', 'm/s', r0.vbt_ms, 'decimal') + '</div>';
-            else if (T === 'reps') inner += '<div class="set"><span class="sn">S' + s + '</span>' + inp('a', uni ? 'reps/lado' : 'reps', r0.reps, 'numeric') + '</div>';
+            else if (T === 'reps') inner += '<div class="set"><span class="sn">S' + s + '</span>' + inp('a', repLab(it.reps, uni, 'lado'), r0.reps, 'numeric') + '</div>';
             else if (T === 'tempo') inner += '<div class="set"><span class="sn">S' + s + '</span>' + inp('a', 's', r0.tempo_s, 'numeric') + '</div>';
             else if (T === 'cmj') inner += '<div class="set"><span class="sn">S' + s + '</span>' + inp('a', 'cm', r0.cmj_cm, 'decimal') + '</div>';
             else inner += '<div class="set"><span class="sn">S' + s + '</span>' + inp('a', 'cm', r0.bj_cm, 'decimal') + '</div>';
