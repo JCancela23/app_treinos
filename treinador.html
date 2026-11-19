@@ -110,6 +110,8 @@ button { cursor: pointer; }
 .ex header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .pres { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; white-space: nowrap; color: var(--accent); }
 .last { font-size: .8rem; color: var(--muted); }
+.lastw { display: grid; gap: 2px; }
+.last-o { display: block; color: #8a6200; }
 .set { display: grid; grid-template-columns: 2.2rem 1fr 1fr; gap: 8px; align-items: center; }
 .sn { font-size: .8rem; color: var(--muted); font-weight: 600; }
 .f { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; min-width: 0; }
@@ -1335,7 +1337,8 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
           if (e.lat) tags += '<span class="mtag">' + (e.lat === 'uni' ? 'Unilateral' : 'Bilateral') + '</span>';
           var vurl = e.href && /^https?:\/\//i.test(e.href) ? e.href : '';
           var vid = vurl ? '<a class="vid" href="' + esc(vurl) + '" target="_blank" rel="noopener">Ver vídeo</a>' : '';
-          var last = e.last ? '<span class="last">Última sessão: ' + e.last + '</span>' : '';
+          var last = e.last ? '<span class="last">Última sessão' + (e.lastO ? ' com o mesmo objetivo' : '') + ': ' + e.last + '</span>' : '';
+          if (e.lastO) last = '<div class="lastw">' + last + '<span class="last last-o">' + (e.last ? 'Também: ' : 'Sem série anterior com este objetivo. ') + esc(e.lastO.txt.charAt(0).toUpperCase() + e.lastO.txt.slice(1)) + (e.last ? '' : '. Não é uma carga a bater.') + '</span></div>';
           return (typeof liveCircHead === 'function' ? liveCircHead(PLAN[day], bl, i) : '') + grpHead(bl, i) + '<article class="ex' + (e.g ? ' ing' : '') + '"><header><h3>' + grpTag(bl, i) + (altOn ? '<span class="alt-tag">Adaptação</span>' : '') + e.n + '</h3><span class="pres">' + e.pres + '</span></header>' +
             (tags ? '<div class="tags">' + tags + '</div>' : '') +
             (e.hn ? '<p class="hint hoje"><b>Neste treino:</b> ' + esc(e.hn) + '</p>' : '') +
@@ -2440,6 +2443,18 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     if (T === 'bj' && s.bj_cm != null) return pt(s.bj_cm) + ' cm';
     return undefined;
   }
+  /* referência da última vez, só do mesmo objetivo (velocidade, carga ou volume); a de outro objetivo vem rotulada à parte */
+  var OBJL = { velocidade: 'velocidade', carga: 'carga', volume: 'volume' };
+  function lastOutraTxt(it, T) {
+    var u = it.ultima_outra;
+    if (!u || !u.series || !u.series.length) return undefined;
+    var s = u.series[0], d = String(u.data || '').slice(8, 10) + '/' + String(u.data || '').slice(5, 7), ob = u.objetivo, txt;
+    if (ob === 'velocidade' && s.vbt_ms != null) txt = 'última a ' + pt(s.vbt_ms) + ' m/s: ' + (s.carga_kg != null ? pt(s.carga_kg) + ' kg' : '');
+    else if (s.carga_kg != null) txt = 'última série de ' + (ob === 'carga' ? 'carga' : 'volume') + ': ' + pt(s.carga_kg) + ' kg' + (s.reps != null ? ' × ' + s.reps : '');
+    else if (s.reps != null) txt = 'última vez: ' + s.reps + ' reps';
+    else return undefined;
+    return { txt: txt.trim() + ' (' + d + ')', ob: ob };
+  }
   function mkEx(it) {
     var uni = it.lateralidade === 'uni';
     var ald = uni && /altern/i.test(it.nome || '');   /* alternado: as reps são o total dos dois lados */
@@ -2461,12 +2476,13 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       pr: mr ? +mr[1] : undefined,
       c: it.circuito || undefined,
       pu: /^\s*\d+([.,]\d+)?\s*(km|min|m|cal|s)\s*$/i.test(reps) ? reps : undefined,
-      id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, pa: it.pse_alvo != null ? it.pse_alvo : undefined, pv: it.pede_video ? true : undefined, hn: it.nota_item || undefined,
+      id: it.id, n: it.nome, pres: pres, series: it.series, t: T, g: it.grupo || null, rest: it.descanso_s || null, pa: it.pse_alvo != null ? it.pse_alvo : undefined, va: it.vel_alvo != null ? it.vel_alvo : undefined, ob: it.objetivo || undefined, pv: it.pede_video ? true : undefined, hn: it.nota_item || undefined,
       pad: it.padrao && it.padrao !== 'core' ? it.padrao : undefined,
       core: it.core_tipo || undefined,
       lat: (it.padrao || uni) ? it.lateralidade : undefined, ald: ald || undefined,
       h: it.nota || undefined, href: it.video_url || undefined, v: it.nome + ' technique',
-      last: lastTxt(it, T)
+      last: lastTxt(it, T),
+      lastO: lastOutraTxt(it, T)
     };
   }
   function fmtRest(n) { return n < 60 ? n + ' s' : Math.floor(n / 60) + ' min' + (n % 60 ? ' ' + (n % 60) + ' s' : ''); }
@@ -4973,10 +4989,12 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   /* PSE de cada exercício com carga (0 a 10) */
   function livePseEx(e) {
     var vd = e.pv ? '<div class="pv-box"><b>Gravar vídeo</b> <span>Grava a execução deste exercício (15 a 30 s, de lado, com boa luz) e envia-me por WhatsApp.</span></div>' : '';
-    if (e.pa == null || e.pa === '') return vd;
+    var vb = '';
+    if (e.va != null && e.va !== '') { var vv = parseFloat(e.va); if (isFinite(vv)) vb = '<div class="pse-alvo"><b>Velocidade alvo: ' + String(Math.round(vv * 100) / 100).replace('.', ',').replace(/^(\d+),(\d)$/, '$1,$20') + ' m/s</b> <span>(carga que te dê esta velocidade média na série)</span></div>'; }
+    if (e.pa == null || e.pa === '') return vb + vd;
     var p = parseFloat(e.pa), txt = isFinite(p) ? (p % 1 ? String(p).replace('.', ',') : String(p)) : esc(String(e.pa));
     var dica = p >= 9.5 ? 'quase máximo: não dava para mais nenhuma repetição' : p >= 8.5 ? 'muito pesado: ainda dava para mais 1 repetição' : p >= 7.5 ? 'pesado: ainda dava para mais 2 repetições' : p >= 6.5 ? 'moderado-pesado: ainda dava para mais 3 repetições' : p >= 5 ? 'moderado: com margem confortável' : 'leve';
-    return '<div class="pse-alvo"><b>PSE alvo: ' + txt + '</b> <span>(' + dica + ')</span></div>' + vd;
+    return vb + '<div class="pse-alvo"><b>PSE alvo: ' + txt + '</b> <span>(' + dica + ')</span></div>' + vd;
   }
   /* ---------- parabéns no dia de anos ---------- */
   function liveBday() {
@@ -6427,6 +6445,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         '<label class="gn">Em<select data-f="unid" data-d="' + i + '" data-k="' + o.k + '">' + [['', 'reps'], ['s', 'segundos'], ['min', 'minutos'], ['m', 'metros'], ['km', 'km'], ['cal', 'calorias']].map(function (u) { return '<option value="' + u[0] + '"' + ((o.it.unid || '') === u[0] ? ' selected' : '') + '>' + u[1] + '</option>'; }).join('') + '</select></label>' +
         (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
         '<label class="gn">PSE alvo (0 a 10)<input inputmode="decimal" data-f="pse" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.pse || '') + '"></label>' +
+        (((o.it.mreg || reg) === 'vbt' || o.it.vel) ? '<label class="gn">Velocidade alvo (m/s)<input inputmode="decimal" data-f="vel" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.vel || '') + '"></label>' : '') +
         '<button class="chip" data-act="pv" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + (!!o.it.pv) + '">Pedir vídeo</button>' +
         (pos > 0 && !emom ? '<button class="chip" data-act="lig" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + lig + '">Com o anterior</button>' : '') +
         '<label class="gn">O que o atleta regista<select data-f="mreg" data-d="' + i + '" data-k="' + o.k + '"><option value=""' + (!o.it.mreg ? ' selected' : '') + '>Por defeito (' + esc(gRegLabel(reg)) + ')</option>' +
@@ -6527,7 +6546,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   }
   function gFetchPlan(aid, mon) {
     return tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(aid) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
-      '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s,descricao),treino_itens(id,alt_de,bloco,ordem,series,reps,pede_registo,registo,grupo,circuito,descanso_s,pse_alvo,pede_video,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
+      '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s,descricao),treino_itens(id,alt_de,bloco,ordem,series,reps,pede_registo,registo,grupo,circuito,descanso_s,pse_alvo,vel_alvo,pede_video,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
       var plan = gNewPlan(), n = 0;
       rows.forEach(function (t) {
         var i = isoDow(t.data);
@@ -6552,7 +6571,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
           var arr = plan[i].itens, pv = arr.length ? arr[arr.length - 1] : null;
           var um = /^\s*(\d+(?:[.,]\d+)?)\s*(km|min|m|cal|s)\s*$/i.exec(it.reps || '');
           plan[i].itens.push({ bloco: it.bloco, c: it.circuito || 0, ex: ex.nome, series: String(it.series), reps: um ? um[1] : (it.reps || ''), unid: um ? um[2].toLowerCase() : '', pede: !!it.pede_registo, mreg: it.registo || (it.pede_registo ? '' : 'feito'),
-            lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', pse: it.pse_alvo != null ? String(it.pse_alvo) : '', pv: !!it.pede_video, nota: it.nota || '' }); byId[it.id] = plan[i].itens[plan[i].itens.length - 1]; n++;
+            lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', pse: it.pse_alvo != null ? String(it.pse_alvo) : '', vel: it.vel_alvo != null ? String(it.vel_alvo).replace('.', ',') : '', pv: !!it.pede_video, nota: it.nota || '' }); byId[it.id] = plan[i].itens[plan[i].itens.length - 1]; n++;
         });
         Object.keys(legacy).forEach(function (lb) {
           plan[i].circ[lb] = plan[i].circ[lb] || {};
@@ -6635,8 +6654,10 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
           var emomIt = (it.c || 0) > 0 && !!(d.circ[b[0]] && d.circ[b[0]][it.c]) && /^(emom|amrap|tabata)$/.test(d.circ[b[0]][it.c].formato);
           var sr = lig ? ser : String(parseInt(it.series, 10) || (emomIt ? 1 : 3)), ds = parseInt(it.desc, 10), psa = null, pst = String(it.pse == null ? '' : it.pse).trim().replace(',', '.');
           if (pst !== '') { psa = parseFloat(pst); if (!isFinite(psa) || psa < 0 || psa > 10) { avisos.push(DIASL[i] + ': a PSE alvo de “' + it.ex + '” tem de ser de 0 a 10.'); psa = null; } }
+          var vla = null, vlt = String(it.vel == null ? '' : it.vel).trim().replace(',', '.');
+          if (vlt !== '') { vla = parseFloat(vlt); if (!isFinite(vla) || vla <= 0 || vla > 3) { avisos.push(DIASL[i] + ': a velocidade alvo de “' + it.ex + '” tem de estar entre 0,1 e 3 m/s.'); vla = null; } }
           linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: sr, reps: (String(it.reps || '').trim() + (it.unid && String(it.reps || '').trim() ? ' ' + it.unid : '')), pede_registo: gPede(it), registo_item: it.mreg || '',
-            grupo: grupo, circuito: it.c || null, descanso_s: ult && ds > 0 ? ds : null, pse_alvo: psa, pede_video: !!it.pv, nota_item: String(it.nota || '').trim(),
+            grupo: grupo, circuito: it.c || null, descanso_s: ult && ds > 0 ? ds : null, pse_alvo: psa, vel_alvo: vla, pede_video: !!it.pv, nota_item: String(it.nota || '').trim(),
             alt_exercicio: String(it.alt || '').trim() || null, alt_series: String(it.alt || '').trim() ? (String(it.alts || '').trim() || null) : null, alt_reps: String(it.alt || '').trim() ? (String(it.altr || '').trim() || null) : null });
         });
       });
@@ -6826,7 +6847,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     if (t.classList.contains('gnota')) gAutoNota(t);
     var d = +t.getAttribute('data-d');
     if (f === 'nome') G.plan[d].nome = t.value;
-    else G.plan[d].itens[+t.getAttribute('data-k')][f] = t.value;
+    else { G.plan[d].itens[+t.getAttribute('data-k')][f] = t.value; if (f === 'mreg' && t.tagName === 'SELECT') gRenderPlano(); }
   });
   $('#g-panel').addEventListener('change', function (e) {
     var t = e.target;
