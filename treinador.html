@@ -775,6 +775,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       <p class="small">Estado: até 8 bom, 9 a 13 moderado, 14 ou mais atenção. Limiares de exemplo, ajustáveis por atleta. Toca num atleta para ver a evolução dele.</p>
     </div>
 
+    <div class="panel" id="p-notas"><header><div><p class="kicker">Atleta</p><h2>Notas</h2></div></header><div id="notas-body"></div></div>
     <div class="panel" id="p-cal">
       <header>
         <h2>Calendário de competições</h2>
@@ -907,7 +908,6 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
 
     <div class="panel" id="p-acwr"><header><div><p class="kicker">Carga</p><h2>ACWR</h2></div></header><div id="acwr-body"></div></div>
 
-    <div class="panel" id="p-notas"><header><div><p class="kicker">Atleta</p><h2>Notas</h2></div></header><div id="notas-body"></div></div>
 
     <div class="panel" id="p-ton">
       <header>
@@ -4611,14 +4611,27 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     if (!l.length) return '';
     return '<p class="kicker">Notas do atleta (' + l.length + ')</p>' + l.slice(0, 8).map(function (x) { return notaHtml(x, false, true).replace('<span class="nnew">NOVA</span>', ''); }).join('') + (l.length > 8 ? '<p class="small">e mais ' + (l.length - 8) + ' no separador Notas.</p>' : '');
   }
+  function notaIrResponder(key, aid) {
+    var tab = document.querySelector('[data-t2="dados"]'); if (tab) tab.click();
+    var ix = -1; ATLETAS.forEach(function (a, i) { if (a.id === aid) ix = i; });
+    if (ix >= 0 && FMOD && ATLETAS[ix].m !== FMOD) { var tdl = document.querySelector('#mods [data-fm=""]'); if (tdl) tdl.click(); }
+    var sel = $('#f-atleta'); if (sel && ix >= 0) { sel.value = String(ix); sel.dispatchEvent(new Event('change', { bubbles: true })); }
+    var g = [].slice.call(document.querySelectorAll('#view-treinador button')).filter(function (b) { return /Calendário e notas/.test(b.textContent); })[0]; if (g) g.click();
+    setTimeout(function () {
+      NRESP.edit = key; notasRender({ id: aid });
+      var p = $('#p-notas'); if (p) p.scrollIntoView({ block: 'start' });
+      var t = $('#nresp-t'); if (t) t.focus();
+    }, 200);
+  }
   function liveTrainerNotasAlert() {
     var v = $('#view-treinador'); if (!v || !RAWD) return;
     var el = $('#t-notas'); if (el) el.remove();
     var nv = notasLista(null).filter(function (x) { return x.novo; });
     if (!nv.length) return;
     el = document.createElement('div'); el.id = 't-notas'; el.className = 'mac-warn'; el.setAttribute('role', 'alert'); el.style.margin = '10px 14px';
-    el.innerHTML = '<b>Notas novas dos atletas · ' + nv.length + '</b>' + nv.slice(0, 6).map(function (x) { return '<div class="nota-it' + (x.dor ? ' n' : '') + '">' + notaTag(x) + '<b>' + esc(x.nome) + '</b> <span class="small">· ' + esc(x.onde) + ' · ' + fmtD(x.data) + '</span>' + (x.nota ? '<br><span class="small">“' + esc(x.nota.length > 140 ? x.nota.slice(0, 140) + '…' : x.nota) + '”</span>' : '') + '</div>'; }).join('') + (nv.length > 6 ? '<span class="small">e mais ' + (nv.length - 6) + '.</span><br>' : '') + '<span class="small">Estão também no separador Notas, em Dados.</span><br><button class="chip" id="t-notas-ok" type="button">Ok, vi</button>';
+    el.innerHTML = '<b>Notas novas dos atletas · ' + nv.length + '</b>' + nv.slice(0, 6).map(function (x) { return '<div class="nota-it' + (x.dor ? ' n' : '') + '">' + notaTag(x) + '<b>' + esc(x.nome) + '</b> <span class="small">· ' + esc(x.onde) + ' · ' + fmtD(x.data) + '</span>' + (x.nota ? '<br><span class="small">“' + esc(x.nota.length > 140 ? x.nota.slice(0, 140) + '…' : x.nota) + '”</span>' : '') + '<br><button class="chip" type="button" data-tn="' + esc(x.tipo + '|' + x.id + '|' + x.at) + '" style="margin-top:4px">Responder</button></div>'; }).join('') + (nv.length > 6 ? '<span class="small">e mais ' + (nv.length - 6) + '.</span><br>' : '') + '<span class="small">Também em Atletas, Calendário e notas.</span><br><button class="chip" id="t-notas-ok" type="button">Ok, vi</button>';
     v.insertBefore(el, v.firstChild);
+    el.querySelectorAll('[data-tn]').forEach(function (b) { b.addEventListener('click', function () { var pr = b.getAttribute('data-tn').split('|'); notaIrResponder(pr[0] + '|' + pr[1], pr[2]); }); });
     $('#t-notas-ok').addEventListener('click', function () { notasMarcar(nv).then(function () { el.remove(); try { renderSemana(); } catch (e) { /* opcional */ } }); });
   }
   /* ---------- comparação semanal: Wellness, PSE, carga (UA) e tonelagem ---------- */
