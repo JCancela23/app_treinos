@@ -353,6 +353,9 @@ table.rt { min-width: 0; font-size: .85rem; }
 .tes-box { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .tes-rk { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .tes-rk li { display: grid; grid-template-columns: 2.2em 1fr auto; gap: 8px; padding: 5px 8px; border-radius: 8px; }
+.tes-rk li.velho { opacity: .6; }
+.tes-rk li small { display: block; font-weight: 400; opacity: .8; }
+.tes-pend { color: #8a6200; font-size: .85em; }
 .tes-rk li.eu { background: var(--accent-soft, rgba(80,120,255,.14)); font-weight: 600; }
 
 #filtros.fcomp > header, #filtros.fcomp .dates, #filtros.fcomp #range-info { display: none; }
@@ -397,7 +400,7 @@ table.rt { min-width: 0; font-size: .85rem; }
 .les-ac { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .les-ac .dt { width: auto; }
 textarea.dt { font: inherit; font-weight: 600; resize: vertical; }
-#atleta-app.pn > *:not(.bar):not(#well-alert):not(#pin-panel):not(#mac-panel):not(#evo-panel):not(#per-panel):not(#tes-panel):not(#nat-panel):not(#sem-panel):not(#hf-panel) { display: none !important; }
+#atleta-app.pn > *:not(.bar):not(#well-alert):not(#pin-panel):not(#mac-panel):not(#evo-panel):not(#per-panel):not(#tes-panel):not(#notas-panel):not(#nat-panel):not(#sem-panel):not(#hf-panel) { display: none !important; }
 .pn-back { margin-bottom: 8px; }
 #atleta-app.pn > #wsum { display: none !important; }
 .mac-wh { display: flex; justify-content: space-between; align-items: center; }
@@ -570,6 +573,24 @@ table.ac th:nth-child(1),table.ac td:nth-child(1){width:23%} table.ac th:nth-chi
 table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;padding:8px 2px} .ac-h i{width:11px;height:11px;border-radius:3px;border:1px solid var(--line);display:block} .ac-h i.on{background:var(--accent);border-color:var(--accent)}
 .mais-l{display:grid;gap:8px} .mais-l button{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:14px;font-weight:700;text-align:left;font-size:.95rem}
 #t-tabs{flex-wrap:nowrap;gap:4px} #t-tabs .chip{flex:0 0 auto;padding:6px 10px;font-size:.8rem} @media (max-width: 420px) { #t-tabs{gap:2px} #t-tabs .chip{flex:1 1 auto;padding:6px 4px;font-size:.72rem;text-align:center} table.ac td:nth-child(2){white-space:nowrap;font-size:.74rem} table.ac th{white-space:nowrap} }
+
+.resp-alert { background: #FFF7DC; border: 1px dashed #D9C477; border-radius: 12px; padding: 10px 12px; margin: 10px 0; color: #6B5600; display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.nresp { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+.nresp.lida { background: #F3F5F2; border-left-color: var(--line); }
+.nresp .small { margin-top: 4px; }
+.nnova { display: inline-block; background: var(--accent); color: #fff; border-radius: 99px; font-size: 11px; padding: 1px 8px; margin-left: 6px; font-weight: 700; }
+.nbadge { background: var(--crit); color: #fff; border-radius: 99px; font-size: 11px; min-width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; padding: 0 5px; font-weight: 700; }
+.nmine { background: #F3F5F2; border-radius: 10px; padding: 8px 10px; margin-top: 6px; }
+.nitem { border-top: 1px solid var(--line); padding: 10px 0; }
+
+.resp-alert { background: #FFF7DC; border: 1px dashed #D9C477; border-radius: 12px; padding: 10px 12px; margin: 10px 0; color: #6B5600; display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.nresp { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+.nresp.lida { background: #F3F5F2; border-left-color: var(--line); }
+.nresp .small { margin-top: 4px; }
+.nnova { display: inline-block; background: var(--accent); color: #fff; border-radius: 99px; font-size: 11px; padding: 1px 8px; margin-left: 6px; font-weight: 700; }
+.nbadge { background: var(--crit); color: #fff; border-radius: 99px; font-size: 11px; min-width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; padding: 0 5px; font-weight: 700; }
+.nmine { background: #F3F5F2; border-radius: 10px; padding: 8px 10px; margin-top: 6px; }
+.nitem { border-top: 1px solid var(--line); padding: 10px 0; }
 </style>
 </head>
 <body>
@@ -612,7 +633,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     </div>
 
     <div class="wrap" style="padding:0" id="atleta-app" hidden>
-      <div class="bar"><b id="ola"></b><span class="chips"><button class="chip" id="mac-btn" hidden>Macro</button><button class="chip" id="evo-btn" hidden>Evolução</button><button class="chip" id="nat-btn" hidden>PSE treino de natação</button><button class="chip" id="tes-btn">Testes</button><button class="chip" id="per-btn" hidden>Perfil</button><button class="chip" id="pin-alt">Alterar PIN</button><button class="chip" id="sair">Sair</button></span></div>
+      <div class="bar"><b id="ola"></b><span class="chips"><button class="chip" id="mac-btn" hidden>Macro</button><button class="chip" id="evo-btn" hidden>Evolução</button><button class="chip" id="nat-btn" hidden>PSE treino de natação</button><button class="chip" id="tes-btn">Testes</button><button class="chip" id="notas-btn" hidden>Notas<span class="nbadge" id="notas-bd" hidden></span></button><button class="chip" id="per-btn" hidden>Perfil</button><button class="chip" id="pin-alt">Alterar PIN</button><button class="chip" id="sair">Sair</button></span></div>
 
       <div class="panel" id="pin-panel" hidden>
         <header><h2 id="pinp-t">Escolhe o teu PIN</h2><span class="kicker">PIN</span></header>
@@ -633,6 +654,8 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       <div class="panel" id="per-panel" hidden><header><h2>O meu perfil</h2><span class="kicker">Online training</span></header><div id="per-body"></div></div>
 
       <div class="panel" id="tes-panel" hidden><header><h2>Os meus testes</h2><span class="kicker">Ranking</span></header><div id="tes-body"></div></div>
+
+      <div class="panel" id="notas-panel" hidden><header><h2>As minhas notas</h2><span class="kicker">Respostas do treinador</span></header><div id="anotas-body"></div></div>
 
       <div class="panel" id="gate">
         <header>
@@ -1375,7 +1398,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         return '<section class="block"><p class="kicker">' + bl.b + '</p>' + (typeof liveWodHead === 'function' ? liveWodHead(p, bl.code) : '') + exs + (typeof liveWodBox === 'function' ? liveWodBox(p, bl.code) : '') +
           '<div class="bnotas"><p class="small" style="font-weight:600">Não fizeste tudo?</p><div class="chips">' + chips + '</div>' +
           '<label class="small" for="n-' + nk + '">Notas do bloco (opcional)</label>' +
-          '<textarea class="bnota" id="n-' + nk + '" data-k="n_' + nk + '" placeholder="Ex.: dor no joelho direito no afundo">' + esc(reg['n_' + nk] || '') + '</textarea></div></section>';
+          '<textarea class="bnota" id="n-' + nk + '" data-k="n_' + nk + '" placeholder="Ex.: dor no joelho direito no afundo">' + esc(reg['n_' + nk] || '') + '</textarea>' + (typeof ntBlocoResp === 'function' ? ntBlocoResp(p, bl) : '') + '</div></section>';
       }).join('');
     }
     updateProg();
@@ -2779,6 +2802,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       });
     });
     liveWellScan(r.wellness);
+    notasLoad();
     var w = (r.wellness || []).filter(function (x) { return x.data === HOJE; })[0];
     if (w) { well = [w.sono, w.stress, w.fadiga, w.dor]; wellDone = true; } else { well = [null, null, null, null]; wellDone = false; }
     TSESS = (r.sessoes || []).filter(function (x) { return x.data === HOJE; })[0] || null;
@@ -2873,31 +2897,113 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     }).catch(function (e) { $('#pin-save').disabled = false; er.textContent = netErr(e); });
   }
 
+  /* ---- Notas e respostas do treinador (atleta) ---- */
+  var NT = { itens: [], novos: {} };
+  function ntNaoLidas() { return NT.itens.filter(function (x) { return x.resposta && !x.lida; }); }
+  function ntQuando(ts) {
+    if (!ts) return '';
+    var d = new Date(ts), p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' · ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function ntResp(x, comBtn) {
+    var nova = !x.lida || NT.novos[x.id];
+    return '<div class="nresp' + (x.lida && !NT.novos[x.id] ? ' lida' : '') + '" data-nresp-id="' + esc(x.id) + '"><b>Resposta do treinador</b>' + (nova ? '<span class="nnova">nova</span>' : '') + (comBtn && x.nota ? '<div class="small" style="margin-top:2px">À tua nota: “' + esc(String(x.nota).length > 90 ? String(x.nota).slice(0, 90) + '…' : x.nota) + '”</div>' : '') +
+      '<div>' + esc(x.resposta).replace(/\n/g, '<br>') + '</div><div class="small">' + esc(ntQuando(x.resposta_em)) + '</div>' +
+      (comBtn && !x.lida ? '<button class="chip" type="button" data-nlida="' + esc(x.id) + '" style="margin-top:6px">Percebi</button>' : '') + '</div>';
+  }
+  function ntBlocoResp(p, bl) {
+    var d = (p && p.feito) || HOJE, h = '';
+    NT.itens.forEach(function (x) { if (x.tipo === 'bloco' && x.data === d && x.bloco === bl.code && x.resposta) h += ntResp(x, true); });
+    return h;
+  }
+  function notasSync() {
+    var n = sess ? ntNaoLidas().length : 0, bd = $('#notas-bd'), bt = $('#notas-btn');
+    if (bt) bt.hidden = !sess;
+    if (bd) { bd.hidden = !n; bd.textContent = n; }
+    var el = $('#nota-alert');
+    if (!sess || !n) { if (el) el.remove(); return; }
+    if (!el) {
+      var bar = document.querySelector('#atleta-app .bar'); if (!bar) return;
+      el = document.createElement('div'); el.id = 'nota-alert'; el.className = 'resp-alert'; el.setAttribute('role', 'alert');
+      bar.parentNode.insertBefore(el, bar.nextSibling);
+    }
+    var prim = ntNaoLidas()[0];
+    el.innerHTML = '<span>💬 <b>O teu treinador respondeu a ' + n + (n === 1 ? ' nota' : ' notas') + '.</b></span><button class="chip" type="button" id="nota-ver">Ver respostas</button>';
+  }
+  function notasLoad() {
+    if (!sess) return Promise.resolve();
+    return rpc('atleta_notas', { p_atleta: sess.id, p_pin: sess.pin }).then(function (d) {
+      if (d && d.ok) { NT.itens = d.itens || []; notasSync(); try { if (typeof renderWork === 'function' && LIVE) renderWork(); } catch (e) { /* opcional */ } }
+    }).catch(function () { /* sem rede: mantém o que há */ });
+  }
+  function notasHtml() {
+    var L = NT.itens;
+    if (!L.length) return '<p class="small">Ainda não escreveste notas. Quando escreveres uma nota num treino, ou o motivo de não teres treinado, aparece aqui, com a resposta do teu treinador.</p>';
+    var cr = L.filter(function (x) { return x.resposta; }).length;
+    return '<p class="small">' + cr + (cr === 1 ? ' resposta' : ' respostas') + ' do teu treinador nos últimos 4 meses.</p>' + L.map(function (x) {
+      return '<div class="nitem"><div class="small"><b>' + esc(tesDt(x.data)) + '</b> · ' + esc(x.onde || '') + (x.motivo ? ' · ' + esc(String(x.motivo).toLowerCase()) : '') + '</div>' +
+        (x.nota ? '<div class="nmine"><span class="small">A tua nota</span><br>' + esc(x.nota) + '</div>' : '') +
+        (x.resposta ? ntResp(x, false) : '<p class="small" style="margin-top:6px">Ainda sem resposta.</p>') + '</div>';
+    }).join('');
+  }
+  function ntMarcar(ids) {
+    if (!ids.length || !sess) return Promise.resolve();
+    return rpc('atleta_notas_lidas', { p_atleta: sess.id, p_pin: sess.pin, p_ids: ids }).then(function (r) {
+      if (r && r.ok) { NT.itens.forEach(function (x) { if (ids.indexOf(x.id) >= 0) x.lida = true; }); notasSync(); }
+    }).catch(function () { /* tenta na próxima vez */ });
+  }
+  function notasAbrir() {
+    var p = $('#notas-panel');
+    if (!p.hidden) { p.hidden = true; return; }
+    NT.novos = {}; ntNaoLidas().forEach(function (x) { NT.novos[x.id] = true; });
+    p.hidden = false; $('#anotas-body').innerHTML = notasHtml();
+    ntMarcar(Object.keys(NT.novos));
+  }
+  $('#notas-btn').addEventListener('click', function () { if (sess) { $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#evo-panel').hidden = true; $('#tes-panel').hidden = true; notasAbrir(); } });
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    if (t.closest('#nota-ver')) {
+      if (sess) { ['mac-panel', 'per-panel', 'evo-panel', 'tes-panel', 'nat-panel'].forEach(function (id) { var x = $('#' + id); if (x) x.hidden = true; }); $('#notas-panel').hidden = true; notasAbrir(); setTimeout(pnSync, 60); }
+      return;
+    }
+    var b = t.closest('[data-nlida]');
+    if (b) {
+      var id = b.getAttribute('data-nlida'); ntMarcar([id]).then(function () {
+        var box = b.closest('.nresp'); if (box) { box.classList.add('lida'); var nv = box.querySelector('.nnova'); if (nv) nv.remove(); }
+        b.remove();
+      });
+    }
+  });
+
   /* ---- Testes e ranking (atleta) ---- */
   var TESD = null;
   function tesFmt(v, u) {
     if (v == null) return '';
     if (u === 'tempo') { var s = Math.round(v), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + (m < 10 ? '0' : '') + m : m) + ':' + (x < 10 ? '0' : '') + x; }
-    return String(Math.round(v * 100) / 100).replace('.', ',') + (u && u !== 'outro' ? ' ' + u : '');
+    return String(Math.round(v * 100) / 100).replace('.', ',') + (u && u !== 'outro' ? ' ' + (u === 'wkg' ? 'W/kg' : u) : '');
   }
   function tesDt(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+  var TES_RK = ['cmj', 'broad jump', 'med ball throw'];
   function tesHtml(d) {
     var h = '', meus = d.meus || [], rk = d.rankings || [];
-    if (!meus.length) return '<p class="small">Ainda não tens testes registados. O teu treinador vai adicioná-los.</p>';
+    if (!meus.length && !rk.length) return '<p class="small">Ainda não tens testes registados. O teu treinador vai adicioná-los.</p>';
     var por = {}, ord = [];
     meus.forEach(function (t) { var k = t.nome.toLowerCase().trim() + '|' + t.unidade; if (!por[k]) { por[k] = []; ord.push(k); } por[k].push(t); });
-    h += '<p class="small">' + (d.grupo_ranking ? 'Ranking: ' + esc(d.grupo_ranking) + '. Só vês atletas da tua modalidade e do mesmo género, com o primeiro nome e a inicial do apelido.' :
+    rk.forEach(function (x) { var k = x.nome.toLowerCase().trim() + '|' + x.unidade; if (!por[k]) { por[k] = []; ord.push(k); } });
+    h += '<p class="small">' + (d.grupo_ranking ? 'Ranking: ' + esc(d.grupo_ranking) + '. Só vês atletas da tua modalidade e do mesmo género, com o primeiro nome e a inicial do apelido. Conta o resultado mais recente de cada atleta; a cinzento (⚠) estão os que ainda não repetiram o teste.' :
       d.ranking_motivo === 'genero' ? 'O ranking ainda não está disponível: pede ao teu treinador para indicar o teu género.' :
       d.ranking_motivo === 'desligado' ? 'Escolheste não aparecer nos rankings.' : '') + '</p>';
     ord.forEach(function (k) {
-      var L = por[k], u = L[0].unidade, menos = L[0].melhor === 'menos';
-      var best = L.reduce(function (a, b) { return (menos ? b.valor < a.valor : b.valor > a.valor) ? b : a; });
-      var r = null; rk.forEach(function (x) { if (x.nome.toLowerCase().trim() + '|' + x.unidade === k) r = x; });
-      h += '<div class="tes-box"><b>' + esc(L[0].nome) + '</b> <span class="small">· melhor ' + esc(tesFmt(best.valor, u)) + '</span>';
-      h += '<div class="small">' + L.map(function (t) { return esc(tesDt(t.data)) + ': ' + esc(tesFmt(t.valor, u)); }).join(' · ') + '</div>';
+      var L = por[k], r = null; rk.forEach(function (x) { if (x.nome.toLowerCase().trim() + '|' + x.unidade === k) r = x; });
+      var u = L.length ? L[0].unidade : r.unidade, nome = L.length ? L[0].nome : r.nome, rkd = TES_RK.indexOf(nome.toLowerCase().trim()) >= 0, menos = L.length && L[0].melhor === 'menos';
+      h += '<div class="tes-box"><b>' + esc(nome) + '</b>';
+      if (L.length) {
+        var last = L[L.length - 1], best = L.reduce(function (a, b) { return (menos ? b.valor < a.valor : b.valor > a.valor) ? b : a; });
+        h += ' <span class="small">· ' + (rkd ? 'último ' + esc(tesFmt(last.valor, u)) + ' (' + esc(tesDt(last.data)) + ')' : 'melhor ' + esc(tesFmt(best.valor, u))) + '</span>';
+        h += '<div class="small">' + L.map(function (t) { return esc(tesDt(t.data)) + ': ' + esc(tesFmt(t.valor, u)) + (t.altura_cm != null || t.peso_kg != null ? ' (' + [t.altura_cm != null ? String(t.altura_cm).replace('.', ',') + ' cm' : '', t.peso_kg != null ? String(t.peso_kg).replace('.', ',') + ' kg' : ''].filter(Boolean).join(' · ') + ')' : '') + (t.validado === false ? ' <span class="tes-pend">por validar</span>' : ''); }).join(' · ') + '</div>';
+      } else h += '<div class="small">Ainda não tens resultado neste teste.</div>';
       if (r) {
-        h += '<ol class="tes-rk">' + r.top.map(function (e) { return '<li' + (e.eu ? ' class="eu"' : '') + '><span>' + e.pos + '.</span><span>' + esc(e.nome) + (e.eu ? ' (tu)' : '') + '</span><b>' + esc(tesFmt(e.valor, u)) + '</b></li>'; }).join('') + '</ol>';
-        if (r.minha_pos > 10) h += '<p class="small"><b>Tu: ' + r.minha_pos + '.º</b> de ' + r.total + ' (' + esc(tesFmt(r.meu_valor, u)) + ')</p>';
+        h += '<ol class="tes-rk">' + r.top.map(function (e) { return '<li class="' + (e.eu ? 'eu ' : '') + (e.antigo ? 'velho' : '') + '"><span>' + e.pos + '.</span><span>' + esc(e.nome) + (e.eu ? ' (tu)' : '') + '<small>' + esc(tesDt(e.data)) + (e.antigo ? ' ⚠ teste antigo' : '') + '</small></span><b>' + esc(tesFmt(e.valor, u)) + '</b></li>'; }).join('') + '</ol>';
       }
       h += '</div>';
     });
@@ -3049,7 +3155,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   function natAbrir() {
     var p = $('#nat-panel');
     if (!p.hidden) { p.hidden = true; return; }
-    ['mac-panel', 'per-panel', 'evo-panel', 'tes-panel'].forEach(function (id) { $('#' + id).hidden = true; });
+    ['mac-panel', 'per-panel', 'evo-panel', 'tes-panel', 'notas-panel'].forEach(function (id) { $('#' + id).hidden = true; });
     p.hidden = false;
     if (NAT) { if (!NATD) NATD = NAT.hoje; natWLoad(); natRender(); }
     else $('#nat-body').innerHTML = '<p class="small">A carregar…</p>';
@@ -3135,7 +3241,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   }
   $('#nat-btn').addEventListener('click', function () { if (sess) natAbrir(); });
   document.addEventListener('click', function (e) {
-    var t = e.target && e.target.closest ? e.target.closest('#mac-btn,#evo-btn,#tes-btn,#per-btn') : null;
+    var t = e.target && e.target.closest ? e.target.closest('#mac-btn,#evo-btn,#tes-btn,#notas-btn,#per-btn') : null;
     if (t) $('#nat-panel').hidden = true;
   }, true);
   document.addEventListener('input', function (e) {
@@ -3186,7 +3292,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   function macAbrir() {
     var p = $('#mac-panel');
     if (!p.hidden) { p.hidden = true; return; }
-    $('#per-panel').hidden = true; $('#tes-panel').hidden = true; $('#evo-panel').hidden = true;
+    $('#per-panel').hidden = true; $('#tes-panel').hidden = true; $('#notas-panel').hidden = true; $('#evo-panel').hidden = true;
     p.hidden = false;
     if (MACD) macRender(); else $('#mac-body').innerHTML = '<p class="small">A carregar…</p>';
     var h = HOJE || localISO(); macLoad(+h.slice(0, 4), +h.slice(5, 7)).then(function (d) { if (d && d.ok) macRender(); }).catch(function (e) { $('#mac-body').innerHTML = '<p class="err">' + esc(netErr(e)) + '</p>'; });
@@ -3194,7 +3300,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   function perAbrir() {
     var p = $('#per-panel');
     if (!p.hidden) { p.hidden = true; return; }
-    $('#mac-panel').hidden = true; $('#tes-panel').hidden = true; $('#evo-panel').hidden = true;
+    $('#mac-panel').hidden = true; $('#tes-panel').hidden = true; $('#notas-panel').hidden = true; $('#evo-panel').hidden = true;
     var f = MACD && MACD.acesso_fim, hj = MACD && MACD.hoje, h = '';
     h += '<div class="row2"><span class="small">Nome</span><b>' + esc(sess.nome) + '</b></div>';
     h += '<div class="row2"><span class="small">Programa</span><b>Online training</b></div>';
@@ -3250,12 +3356,12 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   }
   var LESL = [], LESH = '';
   /* Quando um painel (Macro, Evolução, Testes, Perfil) está aberto, esconde o treino por baixo: o ecrã fica curto */
-  var PNIDS = ['mac-panel', 'evo-panel', 'tes-panel', 'per-panel', 'nat-panel'];
+  var PNIDS = ['mac-panel', 'evo-panel', 'tes-panel', 'per-panel', 'nat-panel', 'notas-panel'];
   function pnSync() {
     var app = $('#atleta-app'); if (!app) return;
     var aberto = PNIDS.some(function (id) { var e = $('#' + id); return e && !e.hidden; });
     app.classList.toggle('pn', aberto);
-    [['mac-btn', 'mac-panel'], ['evo-btn', 'evo-panel'], ['tes-btn', 'tes-panel'], ['per-btn', 'per-panel'], ['nat-btn', 'nat-panel'], ['sem-btn', 'sem-panel']].forEach(function (p) { var bt = $('#' + p[0]), pn = $('#' + p[1]); if (bt && pn) bt.setAttribute('aria-pressed', String(!pn.hidden)); });
+    [['mac-btn', 'mac-panel'], ['evo-btn', 'evo-panel'], ['tes-btn', 'tes-panel'], ['notas-btn', 'notas-panel'], ['per-btn', 'per-panel'], ['nat-btn', 'nat-panel'], ['sem-btn', 'sem-panel']].forEach(function (p) { var bt = $('#' + p[0]), pn = $('#' + p[1]); if (bt && pn) bt.setAttribute('aria-pressed', String(!pn.hidden)); });
     PNIDS.forEach(function (id) {
       var e = $('#' + id); if (!e || e.querySelector('.pn-back')) return;
       var b = document.createElement('button'); b.type = 'button'; b.className = 'chip pn-back'; b.textContent = '‹ Voltar';
@@ -3265,7 +3371,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     if (aberto) window.scrollTo(0, 0);
   }
   document.addEventListener('click', function (e) {
-    var b = e.target && e.target.closest && e.target.closest('#mac-btn,#evo-btn,#tes-btn,#per-btn,#nat-btn');
+    var b = e.target && e.target.closest && e.target.closest('#mac-btn,#evo-btn,#tes-btn,#notas-btn,#per-btn,#nat-btn');
     if (b) setTimeout(pnSync, 60);
   });
   document.addEventListener('click', function (e) {
@@ -3359,7 +3465,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   function evAbrir() {
     var p = $('#evo-panel');
     if (!p.hidden) { p.hidden = true; return; }
-    $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#tes-panel').hidden = true;
+    $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#tes-panel').hidden = true; $('#notas-panel').hidden = true;
     p.hidden = false; $('#evo-body').innerHTML = '<p class="small">A carregar…</p>';
     rpc('atleta_evolucao', { p_atleta: sess.id, p_pin: sess.pin, p_semanas: 12 }).then(function (d) {
       if (!d || !d.ok) { $('#evo-body').innerHTML = '<p class="err">Não foi possível carregar. Sai e entra outra vez.</p>'; return; }
@@ -3381,7 +3487,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     $('#mac-btn').hidden = true; if ($('#sem-btn')) $('#sem-btn').hidden = true; if ($('#sem-panel')) $('#sem-panel').hidden = true; $('#per-btn').hidden = true; $('#evo-btn').hidden = true; $('#mac-panel').hidden = true; $('#per-panel').hidden = true; $('#evo-panel').hidden = true; MACD = null; EVD = null; AUL = null; PTOK = false; ONL = false; document.documentElement.classList.remove('onl'); WELLHI = null; liveWellAlert();
     livePinPanel(false, false);
     lsSet('alvo.sessao', null);
-    sess = null; escolhido = null; hfSync();
+    sess = null; escolhido = null; hfSync(); NT.itens = []; NT.novos = {}; notasSync();
     $('#status').textContent = '';
     $('#atleta-app').hidden = true;
     $('#entrada').hidden = false;
@@ -4643,9 +4749,9 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       tGet('sessoes', 'select=atleta_id,data,pse,minutos&order=data,id'),
       tGet('treinos', 'select=atleta_id,data,tipo&order=data,id'),
       tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,pse_ex,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id'),
-      tGet('notas_bloco', 'select=id,atleta_id,data,bloco,motivo,nota&order=data,id'),
+      tGet('notas_bloco', 'select=id,atleta_id,data,bloco,motivo,nota,resposta,resposta_em,resposta_lida&order=data,id').catch(function () { return tGet('notas_bloco', 'select=id,atleta_id,data,bloco,motivo,nota&order=data,id'); }),
       tGet('competicoes', 'select=id,atleta_id,data,nome,local,ref&order=data,id').catch(function () { return tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id'); }),
-      tGet('faltas', 'select=id,atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id').catch(function () { return []; }),
+      tGet('faltas', 'select=id,atleta_id,data,motivo,nota,resposta,resposta_em,resposta_lida,treino:treinos(data,nome)&order=data,id').catch(function () { return tGet('faltas', 'select=id,atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id'); }).catch(function () { return []; }),
       tGet('resultados_bloco', 'select=atleta_id,treino_id,data,bloco,formato,tempo_s,rondas,reps,completo,nota&order=data,id').catch(function () { return []; }),
       tGet('treino_blocos', 'select=treino_id,bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s').catch(function () { return []; }),
       tGet('notas_vistas', 'select=tipo,nota_id,hash').catch(function () { return []; }),
@@ -4802,7 +4908,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       if (!n.id || (!n.nota && !n.motivo)) return;
       if (atletaId && n.atleta_id !== atletaId) return;
       var at = nom[n.atleta_id]; if (!at || at.ativo === false || (!atletaId && isEu(at))) return;
-      var h = notaHash(mot, n.nota), it = { tipo: tipo, id: n.id, at: n.atleta_id, nome: at.nome, mod: at.grupo === 'pt' ? 'Online training' : (at.modalidade || ''), data: dataX, onde: onde, motivo: mot || '', nota: n.nota || '', hash: h };
+      var h = notaHash(mot, n.nota), it = { tipo: tipo, id: n.id, at: n.atleta_id, nome: at.nome, mod: at.grupo === 'pt' ? 'Online training' : (at.modalidade || ''), data: dataX, onde: onde, motivo: mot || '', nota: n.nota || '', hash: h, resposta: n.resposta || '', resp_em: n.resposta_em || null, lida: !!n.resposta_lida };
       it.novo = NOTV[tipo + '|' + n.id] !== h && dataX >= lim;
       it.dor = notaDor(it);
       out.push(it);
@@ -4825,8 +4931,24 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     (rows || []).forEach(function (r) { NOTV[r.tipo + '|' + r.nota_id] = r.hash; });
     try { var o = JSON.parse(lsGet('alvo.notv') || '{}'); Object.keys(o).forEach(function (k) { if (!NOTV[k]) NOTV[k] = o[k]; }); } catch (e) { /* ignora */ }
   }
-  function notaHtml(it, comAt) {
-    return '<div class="nota-it' + (it.novo ? ' n' : '') + '"><div class="nh">' + notaTag(it) + (comAt ? '<b>' + esc(it.nome) + '</b> · ' : '<b>' + fmtD(it.data) + '</b> · ') + esc(it.onde) + (comAt ? ' · ' + fmtD(it.data) : '') + (it.novo ? '<span class="nnew">NOVA</span>' : '') + '</div>' + (it.nota ? '<div class="nt">' + esc(it.nota) + '</div>' : '<div class="nt small">sem texto, só o motivo</div>') + '</div>';
+  var NRESP = { edit: '' };
+  function notaRespHtml(it) {
+    if (!it.id) return '';
+    var key = it.tipo + '|' + it.id;
+    if (NRESP.edit === key) return '<div class="nresp"><label class="small" for="nresp-t">Resposta ao atleta</label><textarea class="bnota" id="nresp-t" rows="3" placeholder="Escreve a resposta. O atleta vê-a na app.">' + esc(it.resposta || '') + '</textarea><div class="chips"><button class="primary" type="button" data-nresp-save="' + esc(key) + '" style="padding:8px 16px">Guardar resposta</button><button class="chip" type="button" data-nresp-x="1">Cancelar</button>' + (it.resposta ? '<button class="chip" type="button" data-nresp-del="' + esc(key) + '">Apagar resposta</button>' : '') + '</div><p class="small" id="nresp-m" role="status"></p></div>';
+    if (it.resposta) return '<div class="nresp' + (it.lida ? ' lida' : '') + '"><b>A tua resposta</b> <span class="small">· ' + (it.lida ? 'lida pelo atleta' : 'ainda não lida pelo atleta') + '</span><div>' + esc(it.resposta).replace(/\n/g, '<br>') + '</div><button class="chip" type="button" data-nresp="' + esc(key) + '" style="margin-top:6px">Editar</button></div>';
+    return '<button class="chip" type="button" data-nresp="' + esc(key) + '" style="margin-top:6px">Responder</button>';
+  }
+  function notaRespGuardar(key, txt) {
+    var pr = key.split('|'), tipo = pr[0], id = pr[1], tab = tipo === 'falta' ? 'faltas' : 'notas_bloco';
+    var body = txt ? { resposta: txt, resposta_em: new Date().toISOString(), resposta_lida: false } : { resposta: null, resposta_em: null, resposta_lida: false };
+    return tReq('/rest/v1/' + tab + '?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: body, headers: { Prefer: 'return=minimal' } }).then(function () {
+      var arr = tipo === 'falta' ? RAWD.D.faltas : RAWD.D.notas;
+      (arr || []).forEach(function (n) { if (n.id === id) { n.resposta = body.resposta; n.resposta_em = body.resposta_em; n.resposta_lida = false; } });
+    });
+  }
+  function notaHtml(it, comAt, semResp) {
+    return '<div class="nota-it' + (it.novo ? ' n' : '') + '"><div class="nh">' + notaTag(it) + (comAt ? '<b>' + esc(it.nome) + '</b> · ' : '<b>' + fmtD(it.data) + '</b> · ') + esc(it.onde) + (comAt ? ' · ' + fmtD(it.data) : '') + (it.novo ? '<span class="nnew">NOVA</span>' : '') + '</div>' + (it.nota ? '<div class="nt">' + esc(it.nota) + '</div>' : '<div class="nt small">sem texto, só o motivo</div>') + (semResp ? '' : notaRespHtml(it)) + '</div>';
   }
   function notasRender(a) {
     var p = $('#notas-body'); if (!p) return;
@@ -4837,6 +4959,14 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     h += lst.length ? lst.map(function (x) { return notaHtml(x, false); }).join('') : '<p class="note">Sem notas' + (f !== 'todas' ? ' neste filtro' : '') + '.</p>';
     p.innerHTML = h;
     p.querySelectorAll('[data-nf]').forEach(function (b) { b.addEventListener('click', function () { NOTF = b.getAttribute('data-nf'); notasRender(a); }); });
+    p.querySelectorAll('[data-nresp]').forEach(function (b) { b.addEventListener('click', function () { NRESP.edit = b.getAttribute('data-nresp'); notasRender(a); var t = $('#nresp-t'); if (t) t.focus(); }); });
+    p.querySelectorAll('[data-nresp-x]').forEach(function (b) { b.addEventListener('click', function () { NRESP.edit = ''; notasRender(a); }); });
+    p.querySelectorAll('[data-nresp-save],[data-nresp-del]').forEach(function (b) { b.addEventListener('click', function () {
+      var del = b.hasAttribute('data-nresp-del'), key = b.getAttribute(del ? 'data-nresp-del' : 'data-nresp-save'), txt = del ? '' : ($('#nresp-t').value || '').trim();
+      if (!del && !txt) { var m0 = $('#nresp-m'); if (m0) { m0.textContent = 'Escreve a resposta.'; m0.className = 'err'; } return; }
+      b.disabled = true; var m = $('#nresp-m'); if (m) m.textContent = 'A guardar…';
+      notaRespGuardar(key, txt).then(function () { NRESP.edit = ''; notasRender(a); }).catch(function (e) { b.disabled = false; var m2 = $('#nresp-m'); if (m2) { m2.textContent = (e && e.status === 400) ? 'Falta aplicar o SQL das respostas no Supabase.' : 'Não foi possível guardar. Tenta outra vez.'; m2.className = 'err'; } });
+    }); });
     var bt = $('#notas-vistas'); if (bt) bt.addEventListener('click', function () { notasMarcar(nv).then(function () { notasRender(a); liveTrainerNotasAlert(); try { renderSemana(); } catch (e) { /* opcional */ } }); });
   }
   function notasBadge(id) {
@@ -4852,7 +4982,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   function notasRel(a, de, ate) {
     var l = notasLista(a.id).filter(function (x) { return x.data >= de && x.data <= ate && (x.nota || x.dor); });
     if (!l.length) return '';
-    return '<p class="kicker">Notas do atleta (' + l.length + ')</p>' + l.slice(0, 8).map(function (x) { return notaHtml(x, false).replace('<span class="nnew">NOVA</span>', ''); }).join('') + (l.length > 8 ? '<p class="small">e mais ' + (l.length - 8) + ' no separador Notas.</p>' : '');
+    return '<p class="kicker">Notas do atleta (' + l.length + ')</p>' + l.slice(0, 8).map(function (x) { return notaHtml(x, false, true).replace('<span class="nnew">NOVA</span>', ''); }).join('') + (l.length > 8 ? '<p class="small">e mais ' + (l.length - 8) + ' no separador Notas.</p>' : '');
   }
   function liveTrainerNotasAlert() {
     var v = $('#view-treinador'); if (!v || !RAWD) return;
@@ -5056,7 +5186,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   function semAbrir() {
     var p = $('#sem-panel'); if (!p) return;
     if (!p.hidden) { p.hidden = true; return; }
-    ['mac-panel', 'per-panel', 'tes-panel', 'evo-panel'].forEach(function (id) { var e = $('#' + id); if (e) e.hidden = true; });
+    ['mac-panel', 'per-panel', 'tes-panel', 'evo-panel', 'notas-panel'].forEach(function (id) { var e = $('#' + id); if (e) e.hidden = true; });
     p.hidden = false; semRender();
   }
   (function semInit() {
@@ -5069,7 +5199,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     PNIDS.push('sem-panel');
     bt.addEventListener('click', function () { if (sess) { semAbrir(); setTimeout(pnSync, 60); } });
     document.addEventListener('click', function (e) {
-      var o = e.target && e.target.closest && e.target.closest('#mac-btn,#evo-btn,#tes-btn,#per-btn');
+      var o = e.target && e.target.closest && e.target.closest('#mac-btn,#evo-btn,#tes-btn,#notas-btn,#per-btn');
       if (o) { pn.hidden = true; setTimeout(pnSync, 60); }
       var g = e.target && e.target.closest && e.target.closest('[data-sem]');
       if (g) { var i = +g.getAttribute('data-sem'); pn.hidden = true; if (LIVE) liveFlush(); day = i; homeOn(false); livePseFor(); renderDays(); renderWork(); pnSync(); }
@@ -5160,7 +5290,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       HFW = isoAdd(HFW, 7 * +g.getAttribute('data-hf')); hfRender();
     });
     document.addEventListener('click', function (e) {
-      var o = e.target && e.target.closest && e.target.closest('#mac-btn,#evo-btn,#tes-btn,#per-btn,#sem-btn');
+      var o = e.target && e.target.closest && e.target.closest('#mac-btn,#evo-btn,#tes-btn,#notas-btn,#per-btn,#sem-btn');
       if (o) { pn.hidden = true; setTimeout(pnSync, 60); }
     });
   })();
