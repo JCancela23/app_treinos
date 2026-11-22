@@ -5353,7 +5353,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   var G = { atl: [], ex: [], tab: 'plano', sel: {}, semana: '', plan: null, edit: null, exEdit: null, exQ: '', srcAtl: '', srcSem: '' };
   var GBL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
   var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['throws', 'Throws (lançamentos)'], ['olympic', 'Olympic weightlifting'], ['handstand', 'Handstand'], ['locomocao', 'Locomoção'], ['core:ext', 'Core extensão'], ['core:flex', 'Core flexão'], ['core:lat', 'Core flexão lateral'], ['core:rot', 'Core rotação'], ['core:aext', 'Core anti-extensão'], ['core:aflex', 'Core anti-flexão'], ['core:alat', 'Core anti-flexão lateral'], ['core:arot', 'Core anti-rotação']];
-  var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'Carga + VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Broad jump (cm)'], ['feito', 'Só "feito"']];
+  var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'Carga + VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Distância (cm) · Broad jump / Med ball throw'], ['feito', 'Só "feito"']];
   var DIASL = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
   function gNewPlan() { var d = []; for (var i = 0; i < 7; i++) d.push({ tipo: 'none', nome: '', itens: [], circ: {} }); return d; }
@@ -6411,7 +6411,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     if (!G.tesM && gps.length === 1) G.tesM = gps[0];
     var lista = elig.filter(function (a) { return G.tesM && gl(a) === G.tesM; });
     if (G.tesA && !lista.some(function (a) { return a.id === G.tesA; })) G.tesA = '';
-    var h = gValdHtml() + gRankHtml() + '<div class="gbox"><p class="kicker">Testes e benchmarks</p><p class="small">Testes por categoria (RMs, saltos, tempos de prova, etc.) para qualquer atleta, com a data em que foram feitos, incluindo testes antigos do início da época. Os atletas das modalidades têm também o perfil carga-velocidade. Usa sempre o mesmo nome para o mesmo teste, é assim que se constrói a evolução.</p>' +
+    var h = gPendHtml() + gValdHtml() + gRankHtml() + gRankCmHtml() + '<div class="gbox"><p class="kicker">Testes e benchmarks</p><p class="small">Testes por categoria (RMs, saltos, tempos de prova, etc.) para qualquer atleta, com a data em que foram feitos, incluindo testes antigos do início da época. Os atletas das modalidades têm também o perfil carga-velocidade. Usa sempre o mesmo nome para o mesmo teste, é assim que se constrói a evolução.</p>' +
       (G.tesErr ? '<p class="err">' + esc(G.tesErr) + '</p>' : '') +
       '<p class="small" style="margin-bottom:4px">1 · Escolhe a modalidade ou o grupo</p><div class="chips">' + gps.map(function (m) { return '<button class="chip" data-act="tes-grp" data-m="' + esc(m) + '" aria-pressed="' + (G.tesM === m) + '">' + esc(m) + '</button>'; }).join('') + '</div>' +
       (G.tesM ? '<div class="field" style="margin-top:8px"><label for="gt-atl">2 · Escolhe o atleta (' + lista.length + ')</label><select class="sel" id="gt-atl"><option value="">Escolhe…</option>' + lista.map(function (a) { return '<option value="' + a.id + '"' + (a.id === G.tesA ? ' selected' : '') + '>' + esc(a.nome) + '</option>'; }).join('') + '</select></div>' : '');
@@ -6511,6 +6511,25 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     if (!e) return ['novo', 'Nova'];
     return Math.abs(+e.valor - r.pp) < 0.005 ? ['dup', 'Já importada'] : ['upd', 'Atualiza'];
   }
+  function gPendHtml() {
+    var P = (G.tes || []).filter(function (x) { return x.validado === false; }).sort(function (a, b) { return a.data < b.data ? 1 : -1; });
+    if (!P.length) return '';
+    var h = '<div class="gbox" id="g-pend"><p class="kicker">Testes de campo por validar (' + P.length + ')</p><p class="small">Registados pelos atletas no treino. Só entram no ranking depois de validares. Podes corrigir o valor antes.</p>';
+    P.forEach(function (x) {
+      var a = gAtlById(x.atleta_id);
+      h += '<div class="pend-it" style="border-top:1px solid var(--line,#dde3de);padding:10px 0"><div><b>' + esc(a ? a.nome : '?') + '</b> · ' + esc(x.nome) + ' · <span class="small">' + gFmtD(x.data) + '</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px"><input class="dt" style="width:90px" inputmode="decimal" id="pv-' + x.id + '" value="' + String(+x.valor).replace('.', ',') + '" aria-label="Valor em cm"> <span class="small">cm</span><button class="primary" data-act="pend-ok" data-id="' + x.id + '" style="padding:8px 14px">Validar</button><button class="chip" data-act="pend-no" data-id="' + x.id + '">Rejeitar</button></div></div>';
+    });
+    return h + '</div>';
+  }
+  function gPendAct(id, ok) {
+    var q = '/rest/v1/testes?id=eq.' + encodeURIComponent(id), p;
+    if (ok) {
+      var inp = document.getElementById('pv-' + id), v = inp ? parseFloat(String(inp.value).replace(',', '.')) : NaN;
+      if (!(v > 0)) { VD.msg = 'Valor inválido.'; VD.bad = true; gRenderTes(); return; }
+      p = tReq(q, { method: 'PATCH', body: { validado: true, valor: v }, headers: { Prefer: 'return=minimal' } });
+    } else p = tReq(q, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+    p.then(function () { return gTesRefresh(); }).catch(function (e) { VD.msg = gFail(e); VD.bad = true; gRenderTes(); });
+  }
   function gValdHtml() {
     var h = '<div class="gbox"><p class="kicker">Importar avaliações da VALD</p><p class="small">Na VALD Hub: Results Export, escolhe os testes, as métricas Jump Height (Imp-Mom), RSI-modified, Peak Power / BM e Bodyweight com cálculo Max, e exporta o CSV. A app fica com o melhor salto de cada atleta por dia, junta o peso dessa data (só tu o vês) e não repete avaliações já importadas.</p>' +
       '<div class="field"><label for="vald-file">Ficheiro CSV</label><input class="dt" type="file" id="vald-file" accept=".csv,text/csv"></div>';
@@ -6559,6 +6578,36 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     upd.forEach(function (u) { p = p.then(function () { return tReq('/rest/v1/testes?id=eq.' + encodeURIComponent(u.id), { method: 'PATCH', body: u.body, headers: { Prefer: 'return=minimal' } }); }); });
     p.then(function () { VD.rows = null; VD.msg = 'Importação feita: ' + ins.length + ' novas e ' + upd.length + ' atualizadas.'; return gTesRefresh(); })
       .catch(function (e) { VD.msg = gFail(e); VD.bad = true; gRenderTes(); });
+  }
+  function gRankCmHtml() {
+    var NOMES = ['Broad jump', 'Med ball throw'];
+    var rows = (G.tes || []).filter(function (x) { return NOMES.indexOf(x.nome) >= 0 && x.unidade === 'cm' && x.validado !== false; });
+    if (!rows.length) return '';
+    var mods = [];
+    rows.forEach(function (x) { var a = gAtlById(x.atleta_id); if (a && a.grupo === 'atleta' && a.ativo !== false && mods.indexOf(a.modalidade) < 0) mods.push(a.modalidade); });
+    if (!mods.length) return '';
+    var mm = VD.rkM && mods.indexOf(VD.rkM) >= 0 ? VD.rkM : (mods.indexOf('Natação') >= 0 ? 'Natação' : mods[0]);
+    var h = '';
+    NOMES.forEach(function (nm) {
+      var R = rows.filter(function (x) { return x.nome === nm; });
+      if (!R.length) return;
+      h += '<div class="gbox"><p class="kicker">Ranking ' + esc(nm) + ' (cm)</p><p class="small">Resultado mais recente de cada atleta, só testes validados. Esbatido: mais de 45 dias antes do teste mais recente do grupo.</p><div class="chips" role="group" aria-label="Modalidade">' +
+        mods.map(function (m) { return '<button class="chip" data-act="rk-mod" data-m="' + esc(m) + '" aria-pressed="' + (m === mm) + '">' + esc(m) + '</button>'; }).join('') + '</div>';
+      [['M', 'Masculino'], ['F', 'Feminino']].forEach(function (g) {
+        var last = {};
+        R.forEach(function (x) { var a = gAtlById(x.atleta_id); if (!a || a.modalidade !== mm || a.genero !== g[0] || a.grupo !== 'atleta' || a.ativo === false) return; var o = last[x.atleta_id]; if (!o || x.data > o.data || (x.data === o.data && +x.valor > +o.valor)) last[x.atleta_id] = x; });
+        var L = Object.keys(last).map(function (k) { return last[k]; }).sort(function (a, b) { return +b.valor - +a.valor; });
+        h += '<p class="kicker" style="margin-top:8px">' + g[1] + ' (' + L.length + ')</p>';
+        if (!L.length) { h += '<p class="small">Sem resultados.</p>'; return; }
+        var dmax = L.reduce(function (m, x) { return x.data > m ? x.data : m; }, '');
+        h += '<div style="overflow:auto"><table class="rt" style="width:100%"><thead><tr><th>#</th><th>Atleta</th><th>cm</th><th>Data</th></tr></thead><tbody>' + L.map(function (x, i) {
+          var old = (new Date(dmax) - new Date(x.data)) / 864e5 > 45, a = gAtlById(x.atleta_id);
+          return '<tr' + (old ? ' style="opacity:.6"' : '') + '><td>' + (i + 1) + '</td><td>' + esc(a.nome) + '</td><td><b>' + String(+x.valor).replace('.', ',') + '</b></td><td>' + gFmtD(x.data) + (old ? ' ⚠' : '') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      });
+      h += '</div>';
+    });
+    return h;
   }
   function gRankHtml() {
     var rows = (G.tes || []).filter(function (x) { return x.nome === 'CMJ' && x.unidade === 'wkg' && x.validado !== false; });
@@ -6989,6 +7038,8 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     else if (a === 'tes-mode') { G.tesMode = b.getAttribute('data-m'); gRenderTes(); }
     else if (a === 'tes-grp') { G.tesM = b.getAttribute('data-m'); G.tesA = ''; gRenderTes(); }
     else if (a === 'tes-add') gTesAdd();
+    else if (a === 'pend-ok') gPendAct(b.getAttribute('data-id'), true);
+    else if (a === 'pend-no') gPendAct(b.getAttribute('data-id'), false);
     else if (a === 'vald-go') vGo();
     else if (a === 'vald-clear') { VD.rows = null; VD.msg = ''; gRenderTes(); }
     else if (a === 'rk-mod') { VD.rkM = b.getAttribute('data-m'); gRenderTes(); }
