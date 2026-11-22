@@ -3105,8 +3105,9 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       '<div class="inline"><div class="field"><label for="au-data">Dia</label><input class="dt" type="date" id="au-data" value="' + hj + '" min="' + isoAdd(hj, -7) + '" max="' + hj + '"></div>' +
       '<div class="field"><label for="au-min">Duração (min)</label><input class="dt" id="au-min" inputmode="numeric" maxlength="3" value="60"></div></div>' +
       '<div class="field"><label for="au-pse">PSE: que esforço sentiste?</label><select class="sel" id="au-pse"><option value="">Escolhe…</option>' + PSEDESC.map(function (t, i) { return '<option value="' + i + '">' + i + ' · ' + t + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="au-notas">Notas (opcional)</label><textarea class="dt" id="au-notas" maxlength="500" rows="2" style="height:64px;min-height:0;resize:vertical" placeholder="ex.: era eu a dar a aula, sem score"></textarea></div>' +
       '<button class="chip" id="au-save" type="button">Registar aula</button> <span class="small" id="au-msg" role="status">' + esc(AULMSG) + '</span>';
-    h += L.map(function (a) { return '<div class="row2"><span class="small">' + fmtD(a.data) + ' · ' + esc(a.nome) + ' · ' + a.minutos + ' min</span><b>PSE ' + a.pse + ' <button class="chip" data-au-del="' + a.id + '" type="button" aria-label="Apagar aula">×</button></b></div>'; }).join('');
+    h += L.map(function (a) { return '<div class="row2"><span class="small">' + fmtD(a.data) + ' · ' + esc(a.nome) + ' · ' + a.minutos + ' min</span><b>PSE ' + a.pse + ' <button class="chip" data-au-del="' + a.id + '" type="button" aria-label="Apagar aula">×</button></b></div>' + (a.notas ? '<p class="small" style="margin:2px 0 10px;white-space:pre-wrap">📝 ' + esc(a.notas) + '</p>' : ''); }).join('');
     b.innerHTML = h + '</details>';
   }
   document.addEventListener('click', function (e) {
@@ -3121,7 +3122,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       if (pse === '') { msg.textContent = 'Escolhe a PSE.'; return; }
       if (!(min >= 1 && min <= 300)) { msg.textContent = 'Indica a duração em minutos (1 a 300).'; return; }
       t.disabled = true; msg.textContent = 'A guardar…';
-      rpc('atleta_aula_guardar', { p_atleta: sess.id, p_pin: sess.pin, p_data: $('#au-data').value, p_nome: $('#au-nome').value, p_pse: parseInt(pse, 10), p_minutos: min }).then(function (r) {
+      rpc('atleta_aula_guardar', { p_atleta: sess.id, p_pin: sess.pin, p_data: $('#au-data').value, p_nome: $('#au-nome').value, p_pse: parseInt(pse, 10), p_minutos: min, p_notas: ($('#au-notas').value || '').trim() || null }).then(function (r) {
         t.disabled = false;
         if (r && r.ok) { AULMSG = 'Aula registada. Bom trabalho!'; aulCarregar(); return; }
         msg.textContent = r && r.erro === 'data' ? 'Só podes registar aulas dos últimos 7 dias.' : r && r.erro === 'limite' ? 'Já registaste 3 aulas nesse dia.' : 'Não foi possível guardar.';
@@ -4160,7 +4161,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         faltas: ['atleta', 'data', 'treino', 'motivo', 'nota'],
         notas_bloco: ['atleta', 'data', 'bloco', 'motivo', 'nota'],
         resultados_bloco: ['atleta', 'data', 'treino', 'bloco', 'formato', 'tempo_s', 'rondas', 'reps', 'completo', 'nota'],
-        aulas_externas: ['atleta', 'data', 'nome', 'minutos', 'pse', 'ua'],
+        aulas_externas: ['atleta', 'data', 'nome', 'minutos', 'pse', 'ua', 'notas'],
         sessoes_modalidade: ['atleta', 'data', 'modalidade', 'periodo', 'foco', 'minutos', 'pse', 'ua', 'distancia_m'],
         competicoes: ['atleta', 'data', 'nome', 'ref', 'local']
       };
@@ -6076,7 +6077,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       tGet('treinos', 'select=id,atleta_id,data,nome,tipo&atleta_id=eq.' + aid + '&data=gte.' + de + '&data=lte.' + r.b + '&order=data'),
       tGet('sessoes', 'select=atleta_id,data,pse,treino_id&atleta_id=eq.' + aid + '&data=gte.' + de + '&data=lte.' + isoAdd(r.b, 7)).catch(function () { return []; }),
       tGet('faltas', 'select=atleta_id,treino_id,motivo&atleta_id=eq.' + aid).catch(function () { return []; }),
-      tGet('aulas_externas', 'select=atleta_id,data,nome,pse,minutos,ua&atleta_id=eq.' + aid + '&data=gte.' + de + '&data=lte.' + r.b + '&order=data').catch(function () { return []; }),
+      tGet('aulas_externas', 'select=atleta_id,data,nome,pse,minutos,ua,notas&atleta_id=eq.' + aid + '&data=gte.' + de + '&data=lte.' + r.b + '&order=data').catch(function () { return []; }),
       tGet('fases_semana', 'select=atleta_id,semana,fase,objetivo,nota&atleta_id=eq.' + aid + '&semana=gte.' + de + '&semana=lte.' + r.b).catch(function () { return tGet('fases_semana', 'select=atleta_id,semana,fase,objetivo&atleta_id=eq.' + aid + '&semana=gte.' + de + '&semana=lte.' + r.b); }).catch(function () { MC.err = 'Para planear a macro, corre primeiro o SQL das partes 27 e 31.'; return []; })
     ]).then(function (x) {
       var id = MC.aid;
@@ -6117,7 +6118,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         '<div class="field"><label for="mo-' + w + '">Objetivo da semana</label><input class="dt" id="mo-' + w + '" data-mc="sem" data-w="' + w + '" maxlength="120" placeholder="ex.: aumentar volume na suspensão" value="' + esc(f.objetivo || '') + '"></div>' +
         '<div class="field"><label for="mt-' + w + '">Nota para o aluno (opcional)</label><textarea class="dt" id="mt-' + w + '" data-mc="nota" data-w="' + w + '" rows="2" maxlength="400" placeholder="ex.: Esta semana foca-te na respiração">' + esc(f.nota || '') + '</textarea></div>';
       var au = MC.rows.a.filter(function (a) { return a.data >= w && a.data <= fim; });
-      if (au.length) h += '<div class="mac-nota"><b>Aulas fora do plano</b> <span class="small">· ' + au.length + ' · ' + au.reduce(function (s, a) { return s + (a.ua || 0); }, 0) + ' UA</span><br>' + au.map(function (a) { return gFmt(a.data) + ' · ' + esc(a.nome) + ' · ' + a.minutos + ' min · PSE ' + a.pse; }).join('<br>') + '</div>';
+      if (au.length) h += '<div class="mac-nota"><b>Aulas fora do plano</b> <span class="small">· ' + au.length + ' · ' + au.reduce(function (s, a) { return s + (a.ua || 0); }, 0) + ' UA</span><br>' + au.map(function (a) { return gFmt(a.data) + ' · ' + esc(a.nome) + ' · ' + a.minutos + ' min · PSE ' + a.pse + (a.notas ? '<br><i>📝 ' + esc(a.notas) + '</i>' : ''); }).join('<br>') + '</div>';
       ts.forEach(function (t) {
         var dow = isoDow(t.data);
         h += '<div class="mac-tr"><input class="dt" data-mc="tn" data-id="' + t.id + '" maxlength="80" value="' + esc(t.nome) + '" aria-label="Tema do treino">' +
