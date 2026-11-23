@@ -6475,7 +6475,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
           var d = L.length > 1 ? (+L[L.length - 1].valor - +L[0].valor) : null, bom = d == null ? null : (me === 'menos' ? d <= 0 : d >= 0);
           h += '<div class="gbox"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + esc(k) + '</b>' + gSpark(L, me) + '</div>' +
             '<p class="small">Melhor: <b>' + esc(gTesFmt(best.valor, u)) + '</b> (' + gFmtD(best.data) + ')' + (d == null ? '' : ' · desde o primeiro: <span' + (bom ? ' style="color:var(--accent)"' : ' class="err"') + '>' + (d >= 0 ? '+' : '−') + esc(gTesFmt(Math.abs(d), u)) + '</span>') + '</p>' +
-            L.slice().reverse().map(function (x) { return '<div class="inline" style="align-items:center"><span class="small">' + gFmtD(x.data) + '</span><b>' + esc(gTesFmt(x.valor, x.unidade)) + '</b>' + (x.nota ? '<span class="small">' + esc(x.nota) + '</span>' : '') + '<button class="chip" data-act="tes-del" data-id="' + x.id + '" aria-label="Apagar">✕</button></div>'; }).join('') + '</div>';
+            L.slice().reverse().map(function (x) { if (G.tesEd === x.id) return gTesEdHtml(x); return '<div style="display:flex;gap:10px;align-items:center;padding:4px 0"><span class="small" style="min-width:88px">' + gFmtD(x.data) + '</span><b>' + esc(gTesFmt(x.valor, x.unidade)) + '</b>' + (x.nota ? '<span class="small">' + esc(x.nota) + '</span>' : '') + '<span style="display:flex;gap:6px;flex:none;margin-left:auto"><button class="chip" data-act="tes-ed" data-id="' + x.id + '" aria-label="Editar" style="min-width:44px">✎</button><button class="chip" data-act="tes-del" data-id="' + x.id + '" aria-label="Apagar" style="min-width:44px">✕</button></span></div>'; }).join('') + '</div>';
         });
       });
       h += '<details class="gbox"><summary>Gerir categorias</summary><div class="chips">' + (G.cat || []).map(function (c) { return '<span class="chip">' + esc(c.nome) + ' <button class="chip" data-act="cat-del" data-id="' + c.id + '" aria-label="Apagar categoria ' + esc(c.nome) + '">✕</button></span>'; }).join('') +
@@ -6662,6 +6662,37 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     return h + '</div>';
   }
   function gTesRefresh() { return gTesLoad(); }
+  function gTesEdVal(x) {
+    var v = +x.valor;
+    if (x.unidade === 'tempo') { var h = Math.floor(v / 3600), m = Math.floor((v % 3600) / 60), sg = Math.round((v - h * 3600 - m * 60) * 10) / 10; return (h ? h + ':' + (m < 10 ? '0' : '') + m : m) + ':' + (sg < 10 ? '0' : '') + String(sg).replace('.', ','); }
+    return String(Math.round(v * 1000) / 1000).replace('.', ',');
+  }
+  function gTesEdHtml(x) {
+    var nomes = []; (G.tes || []).forEach(function (t) { if (nomes.indexOf(t.nome) < 0) nomes.push(t.nome); });
+    return '<div class="gbox" style="margin:6px 0" id="te-box"><p class="kicker">Editar teste</p>' +
+      '<div class="inline"><div class="field"><label for="te-data">Data</label><input class="dt" type="date" id="te-data" max="' + localISO() + '" value="' + esc(x.data) + '"></div>' +
+      '<div class="field"><label for="te-val">Resultado</label><input class="dt" id="te-val" inputmode="decimal" autocomplete="off" value="' + esc(gTesEdVal(x)) + '"></div>' +
+      '<div class="field"><label for="te-un">Unidade</label><select class="sel" id="te-un">' + GTU.map(function (u) { return '<option value="' + u[0] + '"' + (x.unidade === u[0] ? ' selected' : '') + '>' + u[1] + '</option>'; }).join('') + '</select></div></div>' +
+      '<div class="field"><label for="te-nome">Nome do teste</label><input class="dt" id="te-nome" list="te-lista" autocomplete="off" value="' + esc(x.nome) + '"></div><datalist id="te-lista">' + nomes.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
+      '<div class="inline"><div class="field"><label for="te-peso">Peso do atleta (kg, opcional)</label><input class="dt" id="te-peso" inputmode="decimal" autocomplete="off" value="' + (x.peso_kg == null ? '' : esc(String(+x.peso_kg).replace('.', ','))) + '"></div>' +
+      '<div class="field"><label for="te-nota">Nota (opcional)</label><input class="dt" id="te-nota" autocomplete="off" value="' + esc(x.nota || '') + '"></div></div>' +
+      '<div class="chips"><button class="primary" data-act="tes-ed-save" data-id="' + x.id + '" style="padding:10px 18px">Guardar</button><button class="chip" data-act="tes-ed-no">Cancelar</button></div><p class="small" id="g-msg-ted" role="status"></p></div>';
+  }
+  function gTesEdSave(id) {
+    var x = (G.tes || []).filter(function (t) { return String(t.id) === String(id); })[0]; if (!x) return;
+    var nome = $('#te-nome').value.trim(), un = $('#te-un').value, data = $('#te-data').value, val = gTesParse($('#te-val').value, un), pt = $('#te-peso').value.trim();
+    var peso = pt === '' ? null : parseFloat(pt.replace(',', '.'));
+    if (!nome) { gMsg('g-msg-ted', 'Escreve o nome do teste.', true); return; }
+    if (val == null) { gMsg('g-msg-ted', 'Resultado inválido. Para tempos usa mm:ss (ex.: 24:30).', true); return; }
+    if (un === 'ms' && val > 3) { gMsg('g-msg-ted', 'Velocidade em m/s: escreve 0,90 e não 90.', true); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) { gMsg('g-msg-ted', 'Escolhe a data do teste.', true); return; }
+    if (peso != null && !(peso > 0 && peso < 300)) { gMsg('g-msg-ted', 'Peso inválido.', true); return; }
+    gMsg('g-msg-ted', 'A guardar…');
+    var body = { data: data, nome: nome, valor: val, unidade: un, peso_kg: peso, nota: $('#te-nota').value.trim() || null };
+    tReq('/rest/v1/testes?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: body, headers: { Prefer: 'return=minimal' } })
+      .then(function () { G.tesEd = null; return gTesRefresh(); })
+      .catch(function (e) { gMsg('g-msg-ted', gFail(e), true); });
+  }
   function gTesAdd() {
     var nome = $('#gt-nome').value.trim(), un = $('#gt-un').value, data = $('#gt-data').value, mel = $('#gt-mel').value, cat = $('#gt-cat').value;
     var val = gTesParse($('#gt-val').value, un);
@@ -7070,6 +7101,9 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     else if (a === 'tes-mode') { G.tesMode = b.getAttribute('data-m'); gRenderTes(); }
     else if (a === 'tes-grp') { G.tesM = b.getAttribute('data-m'); G.tesA = ''; gRenderTes(); }
     else if (a === 'tes-add') gTesAdd();
+    else if (a === 'tes-ed') { G.tesEd = id; gRenderTes(); var tb = document.getElementById('te-box'); if (tb) tb.scrollIntoView({ block: 'center' }); }
+    else if (a === 'tes-ed-no') { G.tesEd = null; gRenderTes(); }
+    else if (a === 'tes-ed-save') gTesEdSave(id);
     else if (a === 'pend-ok') gPendAct(b.getAttribute('data-id'), true);
     else if (a === 'pend-no') gPendAct(b.getAttribute('data-id'), false);
     else if (a === 'vald-go') vGo();
