@@ -311,6 +311,8 @@ table.rt { min-width: 0; font-size: .85rem; }
 .gitem { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
 .gctl { display: flex; gap: 6px; flex-wrap: wrap; align-items: end; }
 .gn { display: grid; gap: 2px; font-size: .7rem; color: var(--muted); font-weight: 600; }
+.gteste { display: flex; gap: 8px; align-items: center; flex-basis: 100%; font-size: .78rem; }
+.gteste input[type=checkbox] { width: 20px; height: 20px; min-height: 0; flex: none; }
 .gn input { width: 76px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px; font-weight: 600; }
 .gn select { max-width: 190px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px; font-weight: 600; font-size: .8rem; }
 .gadd { display: flex; gap: 6px; }
@@ -2953,26 +2955,51 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   function tesFmt(v, u) {
     if (v == null) return '';
     if (u === 'tempo') { var s = Math.round(v), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + (m < 10 ? '0' : '') + m : m) + ':' + (x < 10 ? '0' : '') + x; }
-    return String(Math.round(v * 100) / 100).replace('.', ',') + (u && u !== 'outro' ? ' ' + u : '');
+    return String(Math.round(v * 100) / 100).replace('.', ',') + (u && u !== 'outro' ? ' ' + (u === 'wkg' ? 'W/kg' : u === 'ms' ? 'm/s' : u) : '');
   }
   function tesDt(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+  var TES_RK = ['cmj', 'broad jump', 'med ball throw'];
+  function tesChart(L, u) {
+    if (L.length < 2) return '';
+    var W = 300, H = 120, pl = 34, pr = 10, pt = 14, pb = L.some(function (t) { return t.peso_kg != null && u === 'ms'; }) ? 40 : 26;
+    var vs = L.map(function (t) { return +t.valor; }), mn = Math.min.apply(null, vs), mx = Math.max.apply(null, vs);
+    if (mx - mn < 1e-9) { mn -= 1; mx += 1; } else { var pd = (mx - mn) * 0.2; mn -= pd; mx += pd; }
+    var t0 = new Date(L[0].data + 'T00:00:00Z').getTime(), t1 = new Date(L[L.length - 1].data + 'T00:00:00Z').getTime(), sp = Math.max(t1 - t0, 1);
+    function X(t) { return pl + (new Date(t.data + 'T00:00:00Z').getTime() - t0) / sp * (W - pl - pr); }
+    function Y(v) { return pt + (1 - (v - mn) / (mx - mn)) * (H - pt - pb); }
+    var g = '<line x1="' + pl + '" y1="' + (H - pb) + '" x2="' + (W - pr) + '" y2="' + (H - pb) + '" stroke="var(--muted)" stroke-opacity=".4"/>';
+    g += '<text x="' + (pl - 4) + '" y="' + (pt + 4) + '" text-anchor="end" font-size="9" fill="var(--muted)">' + esc(tesFmt(mx, 'outro')) + '</text><text x="' + (pl - 4) + '" y="' + (H - pb) + '" text-anchor="end" font-size="9" fill="var(--muted)">' + esc(tesFmt(mn, 'outro')) + '</text>';
+    g += '<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="' + L.map(function (t) { return X(t).toFixed(1) + ',' + Y(+t.valor).toFixed(1); }).join(' ') + '"/>';
+    L.forEach(function (t, i) {
+      var x = X(t), y = Y(+t.valor), pend = t.validado === false, anc = i === 0 ? 'start' : i === L.length - 1 ? 'end' : 'middle';
+      g += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="4" fill="' + (pend ? 'var(--bg,#fff)' : 'var(--accent)') + '" stroke="var(--accent)" stroke-width="2"/>';
+      g += '<text x="' + x.toFixed(1) + '" y="' + (y - 7).toFixed(1) + '" text-anchor="' + anc + '" font-size="9.5" font-weight="700" fill="currentColor">' + esc(tesFmt(+t.valor, 'outro')) + '</text>';
+      g += '<text x="' + x.toFixed(1) + '" y="' + (H - pb + 11) + '" text-anchor="' + anc + '" font-size="8.5" fill="var(--muted)">' + esc(tesDt(t.data).slice(0, 5)) + '</text>';
+      if (u === 'ms' && t.peso_kg != null) g += '<text x="' + x.toFixed(1) + '" y="' + (H - pb + 22) + '" text-anchor="' + anc + '" font-size="8.5" fill="var(--muted)">' + esc(String(t.peso_kg).replace('.', ',')) + ' kg</text>';
+    });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Evolução em ' + esc(L[0].nome) + (u === 'ms' ? ' (velocidade em m/s e peso corporal)' : '') + '">' + g + '</svg>';
+  }
   function tesHtml(d) {
     var h = '', meus = d.meus || [], rk = d.rankings || [];
-    if (!meus.length) return '<p class="small">Ainda não tens testes registados. O teu treinador vai adicioná-los.</p>';
+    if (!meus.length && !rk.length) return '<p class="small">Ainda não tens testes registados. O teu treinador vai adicioná-los.</p>';
     var por = {}, ord = [];
     meus.forEach(function (t) { var k = t.nome.toLowerCase().trim() + '|' + t.unidade; if (!por[k]) { por[k] = []; ord.push(k); } por[k].push(t); });
-    h += '<p class="small">' + (d.grupo_ranking ? 'Ranking: ' + esc(d.grupo_ranking) + '. Só vês atletas da tua modalidade e do mesmo género, com o primeiro nome e a inicial do apelido.' :
+    rk.forEach(function (x) { var k = x.nome.toLowerCase().trim() + '|' + x.unidade; if (!por[k]) { por[k] = []; ord.push(k); } });
+    h += '<p class="small">' + (d.grupo_ranking ? 'Ranking: ' + esc(d.grupo_ranking) + '. Só vês atletas da tua modalidade e do mesmo género, com o primeiro nome e a inicial do apelido. Conta o resultado mais recente de cada atleta; a cinzento (⚠) estão os que ainda não repetiram o teste.' :
       d.ranking_motivo === 'genero' ? 'O ranking ainda não está disponível: pede ao teu treinador para indicar o teu género.' :
       d.ranking_motivo === 'desligado' ? 'Escolheste não aparecer nos rankings.' : '') + '</p>';
     ord.forEach(function (k) {
-      var L = por[k], u = L[0].unidade, menos = L[0].melhor === 'menos';
-      var best = L.reduce(function (a, b) { return (menos ? b.valor < a.valor : b.valor > a.valor) ? b : a; });
-      var r = null; rk.forEach(function (x) { if (x.nome.toLowerCase().trim() + '|' + x.unidade === k) r = x; });
-      h += '<div class="tes-box"><b>' + esc(L[0].nome) + '</b> <span class="small">· melhor ' + esc(tesFmt(best.valor, u)) + '</span>';
-      h += '<div class="small">' + L.map(function (t) { return esc(tesDt(t.data)) + ': ' + esc(tesFmt(t.valor, u)); }).join(' · ') + '</div>';
+      var L = por[k], r = null; rk.forEach(function (x) { if (x.nome.toLowerCase().trim() + '|' + x.unidade === k) r = x; });
+      var u = L.length ? L[0].unidade : r.unidade, nome = L.length ? L[0].nome : r.nome, rkd = TES_RK.indexOf(nome.toLowerCase().trim()) >= 0 || u === 'ms', menos = L.length && L[0].melhor === 'menos';
+      h += '<div class="tes-box"><b>' + esc(nome) + '</b>';
+      if (L.length) {
+        var last = L[L.length - 1], best = L.reduce(function (a, b) { return (menos ? b.valor < a.valor : b.valor > a.valor) ? b : a; });
+        h += ' <span class="small">· ' + (rkd ? 'último ' + esc(tesFmt(last.valor, u)) + ' (' + esc(tesDt(last.data)) + ')' : 'melhor ' + esc(tesFmt(best.valor, u))) + '</span>';
+        h += tesChart(L, u);
+        h += '<div class="small">' + L.map(function (t) { return esc(tesDt(t.data)) + ': ' + esc(tesFmt(t.valor, u)) + (t.altura_cm != null || t.peso_kg != null ? ' (' + [t.altura_cm != null ? String(t.altura_cm).replace('.', ',') + ' cm' : '', t.peso_kg != null ? String(t.peso_kg).replace('.', ',') + ' kg' : ''].filter(Boolean).join(' · ') + ')' : '') + (t.validado === false ? ' <span class="tes-pend">por validar</span>' : ''); }).join(' · ') + '</div>';
+      } else h += '<div class="small">Ainda não tens resultado neste teste.</div>';
       if (r) {
-        h += '<ol class="tes-rk">' + r.top.map(function (e) { return '<li' + (e.eu ? ' class="eu"' : '') + '><span>' + e.pos + '.</span><span>' + esc(e.nome) + (e.eu ? ' (tu)' : '') + '</span><b>' + esc(tesFmt(e.valor, u)) + '</b></li>'; }).join('') + '</ol>';
-        if (r.minha_pos > 10) h += '<p class="small"><b>Tu: ' + r.minha_pos + '.º</b> de ' + r.total + ' (' + esc(tesFmt(r.meu_valor, u)) + ')</p>';
+        h += '<ol class="tes-rk">' + r.top.map(function (e) { return '<li class="' + (e.eu ? 'eu ' : '') + (e.antigo ? 'velho' : '') + '"><span>' + e.pos + '.</span><span>' + esc(e.nome) + (e.eu ? ' (tu)' : '') + '<small>' + esc(tesDt(e.data)) + (e.antigo ? ' ⚠ teste antigo' : '') + '</small></span><b>' + esc(tesFmt(e.valor, u)) + '</b></li>'; }).join('') + '</ol>';
       }
       h += '</div>';
     });
@@ -3686,8 +3713,8 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   });
 
   /* ---------- exportar dados (cópia de segurança) ---------- */
-  var EXP_TAB = ['atletas', 'exercicios', 'treinos', 'treino_blocos', 'treino_itens', 'registos_serie', 'sessoes', 'wellness', 'notas_bloco', 'resultados_bloco', 'faltas', 'aulas_externas', 'sessoes_modalidade', 'competicoes'];
-  var EXP_VER = { treinos: 1, treino_blocos: 1, treino_itens: 1, registos_serie: 1, sessoes: 1, wellness: 1, notas_bloco: 1, resultados_bloco: 1, faltas: 1, aulas_externas: 1, sessoes_modalidade: 1, competicoes: 1 };
+  var EXP_TAB = ['atletas', 'exercicios', 'treinos', 'treino_blocos', 'treino_itens', 'registos_serie', 'sessoes', 'wellness', 'notas_bloco', 'resultados_bloco', 'faltas', 'aulas_externas', 'sessoes_modalidade', 'competicoes', 'testes'];
+  var EXP_VER = { treinos: 1, treino_blocos: 1, treino_itens: 1, registos_serie: 1, sessoes: 1, wellness: 1, notas_bloco: 1, resultados_bloco: 1, faltas: 1, aulas_externas: 1, sessoes_modalidade: 1, competicoes: 1, testes: 1, atletas: 1, exercicios: 1 };
   function expTabela(t) {
     return tGet(t, 'select=*&order=id').catch(function () { return tGet(t, 'select=*'); }).then(function (rows) {
       rows = rows || [];
@@ -3749,7 +3776,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     return zipStore(f);
   }
   function liveExport(b) {
-    var out = {}, falhou = [], i = 0;
+    var out = {}, falhou = [], i = 0, rot = b.textContent;
     b.disabled = true;
     function seg() {
       if (i >= EXP_TAB.length) return Promise.resolve();
@@ -3765,7 +3792,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         var u = URL.createObjectURL(blob), a = document.createElement('a');
         a.href = u; a.download = nome + '.' + ext; document.body.appendChild(a); a.click(); a.remove();
         setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
-        b.textContent = 'Exportar dados'; b.disabled = false;
+        b.textContent = rot; b.disabled = false;
         alert(msg(ext) + (ext === 'json' ? '\n(Não foi possível criar o Excel agora; foi gravado em JSON.)' : ''));
       };
       /* nomes legíveis: junta o nome do atleta / exercício às linhas */
@@ -3814,7 +3841,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       } catch (e) {
         gravar(new Blob([JSON.stringify({ exportado_em: d.toISOString(), tabelas: out }, null, 1)], { type: 'application/json' }), 'json');
       }
-    }).catch(function () { b.textContent = 'Exportar dados'; b.disabled = false; alert('A exportação falhou. Tenta outra vez.'); });
+    }).catch(function () { b.textContent = rot; b.disabled = false; alert('A exportação falhou. Tenta outra vez.'); });
   }
 
   var TREIN = {};   /* atleta_id|data -> tipo */
@@ -6301,7 +6328,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   });
 
   /* ---------- testes e benchmarks (online training e presencial) ---------- */
-  var GTU = [['kg', 'kg'], ['cm', 'cm'], ['m', 'm'], ['tempo', 'tempo (mm:ss)'], ['reps', 'reps'], ['cal', 'calorias'], ['w', 'watts'], ['wkg', 'W/kg'], ['outro', 'outro']];
+  var GTU = [['kg', 'kg'], ['cm', 'cm'], ['m', 'm'], ['tempo', 'tempo (mm:ss)'], ['reps', 'reps'], ['cal', 'calorias'], ['w', 'watts'], ['wkg', 'W/kg'], ['ms', 'm/s (velocidade)'], ['outro', 'outro']];
   var GTS = ['Back squat 1RM', 'Back squat 3RM', 'Back squat 5RM', 'Deadlift 1RM', 'Deadlift 5RM', 'Bench press 1RM', 'Bench press 5RM', 'CMJ', 'Salto em comprimento', '5 km', '10 km', 'Aerox 2000 m'];
   function gTesFmt(v, u) {
     v = +v;
@@ -6309,7 +6336,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       var h = Math.floor(v / 3600), m = Math.floor((v % 3600) / 60), s = v - h * 3600 - m * 60, ss = (s < 10 ? '0' : '') + (Math.round(s * 10) / 10).toString().replace('.', ',');
       return h ? h + ':' + (m < 10 ? '0' : '') + m + ':' + ss : (m ? m + ':' + ss : ss + ' s');
     }
-    return String(Math.round(v * 100) / 100).replace('.', ',') + (u === 'outro' ? '' : ' ' + (u === 'w' ? 'W' : u === 'wkg' ? 'W/kg' : u));
+    return String(Math.round(v * 100) / 100).replace('.', ',') + (u === 'outro' ? '' : ' ' + (u === 'w' ? 'W' : u === 'wkg' ? 'W/kg' : u === 'ms' ? 'm/s' : u));
   }
   function gTesParse(txt, u) {
     var t = String(txt || '').trim().replace(',', '.');
@@ -6518,7 +6545,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     var h = '<div class="gbox" id="g-pend"><p class="kicker">Testes de campo por validar (' + P.length + ')</p><p class="small">Registados pelos atletas no treino. Só entram no ranking depois de validares. Podes corrigir o valor antes.</p>';
     P.forEach(function (x) {
       var a = gAtlById(x.atleta_id);
-      h += '<div class="pend-it" style="border-top:1px solid var(--line,#dde3de);padding:10px 0"><div><b>' + esc(a ? a.nome : '?') + '</b> · ' + esc(x.nome) + ' · <span class="small">' + gFmtD(x.data) + '</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px"><input class="dt" style="width:90px" inputmode="decimal" id="pv-' + x.id + '" value="' + String(+x.valor).replace('.', ',') + '" aria-label="Valor em cm"> <span class="small">cm</span><button class="primary" data-act="pend-ok" data-id="' + x.id + '" style="padding:8px 14px">Validar</button><button class="chip" data-act="pend-no" data-id="' + x.id + '">Rejeitar</button></div></div>';
+      h += '<div class="pend-it" style="border-top:1px solid var(--line,#dde3de);padding:10px 0"><div><b>' + esc(a ? a.nome : '?') + '</b> · ' + esc(x.nome) + ' · <span class="small">' + gFmtD(x.data) + '</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px"><input class="dt" style="width:90px" inputmode="decimal" id="pv-' + x.id + '" value="' + String(+x.valor).replace('.', ',') + '" aria-label="Valor em ' + (x.unidade === 'ms' ? 'm/s' : 'cm') + '"> <span class="small">' + (x.unidade === 'ms' ? 'm/s' : 'cm') + '</span><button class="primary" data-act="pend-ok" data-id="' + x.id + '" style="padding:8px 14px">Validar</button><button class="chip" data-act="pend-no" data-id="' + x.id + '">Rejeitar</button></div></div>';
     });
     return h + '</div>';
   }
@@ -6581,8 +6608,11 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       .catch(function (e) { VD.msg = gFail(e); VD.bad = true; gRenderTes(); });
   }
   function gRankCmHtml() {
-    var NOMES = ['Broad jump', 'Med ball throw'];
-    var rows = (G.tes || []).filter(function (x) { return NOMES.indexOf(x.nome) >= 0 && x.unidade === 'cm' && x.validado !== false; });
+    var NOMES = ['Broad jump', 'Med ball throw'], UN = {};
+    (G.tes || []).forEach(function (x) { if (x.unidade === 'ms' && x.validado !== false && NOMES.indexOf(x.nome) < 0) NOMES.push(x.nome); });
+    NOMES.forEach(function (n) { UN[n] = /^(Broad jump|Med ball throw)$/.test(n) ? 'cm' : 'ms'; });
+    NOMES.sort(function (a, b) { return (UN[a] === 'cm' ? 0 : 1) - (UN[b] === 'cm' ? 0 : 1) || (a < b ? -1 : 1); });
+    var rows = (G.tes || []).filter(function (x) { return NOMES.indexOf(x.nome) >= 0 && x.unidade === UN[x.nome] && x.validado !== false; });
     if (!rows.length) return '';
     var mods = [];
     rows.forEach(function (x) { var a = gAtlById(x.atleta_id); if (a && a.grupo === 'atleta' && a.ativo !== false && mods.indexOf(a.modalidade) < 0) mods.push(a.modalidade); });
@@ -6592,7 +6622,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     NOMES.forEach(function (nm) {
       var R = rows.filter(function (x) { return x.nome === nm; });
       if (!R.length) return;
-      h += '<div class="gbox"><p class="kicker">Ranking ' + esc(nm) + ' (cm)</p><p class="small">Resultado mais recente de cada atleta, só testes validados. Esbatido: mais de 45 dias antes do teste mais recente do grupo.</p><div class="chips" role="group" aria-label="Modalidade">' +
+      h += '<div class="gbox"><p class="kicker">Ranking ' + esc(nm) + ' (' + (UN[nm] === 'ms' ? 'm/s' : 'cm') + ')</p><p class="small">Resultado mais recente de cada atleta, só testes validados. Esbatido: mais de 45 dias antes do teste mais recente do grupo.</p><div class="chips" role="group" aria-label="Modalidade">' +
         mods.map(function (m) { return '<button class="chip" data-act="rk-mod" data-m="' + esc(m) + '" aria-pressed="' + (m === mm) + '">' + esc(m) + '</button>'; }).join('') + '</div>';
       [['M', 'Masculino'], ['F', 'Feminino']].forEach(function (g) {
         var last = {};
@@ -6601,9 +6631,9 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         h += '<p class="kicker" style="margin-top:8px">' + g[1] + ' (' + L.length + ')</p>';
         if (!L.length) { h += '<p class="small">Sem resultados.</p>'; return; }
         var dmax = L.reduce(function (m, x) { return x.data > m ? x.data : m; }, '');
-        h += '<div style="overflow:auto"><table class="rt" style="width:100%"><thead><tr><th>#</th><th>Atleta</th><th>cm</th><th>Data</th></tr></thead><tbody>' + L.map(function (x, i) {
+        h += '<div style="overflow:auto"><table class="rt" style="width:100%"><thead><tr><th>#</th><th>Atleta</th><th>' + (UN[nm] === 'ms' ? 'm/s' : 'cm') + '</th>' + (UN[nm] === 'ms' ? '<th>Peso (kg)</th>' : '') + '<th>Data</th></tr></thead><tbody>' + L.map(function (x, i) {
           var old = (new Date(dmax) - new Date(x.data)) / 864e5 > 45, a = gAtlById(x.atleta_id);
-          return '<tr' + (old ? ' style="opacity:.6"' : '') + '><td>' + (i + 1) + '</td><td>' + esc(a.nome) + '</td><td><b>' + String(+x.valor).replace('.', ',') + '</b></td><td>' + gFmtD(x.data) + (old ? ' ⚠' : '') + '</td></tr>';
+          return '<tr' + (old ? ' style="opacity:.6"' : '') + '><td>' + (i + 1) + '</td><td>' + esc(a.nome) + '</td><td><b>' + String(+x.valor).replace('.', ',') + '</b></td>' + (UN[nm] === 'ms' ? '<td>' + (x.peso_kg == null ? '' : String(+x.peso_kg).replace('.', ',')) + '</td>' : '') + '<td>' + gFmtD(x.data) + (old ? ' ⚠' : '') + '</td></tr>';
         }).join('') + '</tbody></table></div>';
       });
       h += '</div>';
@@ -6761,6 +6791,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
         '<label class="gn">PSE alvo (0 a 10)<input inputmode="decimal" data-f="pse" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.pse || '') + '"></label>' +
         (((o.it.mreg || reg) === 'vbt' || o.it.vel) ? '<label class="gn">Velocidade alvo (m/s)<input inputmode="decimal" data-f="vel" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.vel || '') + '"></label>' : '') +
+        ((o.it.mreg || reg) === 'vbt' ? '<label class="gn gteste"><input type="checkbox" data-f="teste" data-d="' + i + '" data-k="' + o.k + '"' + (o.it.teste ? ' checked' : '') + '> Teste: fica em “Os meus testes” (um teste por carga)</label>' : '') +
         '<button class="chip" data-act="pv" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + (!!o.it.pv) + '">Pedir vídeo</button>' +
         (pos > 0 && !emom ? '<button class="chip" data-act="lig" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + lig + '">Com o anterior</button>' : '') +
         '<label class="gn">O que o atleta regista<select data-f="mreg" data-d="' + i + '" data-k="' + o.k + '"><option value=""' + (!o.it.mreg ? ' selected' : '') + '>Por defeito (' + esc(gRegLabel(reg)) + ')</option>' +
@@ -6861,7 +6892,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   }
   function gFetchPlan(aid, mon) {
     return tGet('treinos', 'atleta_id=eq.' + encodeURIComponent(aid) + '&data=gte.' + mon + '&data=lte.' + isoAdd(mon, 6) +
-      '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s,descricao),treino_itens(id,alt_de,bloco,ordem,series,reps,pede_registo,registo,grupo,circuito,descanso_s,pse_alvo,vel_alvo,pede_video,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
+      '&select=data,nome,tipo,treino_blocos(bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s,descricao),treino_itens(id,alt_de,bloco,ordem,series,reps,pede_registo,registo,grupo,circuito,descanso_s,pse_alvo,vel_alvo,teste,pede_video,nota,exercicios(nome))&order=data&treino_itens.order=ordem').then(function (rows) {
       var plan = gNewPlan(), n = 0;
       rows.forEach(function (t) {
         var i = isoDow(t.data);
@@ -6886,7 +6917,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
           var arr = plan[i].itens, pv = arr.length ? arr[arr.length - 1] : null;
           var um = /^\s*(\d+(?:[.,]\d+)?)\s*(km|min|m|cal|s)\s*$/i.exec(it.reps || '');
           plan[i].itens.push({ bloco: it.bloco, c: it.circuito || 0, ex: ex.nome, series: String(it.series), reps: um ? um[1] : (it.reps || ''), unid: um ? um[2].toLowerCase() : '', pede: !!it.pede_registo, mreg: it.registo || (it.pede_registo ? '' : 'feito'),
-            lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', pse: it.pse_alvo != null ? String(it.pse_alvo) : '', vel: it.vel_alvo != null ? String(it.vel_alvo).replace('.', ',') : '', pv: !!it.pede_video, nota: it.nota || '' }); byId[it.id] = plan[i].itens[plan[i].itens.length - 1]; n++;
+            lig: !!(it.grupo != null && pv && pv.bloco === it.bloco && pv.g === it.grupo), g: it.grupo, desc: it.descanso_s ? String(it.descanso_s) : '', pse: it.pse_alvo != null ? String(it.pse_alvo) : '', vel: it.vel_alvo != null ? String(it.vel_alvo).replace('.', ',') : '', teste: !!it.teste, pv: !!it.pede_video, nota: it.nota || '' }); byId[it.id] = plan[i].itens[plan[i].itens.length - 1]; n++;
         });
         Object.keys(legacy).forEach(function (lb) {
           plan[i].circ[lb] = plan[i].circ[lb] || {};
@@ -6972,7 +7003,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
           var vla = null, vlt = String(it.vel == null ? '' : it.vel).trim().replace(',', '.');
           if (vlt !== '') { vla = parseFloat(vlt); if (!isFinite(vla) || vla <= 0 || vla > 3) { avisos.push(DIASL[i] + ': a velocidade alvo de “' + it.ex + '” tem de estar entre 0,1 e 3 m/s.'); vla = null; } }
           linhas.push({ data: data, treino_nome: d.nome || 'Treino', tipo: 'gym', bloco: b[0], exercicio: it.ex, series: sr, reps: (String(it.reps || '').trim() + (it.unid && String(it.reps || '').trim() ? ' ' + it.unid : '')), pede_registo: gPede(it), registo_item: it.mreg || '',
-            grupo: grupo, circuito: it.c || null, descanso_s: ult && ds > 0 ? ds : null, pse_alvo: psa, vel_alvo: vla, pede_video: !!it.pv, nota_item: String(it.nota || '').trim(),
+            grupo: grupo, circuito: it.c || null, descanso_s: ult && ds > 0 ? ds : null, pse_alvo: psa, vel_alvo: vla, teste: !!it.teste, pede_video: !!it.pv, nota_item: String(it.nota || '').trim(),
             alt_exercicio: String(it.alt || '').trim() || null, alt_series: String(it.alt || '').trim() ? (String(it.alts || '').trim() || null) : null, alt_reps: String(it.alt || '').trim() ? (String(it.altr || '').trim() || null) : null });
         });
       });
@@ -7167,7 +7198,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     if (t.classList.contains('gnota')) gAutoNota(t);
     var d = +t.getAttribute('data-d');
     if (f === 'nome') G.plan[d].nome = t.value;
-    else { G.plan[d].itens[+t.getAttribute('data-k')][f] = t.value; if (f === 'mreg' && t.tagName === 'SELECT') gRenderPlano(); }
+    else { G.plan[d].itens[+t.getAttribute('data-k')][f] = t.type === 'checkbox' ? t.checked : t.value; if (f === 'mreg' && t.tagName === 'SELECT') gRenderPlano(); }
   });
   $('#g-panel').addEventListener('change', function (e) {
     var t = e.target;
