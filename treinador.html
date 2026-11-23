@@ -6674,6 +6674,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       '<div class="field"><label for="te-val">Resultado</label><input class="dt" id="te-val" inputmode="decimal" autocomplete="off" value="' + esc(gTesEdVal(x)) + '"></div>' +
       '<div class="field"><label for="te-un">Unidade</label><select class="sel" id="te-un">' + GTU.map(function (u) { return '<option value="' + u[0] + '"' + (x.unidade === u[0] ? ' selected' : '') + '>' + u[1] + '</option>'; }).join('') + '</select></div></div>' +
       '<div class="field"><label for="te-nome">Nome do teste</label><input class="dt" id="te-nome" list="te-lista" autocomplete="off" value="' + esc(x.nome) + '"></div><datalist id="te-lista">' + nomes.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
+      '<div class="field"><label for="te-cat">Categoria</label><select class="sel" id="te-cat"><option value="">Sem categoria</option>' + (function () { var cs = (G.cat || []).map(function (c) { return c.nome; }); if (x.categoria && cs.indexOf(x.categoria) < 0) cs.push(x.categoria); return cs.map(function (c) { return '<option value="' + esc(c) + '"' + (x.categoria === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join(''); })() + '</select></div>' +
       '<div class="inline"><div class="field"><label for="te-peso">Peso do atleta (kg, opcional)</label><input class="dt" id="te-peso" inputmode="decimal" autocomplete="off" value="' + (x.peso_kg == null ? '' : esc(String(+x.peso_kg).replace('.', ','))) + '"></div>' +
       '<div class="field"><label for="te-nota">Nota (opcional)</label><input class="dt" id="te-nota" autocomplete="off" value="' + esc(x.nota || '') + '"></div></div>' +
       '<div class="chips"><button class="primary" data-act="tes-ed-save" data-id="' + x.id + '" style="padding:10px 18px">Guardar</button><button class="chip" data-act="tes-ed-no">Cancelar</button></div><p class="small" id="g-msg-ted" role="status"></p></div>';
@@ -6688,7 +6689,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) { gMsg('g-msg-ted', 'Escolhe a data do teste.', true); return; }
     if (peso != null && !(peso > 0 && peso < 300)) { gMsg('g-msg-ted', 'Peso inválido.', true); return; }
     gMsg('g-msg-ted', 'A guardar…');
-    var body = { data: data, nome: nome, valor: val, unidade: un, peso_kg: peso, nota: $('#te-nota').value.trim() || null };
+    var body = { data: data, nome: nome, valor: val, unidade: un, peso_kg: peso, nota: $('#te-nota').value.trim() || null, categoria: $('#te-cat').value || null };
     tReq('/rest/v1/testes?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: body, headers: { Prefer: 'return=minimal' } })
       .then(function () { G.tesEd = null; return gTesRefresh(); })
       .catch(function (e) { gMsg('g-msg-ted', gFail(e), true); });
@@ -6822,7 +6823,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
         '<label class="gn">PSE alvo (0 a 10)<input inputmode="decimal" data-f="pse" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.pse || '') + '"></label>' +
         (((o.it.mreg || reg) === 'vbt' || o.it.vel) ? '<label class="gn">Velocidade alvo (m/s)<input inputmode="decimal" data-f="vel" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.vel || '') + '"></label>' : '') +
-        ((o.it.mreg || reg) === 'vbt' ? '<label class="gn gteste"><input type="checkbox" data-f="teste" data-d="' + i + '" data-k="' + o.k + '"' + (o.it.teste ? ' checked' : '') + '> Teste: fica em “Os meus testes” (um teste por carga)</label>' : '') +
+        ((o.it.mreg || reg) === 'vbt' ? '<label class="gn gteste"><input type="checkbox" data-f="teste" data-d="' + i + '" data-k="' + o.k + '"' + (o.it.teste ? ' checked' : '') + '> Teste</label>' : '') +
         '<button class="chip" data-act="pv" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + (!!o.it.pv) + '">Pedir vídeo</button>' +
         (pos > 0 && !emom ? '<button class="chip" data-act="lig" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + lig + '">Com o anterior</button>' : '') +
         '<label class="gn">O que o atleta regista<select data-f="mreg" data-d="' + i + '" data-k="' + o.k + '"><option value=""' + (!o.it.mreg ? ' selected' : '') + '>Por defeito (' + esc(gRegLabel(reg)) + ')</option>' +

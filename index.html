@@ -6982,7 +6982,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
         '<label class="gn">PSE alvo (0 a 10)<input inputmode="decimal" data-f="pse" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.pse || '') + '"></label>' +
         (((o.it.mreg || reg) === 'vbt' || o.it.vel) ? '<label class="gn">Velocidade alvo (m/s)<input inputmode="decimal" data-f="vel" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.vel || '') + '"></label>' : '') +
-        ((o.it.mreg || reg) === 'vbt' ? '<label class="gn gteste"><input type="checkbox" data-f="teste" data-d="' + i + '" data-k="' + o.k + '"' + (o.it.teste ? ' checked' : '') + '> Teste: fica em “Os meus testes” (um teste por carga)</label>' : '') +
+        ((o.it.mreg || reg) === 'vbt' ? '<label class="gn gteste"><input type="checkbox" data-f="teste" data-d="' + i + '" data-k="' + o.k + '"' + (o.it.teste ? ' checked' : '') + '> Teste</label>' : '') +
         '<button class="chip" data-act="pv" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + (!!o.it.pv) + '">Pedir vídeo</button>' +
         (pos > 0 && !emom ? '<button class="chip" data-act="lig" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + lig + '">Com o anterior</button>' : '') +
         '<label class="gn">O que o atleta regista<select data-f="mreg" data-d="' + i + '" data-k="' + o.k + '"><option value=""' + (!o.it.mreg ? ' selected' : '') + '>Por defeito (' + esc(gRegLabel(reg)) + ')</option>' +
