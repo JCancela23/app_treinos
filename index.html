@@ -2520,8 +2520,8 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       if (uni && !ald && reps && !/lado|perna|side|leg/i.test(pres)) pres += ' / side';
     }
     if (ald && reps && !/altern/i.test(pres)) pres += ' alternadas';
-    if (T === 'bj' && /^\s*(broad jump|med ball throw)\s*$/i.test(it.nome || '')) pres = 'TESTE · ' + pres;
-    if (it.teste && (it.registo_item || '') === 'vbt') pres = 'TESTE · carga fixa · ' + pres;
+    if (it.teste && T === 'bj') pres = 'TESTE · ' + pres;
+    else if (it.teste && (it.registo_item || '') === 'vbt') pres = 'TESTE · carga fixa · ' + pres;
     var mr = /^\s*(\d{1,3})\s*(\/?\s*(lado|perna|side|leg)\w*)?\s*$/i.exec(reps);
     return {
       pr: mr ? +mr[1] : undefined,
@@ -5753,7 +5753,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   var G = { atl: [], ex: [], tab: 'plano', sel: {}, semana: '', plan: null, edit: null, exEdit: null, exQ: '', srcAtl: '', srcSem: '' };
   var GBL = [['aquecimento', 'Warm-up'], ['preparacao', 'Preparation'], ['principal', 'Main'], ['acessorio', 'Accessory']];
   var GPAD = [['', 'Sem padrão'], ['squat', 'Squat'], ['hinge', 'Hip hinge'], ['push', 'Push'], ['pull', 'Pull'], ['plyo', 'Plyo'], ['throws', 'Throws (lançamentos)'], ['olympic', 'Olympic weightlifting'], ['handstand', 'Handstand'], ['locomocao', 'Locomoção'], ['core:ext', 'Core extensão'], ['core:flex', 'Core flexão'], ['core:lat', 'Core flexão lateral'], ['core:rot', 'Core rotação'], ['core:aext', 'Core anti-extensão'], ['core:aflex', 'Core anti-flexão'], ['core:alat', 'Core anti-flexão lateral'], ['core:arot', 'Core anti-rotação']];
-  var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'Carga + VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Distância (cm) · Broad jump / Med ball throw'], ['feito', 'Só "feito"']];
+  var GREG = [['carga', 'Carga (kg e reps)'], ['vbt', 'Carga + VBT (kg e m/s)'], ['reps', 'Só repetições'], ['tempo', 'Tempo (segundos)'], ['cmj', 'CMJ (cm)'], ['bj', 'Distância (cm) · Broad jump'], ['feito', 'Só "feito"']];
   var DIASL = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
   function gNewPlan() { var d = []; for (var i = 0; i < 7; i++) d.push({ tipo: 'none', nome: '', itens: [], circ: {} }); return d; }
@@ -6982,7 +6982,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
         '<label class="gn">PSE alvo (0 a 10)<input inputmode="decimal" data-f="pse" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.pse || '') + '"></label>' +
         (((o.it.mreg || reg) === 'vbt' || o.it.vel) ? '<label class="gn">Velocidade alvo (m/s)<input inputmode="decimal" data-f="vel" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.vel || '') + '"></label>' : '') +
-        ((o.it.mreg || reg) === 'vbt' ? '<label class="gn gteste"><input type="checkbox" data-f="teste" data-d="' + i + '" data-k="' + o.k + '"' + (o.it.teste ? ' checked' : '') + '> Teste</label>' : '') +
+        (((o.it.mreg || reg) === 'vbt' || (o.it.mreg || reg) === 'bj') ? '<label class="gn gteste"><input type="checkbox" data-f="teste" data-d="' + i + '" data-k="' + o.k + '"' + (o.it.teste ? ' checked' : '') + '> Teste</label>' : '') +
         '<button class="chip" data-act="pv" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + (!!o.it.pv) + '">Pedir vídeo</button>' +
         (pos > 0 && !emom ? '<button class="chip" data-act="lig" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + lig + '">Com o anterior</button>' : '') +
         '<label class="gn">O que o atleta regista<select data-f="mreg" data-d="' + i + '" data-k="' + o.k + '"><option value=""' + (!o.it.mreg ? ' selected' : '') + '>Por defeito (' + esc(gRegLabel(reg)) + ')</option>' +
