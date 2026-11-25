@@ -679,6 +679,8 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         <button class="chip" id="walterar">Alterar</button>
       </div>
 
+      <div id="wh-box"></div>
+
       <div class="wrap" style="padding:0" id="after" hidden>
         <p class="note" id="pend-box" role="alert" hidden></p>
         <p class="small" id="sess-help" hidden>Escolhe o treino que vais fazer. A data em que treinas fica registada automaticamente.</p>
@@ -1325,6 +1327,45 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   $('#walterar').addEventListener('click', function () {
     wellDone = false;
     applyGate();
+  });
+
+  /* ---------- wellness de dias anteriores (últimos 7 dias): preencher o que faltou ou corrigir ---------- */
+  var WHALL = {}, WHOPEN = null, WHV = [null, null, null, null], WHMSG = '';
+  function whTot(w) { return (w.sono || 0) + (w.fadiga || 0) + (w.dor || 0) + (w.stress || 0); }
+  function whRender() {
+    var b = $('#wh-box'); if (!b) return;
+    if (!sess || !HOJE) { b.innerHTML = ''; return; }
+    var ab = $('#wh-det') && $('#wh-det').open, rows = '', falta = 0, d, i;
+    for (i = 1; i <= 7; i++) {
+      d = isoAdd(HOJE, -i); var w = WHALL[d];
+      if (!w) falta++;
+      rows += '<div class="row2"><span class="small">' + fmtL(d) + '</span><b>' + (w ? 'índice ' + whTot(w) + ' · ' + estado(whTot(w)).t : '<span class="small">em falta</span>') + ' <button type="button" class="chip" data-wh-open="' + d + '">' + (w ? 'Editar' : 'Preencher') + '</button></b></div>';
+      if (WHOPEN === d) {
+        rows += '<div class="gbox" style="display:grid;gap:12px">' + HOOPER.map(function (h, k) {
+          return '<div class="hrow"><div class="lab">' + h.k + '<span>' + h.d + '</span></div><div class="scale">' + [1, 2, 3, 4, 5].map(function (n) { return '<button type="button" data-wh-h="' + k + '" data-wh-v="' + n + '" aria-pressed="' + (WHV[k] === n) + '" aria-label="' + h.k + ' ' + n + ', ' + HLAB[n] + '">' + n + '</button>'; }).join('') + '</div><div class="ends"><span>1 · Ótimo</span><span>5 · Muito mau</span></div></div>';
+        }).join('') + '<div class="chips"><button type="button" class="chip" data-wh-save="1"' + (WHV.indexOf(null) >= 0 ? ' disabled' : '') + '>Guardar ' + fmtD(d) + '</button><button type="button" class="chip" data-wh-cancel="1">Cancelar</button></div></div>';
+      }
+    }
+    b.innerHTML = '<details id="wh-det"' + (ab || WHOPEN ? ' open' : '') + '><summary><b>Wellness de dias anteriores</b> <span class="small">' + (falta ? falta + (falta === 1 ? ' dia em falta' : ' dias em falta') + ' nos últimos 7' : 'tudo preenchido nos últimos 7 dias') + '</span></summary><p class="small">Esqueceste-te de um dia? Preenche aqui, até 7 dias para trás. Também podes corrigir um dia já preenchido.</p>' + rows + '<p class="small" id="wh-msg" role="status">' + esc(WHMSG) + '</p></details>';
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var o = t.closest('[data-wh-open]');
+    if (o) { var d = o.getAttribute('data-wh-open'), w = WHALL[d]; WHOPEN = WHOPEN === d ? null : d; WHV = w ? [w.sono, w.stress, w.fadiga, w.dor] : [null, null, null, null]; WHMSG = ''; whRender(); return; }
+    var h = t.closest('[data-wh-h]');
+    if (h) { WHV[+h.getAttribute('data-wh-h')] = +h.getAttribute('data-wh-v'); whRender(); return; }
+    if (t.closest('[data-wh-cancel]')) { WHOPEN = null; whRender(); return; }
+    if (t.closest('[data-wh-save]') && sess && WHOPEN && WHV.indexOf(null) < 0) {
+      var dia = WHOPEN, v = WHV.slice(), btn = t.closest('[data-wh-save]'); btn.disabled = true;
+      rpc('atleta_wellness', { p_atleta: sess.id, p_pin: sess.pin, p_data: dia, p_sono: v[0], p_fadiga: v[2], p_dor: v[3], p_stress: v[1] }).then(function (r) {
+        if (r && r.ok) {
+          WHALL[dia] = { data: dia, sono: v[0], stress: v[1], fadiga: v[2], dor: v[3] }; WHOPEN = null; WHMSG = 'Wellness de ' + fmtD(dia) + ' guardado.';
+          var arr = Object.keys(WHALL).map(function (k) { return WHALL[k]; }); if (wellDone) arr.push({ data: HOJE, sono: well[0], stress: well[1], fadiga: well[2], dor: well[3] });
+          liveWellScan(arr); whRender(); return;
+        }
+        WHMSG = r && r.erro === 'data' ? 'Só podes preencher os últimos 7 dias.' : r && r.erro === 'pin' ? 'O PIN deixou de ser válido. Sai e entra outra vez.' : 'Não foi possível guardar.'; whRender();
+      }).catch(function (er) { WHMSG = netErr(er); whRender(); });
+    }
   });
 
   /* ---------- atleta: treino ---------- */
@@ -2806,6 +2847,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       });
     });
     liveWellScan(r.wellness);
+    WHALL = {}; (r.wellness || []).forEach(function (x) { WHALL[x.data] = x; }); WHOPEN = null; WHMSG = ''; whRender();
     notasLoad();
     var w = (r.wellness || []).filter(function (x) { return x.data === HOJE; })[0];
     if (w) { well = [w.sono, w.stress, w.fadiga, w.dor]; wellDone = true; } else { well = [null, null, null, null]; wellDone = false; }
@@ -3519,6 +3561,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     $('#entrada').hidden = false;
     renderEntrada();
     resetWellness();
+    WHALL = {}; WHOPEN = null; whRender();
   }
   function liveSaveWellness() {
     if (hooperTotal() == null || !sess) return;
