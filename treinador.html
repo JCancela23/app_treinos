@@ -270,7 +270,7 @@ details > .frow, details > div { margin-top: 10px; }
   #print-root .ra > .natw { break-inside: auto; } #print-root table.nat { break-inside: auto; } #print-root table.nat tr { break-inside: avoid; }
 }
 .rs td.c { padding: 3px 3px; line-height: 1.15; } .rs td.c b { display: block; font-size: .85rem; } .rs td.c i { display: block; font-style: normal; font-size: .68rem; color: var(--muted); }
-.rt.rs { font-size: .74rem; } .rt.rs th { padding: 5px 2px; } .rt.rs td:first-child { white-space: nowrap; padding-right: 6px; } .rt.rs td.c, .rt.rs td.fut, .rt.rs td.tot { padding: 3px 2px; } .rs th, .rs td { text-align: center; } .rs th:first-child, .rs td:first-child { text-align: left; } .rs .w-g { background: var(--accent-soft); } .rs .w-a { background: var(--warn-soft); } .rs .w-r { background: var(--crit-soft); color: var(--crit); }
+.rt.rs { font-size: .74rem; } .rt.rs th { padding: 5px 2px; } .rt.rs td:first-child { white-space: nowrap; padding-right: 6px; } .rt.rs td.c, .rt.rs td.fut, .rt.rs td.tot { padding: 3px 2px; } .rs th, .rs td { text-align: center; } .rs th:first-child, .rs td:first-child { text-align: left; } .rs td.c b { display: inline-block; min-width: 26px; padding: 1px 6px; border-radius: 10px; } .rs b.w-g { background: var(--accent-soft); } .rs b.w-a { background: var(--warn-soft); } .rs b.w-r { background: var(--crit); color: #fff; } .rs td.alr { background: var(--crit-soft); box-shadow: inset 3px 0 0 var(--crit); } .rs td.c i.pr { color: var(--crit); font-weight: 700; }
 .rs .tot { font-weight: 700; } .rs .fut { color: var(--axis); } .rs-al { border-left: 4px solid var(--crit); background: var(--crit-soft); border-radius: 6px; padding: 8px 12px; font-size: .85rem; display: grid; gap: 3px; }
 @media print { #print-root .rs-al, #print-root .rs tr { break-inside: avoid; } }
 .checks { display: grid; gap: 8px; }
@@ -2440,8 +2440,8 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     if (!idx.length) { out.innerHTML = '<p class="note">Escolhe pelo menos um atleta.</p>'; $('#rep-actions').hidden = true; return; }
     var m = +$('#rs-sem').value, nd = Math.min(7, TODAY_I - m + 1), d, h = '', rows = '', alerts = [], txt = [];
     var mods = []; idx.forEach(function (k) { if (mods.indexOf(ATLETAS[k].m) < 0) mods.push(ATLETAS[k].m); });
-    var gw = [], gu = [], gaw = [], gua = 0;
-    for (d = 0; d < 7; d++) { gw.push([]); gu.push(0); }
+    var gw = [], gu = [], gm = [], gaw = [], gua = 0, gmn = 0;
+    for (d = 0; d < 7; d++) { gw.push([]); gu.push(0); gm.push(0); }
     idx.forEach(function (k) {
       var a = ATLETAS[k], cur = rsSemana(a, m, nd), prev = m - 7 >= 0 ? rsSemana(a, m - 7, nd) : null, al = [], run = 0, best = 0;
       cur.dias.forEach(function (x) { if (x.w != null && x.w >= 13) { run++; best = Math.max(best, run); } else run = 0; });
@@ -2457,22 +2457,23 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         var x = cur.dias[d];
         if (x.w == null && !x.ua) { r += '<td class="fut">–</td>'; continue; }
         if (x.w != null) { gw[d].push(x.w); gaw.push(x.w); }
-        gu[d] += x.ua; gua += x.ua;
-        r += '<td class="c ' + rsWc(x.w) + '"><b>' + (x.w == null ? '–' : x.w) + '</b><i>' + (x.ua ? fmtN(x.ua) : '–') + '</i></td>';
+        gu[d] += x.ua; gua += x.ua; gm[d] += x.min; gmn += x.min;
+        var xp = x.min ? x.ua / x.min : null;
+        r += '<td class="c' + ((x.w != null && x.w >= 13) || (xp != null && xp >= 8) ? ' alr' : '') + '"><b class="' + rsWc(x.w) + '">' + (x.w == null ? '–' : x.w) + '</b><i class="' + (xp != null && xp >= 8 ? 'pr' : '') + '">' + (xp != null ? 'PSE ' + num(xp) : 'PSE –') + '</i><i>' + (x.ua ? fmtN(x.ua) + ' UA' : '– UA') + '</i></td>';
       }
-      r += '<td class="c tot ' + rsWc(cur.wm) + '"><b>' + (cur.wm == null ? '–' : num(cur.wm)) + '</b><i>' + (cur.ua ? fmtN(cur.ua) : '–') + '</i></td><td class="tot">' + (cur.pse == null ? '–' : num(cur.pse)) + '</td></tr>';
+      r += '<td class="c tot' + ((cur.wm != null && cur.wm >= 13) || (cur.pse != null && cur.pse >= 8) ? ' alr' : '') + '"><b class="' + rsWc(cur.wm) + '">' + (cur.wm == null ? '–' : num(cur.wm)) + '</b><i class="' + (cur.pse != null && cur.pse >= 8 ? 'pr' : '') + '">PSE ' + (cur.pse == null ? '–' : num(cur.pse)) + '</i><i>' + (cur.ua ? fmtN(cur.ua) : '–') + ' UA</i></td></tr>';
       rows += r;
       txt.push(a.n + ': wellness médio ' + (cur.wm == null ? '–' : num(cur.wm)) + ' | PSE média ' + (cur.pse == null ? '–' : num(cur.pse)) + ' | ' + fmtN(cur.ua) + ' UA | dias: ' + cur.dias.map(function (x, j) { return RSD[j] + ' ' + (x.w == null ? '–' : x.w) + '/' + (x.ua || '–'); }).join(', ') + (al.length ? ' ⚠ ' + al.join('; ') : ''));
     });
     var avg = function (v) { return v.length ? num(v.reduce(function (p, q) { return p + q; }, 0) / v.length) : '–'; };
     var grp = '<tr class="avg"><td>Grupo</td>';
-    for (d = 0; d < 7; d++) grp += d >= nd ? '<td class="fut">·</td>' : '<td class="c"><b>' + avg(gw[d]) + '</b><i>' + (gu[d] ? fmtN(gu[d]) : '–') + '</i></td>';
-    grp += '<td class="c"><b>' + avg(gaw) + '</b><i>' + fmtN(gua) + '</i></td><td></td></tr>';
-    var cab = '<th>Atleta</th>'; for (d = 0; d < 7; d++) cab += '<th>' + RSD[d] + ' ' + new Date(START + (m + d) * DAY).getUTCDate() + '</th>'; cab += '<th>Semana</th><th>PSE<br>média</th>';
+    for (d = 0; d < 7; d++) grp += d >= nd ? '<td class="fut">·</td>' : '<td class="c"><b>' + avg(gw[d]) + '</b><i>PSE ' + (gm[d] ? num(gu[d] / gm[d]) : '–') + '</i><i>' + (gu[d] ? fmtN(gu[d]) : '–') + ' UA</i></td>';
+    grp += '<td class="c"><b>' + avg(gaw) + '</b><i>PSE ' + (gmn ? num(gua / gmn) : '–') + '</i><i>' + fmtN(gua) + ' UA</i></td></tr>';
+    var cab = '<th>Atleta</th>'; for (d = 0; d < 7; d++) cab += '<th>' + RSD[d] + ' ' + new Date(START + (m + d) * DAY).getUTCDate() + '</th>'; cab += '<th>Semana</th>';
     var tit = fmtDate(m) + ' a ' + fmtDate(m + 6);
     out.innerHTML = '<article class="paper rs"><header><p class="kicker">1% · Relatório semanal</p><h2>' + esc(mods.join(' · ')) + ' · semana ' + tit + '</h2><p class="small">' + idx.length + (idx.length === 1 ? ' atleta' : ' atletas') + (LIVE ? '' : ' · dados de exemplo') + '</p></header>' +
       '<div class="scroll"><table class="rt rs"><thead><tr>' + cab + '</tr></thead><tbody>' + rows + grp + '</tbody></table></div>' +
-      '<p class="small">Cada dia: wellness (cor) por cima e carga em UA por baixo. Semana: wellness médio e UA total. Wellness (4 a 20, menor é melhor): verde abaixo de 10, âmbar de 10 a 12,9, vermelho a partir de 13. PSE média ponderada pelos minutos; manhã e tarde somadas. "–" = sem registo.</p></article>';
+      '<p class="small">Cada dia: wellness (etiqueta com cor), PSE do dia e carga em UA. Semana: wellness médio, PSE média e UA total. Wellness (4 a 20, menor é melhor): verde abaixo de 10, âmbar de 10 a 12,9, vermelho a partir de 13. Célula marcada a vermelho: wellness a partir de 13 e/ou PSE a partir de 8. PSE média ponderada pelos minutos; manhã e tarde somadas. "–" = sem registo.</p></article>';
     lastText = 'Relatório semanal · ' + tit + '\n' + txt.join('\n');
     $('#rep-actions').hidden = false; $('#rep-msg').textContent = ''; $('#rep-text').hidden = true;
   }
