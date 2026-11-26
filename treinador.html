@@ -1005,10 +1005,10 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       <p class="small">Usa o período escolhido em "Evolução da época". Escolhe os atletas a incluir.</p>
       <div class="tags" id="rep-mods" style="gap:8px"></div>
       <div class="checks" id="rep-list"></div>
-      <p class="kicker">Resumo simples (1 página)</p>
+      <p class="kicker">Relatório semanal (1 página)</p>
       <p class="small">Wellness, PSE e carga (UA) por dia da semana, uma linha por atleta, com os alertas no topo.</p>
-      <select id="rs-sem" aria-label="Semana do resumo simples"></select>
-      <button class="primary" id="rs-go">Gerar resumo simples</button>
+      <select id="rs-sem" aria-label="Semana do relatório semanal"></select>
+      <button class="primary" id="rs-go">Gerar relatório semanal</button>
       <p class="kicker">O que mostrar no relatório completo</p>
       <div class="tags" style="gap:8px"><button type="button" class="chip" id="rep-ptodos">Tudo</button><button type="button" class="chip" id="rep-pnenhum">Nada</button></div>
       <div class="checks" id="rep-par"></div>
@@ -2412,7 +2412,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     $('#rep-text').hidden = true;
   }
 
-  /* ---------- resumo simples: wellness, PSE e UA por dia da semana ---------- */
+  /* ---------- relatório semanal: wellness, PSE e UA por dia da semana ---------- */
   var repModo = 'full', RSD = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   function rsSemInit() {
     var m0 = TODAY_I - dow(TODAY_I), h = '', k;
@@ -2470,11 +2470,11 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     grp += '<td class="c"><b>' + avg(gaw) + '</b><i>' + fmtN(gua) + '</i></td><td></td></tr>';
     var cab = '<th>Atleta</th>'; for (d = 0; d < 7; d++) cab += '<th>' + RSD[d] + ' ' + new Date(START + (m + d) * DAY).getUTCDate() + '</th>'; cab += '<th>Semana</th><th>PSE<br>média</th>';
     var tit = fmtDate(m) + ' a ' + fmtDate(m + 6);
-    out.innerHTML = '<article class="paper rs"><header><p class="kicker">1% · Relatório do treinador</p><h2>' + esc(mods.join(' · ')) + ' · semana ' + tit + '</h2><p class="small">' + idx.length + (idx.length === 1 ? ' atleta' : ' atletas') + (LIVE ? '' : ' · dados de exemplo') + '</p></header>' +
+    out.innerHTML = '<article class="paper rs"><header><p class="kicker">1% · Relatório semanal</p><h2>' + esc(mods.join(' · ')) + ' · semana ' + tit + '</h2><p class="small">' + idx.length + (idx.length === 1 ? ' atleta' : ' atletas') + (LIVE ? '' : ' · dados de exemplo') + '</p></header>' +
       (alerts.length ? '<div class="rs-al"><b>Atenção (' + alerts.length + ')</b>' + alerts.map(function (t) { return '<span>' + t + '</span>'; }).join('') + '</div>' : '<p class="small">Sem alertas esta semana.</p>') +
       '<div class="scroll"><table class="rt rs"><thead><tr>' + cab + '</tr></thead><tbody>' + rows + grp + '</tbody></table></div>' +
       '<p class="small">Cada dia: wellness (cor) por cima e carga em UA por baixo. Semana: wellness médio e UA total. Wellness (4 a 20, menor é melhor): verde abaixo de 10, âmbar de 10 a 12,9, vermelho a partir de 13. PSE média ponderada pelos minutos; manhã e tarde somadas. "–" = sem registo.</p></article>';
-    lastText = 'Resumo ' + tit + '\n' + (alerts.length ? 'Atenção: ' + alerts.map(function (t) { return t.replace(/&amp;/g, '&'); }).join(' | ') + '\n' : '') + txt.join('\n');
+    lastText = 'Relatório semanal · ' + tit + '\n' + (alerts.length ? 'Atenção: ' + alerts.map(function (t) { return t.replace(/&amp;/g, '&'); }).join(' | ') + '\n' : '') + txt.join('\n');
     $('#rep-actions').hidden = false; $('#rep-msg').textContent = ''; $('#rep-text').hidden = true;
   }
   $('#rs-go').addEventListener('click', renderSimples);
