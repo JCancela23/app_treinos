@@ -269,6 +269,10 @@ details > .frow, details > div { margin-top: 10px; }
   #print-root .nd { break-inside: avoid; } #print-root .nd-res { break-before: page; }
   #print-root .ra > .natw { break-inside: auto; } #print-root table.nat { break-inside: auto; } #print-root table.nat tr { break-inside: avoid; }
 }
+.rs td.c { padding: 3px 3px; line-height: 1.15; } .rs td.c b { display: block; font-size: .85rem; } .rs td.c i { display: block; font-style: normal; font-size: .68rem; color: var(--muted); }
+.rt.rs { font-size: .74rem; } .rt.rs th { padding: 5px 2px; } .rt.rs td:first-child { white-space: nowrap; padding-right: 6px; } .rt.rs td.c, .rt.rs td.fut, .rt.rs td.tot { padding: 3px 2px; } .rs th, .rs td { text-align: center; } .rs th:first-child, .rs td:first-child { text-align: left; } .rs .w-g { background: var(--accent-soft); } .rs .w-a { background: var(--warn-soft); } .rs .w-r { background: var(--crit-soft); color: var(--crit); }
+.rs .tot { font-weight: 700; } .rs .fut { color: var(--axis); } .rs-al { border-left: 4px solid var(--crit); background: var(--crit-soft); border-radius: 6px; padding: 8px 12px; font-size: .85rem; display: grid; gap: 3px; }
+@media print { #print-root .rs-al, #print-root .rs tr { break-inside: avoid; } }
 .checks { display: grid; gap: 8px; }
 .paper { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 18px; min-width: 0; }
 .ra { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
@@ -1001,11 +1005,15 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       <p class="small">Usa o período escolhido em "Evolução da época". Escolhe os atletas a incluir.</p>
       <div class="tags" id="rep-mods" style="gap:8px"></div>
       <div class="checks" id="rep-list"></div>
-      <p class="kicker">O que mostrar no relatório</p>
+      <p class="kicker">Resumo simples (1 página)</p>
+      <p class="small">Wellness, PSE e carga (UA) por dia da semana, uma linha por atleta, com os alertas no topo.</p>
+      <select id="rs-sem" aria-label="Semana do resumo simples"></select>
+      <button class="primary" id="rs-go">Gerar resumo simples</button>
+      <p class="kicker">O que mostrar no relatório completo</p>
       <div class="tags" style="gap:8px"><button type="button" class="chip" id="rep-ptodos">Tudo</button><button type="button" class="chip" id="rep-pnenhum">Nada</button></div>
       <div class="checks" id="rep-par"></div>
       <label class="check"><input type="checkbox" id="rep-motivos">Incluir os motivos das faltas (por exemplo, lesão ou dor)</label>
-      <button class="primary" id="rep-go">Gerar relatório</button>
+      <button class="primary" id="rep-go">Gerar relatório completo</button>
       <div id="rep-out" hidden></div>
       <div id="rep-actions" hidden style="display:grid;gap:8px">
         <button class="primary" id="rep-pdf">Descarregar PDF</button>
@@ -2175,7 +2183,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       if (FMOD && a.m !== FMOD) return '';
       return '<label class="check"><input type="checkbox" data-ra="' + i + '"' + (a.g === 'atleta' ? ' checked' : '') + '>' + esc(a.n) + ' · ' + esc(a.m) + '</label>';
     }).join('');
-    repMods(); repParInit();
+    repMods(); repParInit(); if (typeof rsSemInit === 'function') rsSemInit();
   }
   /* parâmetros a mostrar no relatório (guardados neste dispositivo) */
   var REP_PAR = [['ass', 'Assiduidade (presença e faltas)'], ['well', 'Wellness'], ['pse', 'PSE'], ['carga', 'Carga (UA)'], ['ton', 'Tonelagem (e por padrão)'], ['ex', 'Cargas por exercício'], ['core', 'Core'], ['acwr', 'ACWR'], ['nat', 'Natação: sessões por dia (manhã/tarde)'], ['aval', 'Avaliações (CMJ, broad jump, VBT)'], ['notas', 'Notas do atleta'], ['acess', 'Acessos à app (dias com entrada)'], ['sem', 'Semana a semana'], ['dia', 'Última semana, dia a dia']];
@@ -2310,6 +2318,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     return L.length ? L.length + (L.length === 1 ? ' dia' : ' dias') + ' · últ. ' + L[0].dia.slice(8, 10) + '/' + L[0].dia.slice(5, 7) : 'sem entradas';
   }
   function renderReport() {
+    if (repModo === 'simples') return renderSimples();
     var idx = [];
     document.querySelectorAll('#rep-list input').forEach(function (c) { if (c.checked) idx.push(+c.getAttribute('data-ra')); });
     var out = $('#rep-out');
@@ -2402,7 +2411,75 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     $('#rep-msg').textContent = '';
     $('#rep-text').hidden = true;
   }
-  $('#rep-go').addEventListener('click', function () { ACRK = ''; renderReport(); });
+
+  /* ---------- resumo simples: wellness, PSE e UA por dia da semana ---------- */
+  var repModo = 'full', RSD = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  function rsSemInit() {
+    var m0 = TODAY_I - dow(TODAY_I), h = '', k;
+    for (k = 0; k < 10 && m0 - 7 * k >= 0; k++) h += '<option value="' + (m0 - 7 * k) + '">' + (k === 0 ? 'Esta semana' : k === 1 ? 'Semana passada' : 'Semana de') + ' · ' + fmtDate(m0 - 7 * k) + ' a ' + fmtDate(m0 - 7 * k + 6) + '</option>';
+    $('#rs-sem').innerHTML = h;
+  }
+  function rsWc(w) { return w == null ? '' : w < 10 ? 'w-g' : w < 13 ? 'w-a' : 'w-r'; }
+  function rsDia(a, i) {
+    var r = a.rec[i]; if (!r) return { w: null, ua: 0, min: 0, n: 0 };
+    var ua = 0, mn = 0; r.ses.forEach(function (x) { ua += x.ua; mn += x.min; });
+    return { w: r.w ? sum(r.w) : null, ua: ua, min: mn, n: r.ses.length };
+  }
+  function rsSemana(a, m, nd) {
+    var o = { w: [], ua: 0, min: 0, falt: 0, dias: [] }, d, i;
+    for (d = 0; d < nd; d++) { i = m + d; var x = rsDia(a, i); o.dias.push(x); if (x.w != null) o.w.push(x.w); else o.falt++; o.ua += x.ua; o.min += x.min; }
+    o.wm = o.w.length ? o.w.reduce(function (p, q) { return p + q; }, 0) / o.w.length : null;
+    o.pse = o.min ? o.ua / o.min : null;
+    return o;
+  }
+  function renderSimples() {
+    repModo = 'simples';
+    var idx = [], out = $('#rep-out');
+    document.querySelectorAll('#rep-list input').forEach(function (c) { if (c.checked) idx.push(+c.getAttribute('data-ra')); });
+    out.hidden = false;
+    if (!idx.length) { out.innerHTML = '<p class="note">Escolhe pelo menos um atleta.</p>'; $('#rep-actions').hidden = true; return; }
+    var m = +$('#rs-sem').value, nd = Math.min(7, TODAY_I - m + 1), d, h = '', rows = '', alerts = [], txt = [];
+    var mods = []; idx.forEach(function (k) { if (mods.indexOf(ATLETAS[k].m) < 0) mods.push(ATLETAS[k].m); });
+    var gw = [], gu = [], gaw = [], gua = 0;
+    for (d = 0; d < 7; d++) { gw.push([]); gu.push(0); }
+    idx.forEach(function (k) {
+      var a = ATLETAS[k], cur = rsSemana(a, m, nd), prev = m - 7 >= 0 ? rsSemana(a, m - 7, nd) : null, al = [], run = 0, best = 0;
+      cur.dias.forEach(function (x) { if (x.w != null && x.w >= 13) { run++; best = Math.max(best, run); } else run = 0; });
+      if (best >= 3) al.push('wellness em vermelho ' + best + ' dias seguidos');
+      else if (cur.wm != null && cur.wm >= 13) al.push('wellness médio em vermelho (' + num(cur.wm) + ')');
+      if (nd >= 3 && cur.falt > nd / 2) al.push('wellness por preencher em ' + cur.falt + ' de ' + nd + ' dias');
+      if (prev && cur.wm != null && prev.wm != null && cur.wm - prev.wm > 2) al.push('wellness a piorar (+' + num(cur.wm - prev.wm) + ')');
+      if (prev && prev.ua > 0 && cur.ua / prev.ua - 1 > 0.4) al.push('carga +' + Math.round((cur.ua / prev.ua - 1) * 100) + '%');
+      if (al.length) { alerts.push(esc(a.n) + ': ' + al.join('; ')); }
+      var r = '<tr><td>' + esc(a.n) + '</td>';
+      for (d = 0; d < 7; d++) {
+        if (d >= nd) { r += '<td class="fut">·</td>'; continue; }
+        var x = cur.dias[d];
+        if (x.w == null && !x.ua) { r += '<td class="fut">–</td>'; continue; }
+        if (x.w != null) { gw[d].push(x.w); gaw.push(x.w); }
+        gu[d] += x.ua; gua += x.ua;
+        r += '<td class="c ' + rsWc(x.w) + '"><b>' + (x.w == null ? '–' : x.w) + '</b><i>' + (x.ua ? fmtN(x.ua) : '–') + '</i></td>';
+      }
+      r += '<td class="c tot ' + rsWc(cur.wm) + '"><b>' + (cur.wm == null ? '–' : num(cur.wm)) + '</b><i>' + (cur.ua ? fmtN(cur.ua) : '–') + '</i></td><td class="tot">' + (cur.pse == null ? '–' : num(cur.pse)) + '</td></tr>';
+      rows += r;
+      txt.push(a.n + ': wellness médio ' + (cur.wm == null ? '–' : num(cur.wm)) + ' | PSE média ' + (cur.pse == null ? '–' : num(cur.pse)) + ' | ' + fmtN(cur.ua) + ' UA | dias: ' + cur.dias.map(function (x, j) { return RSD[j] + ' ' + (x.w == null ? '–' : x.w) + '/' + (x.ua || '–'); }).join(', ') + (al.length ? ' ⚠ ' + al.join('; ') : ''));
+    });
+    var avg = function (v) { return v.length ? num(v.reduce(function (p, q) { return p + q; }, 0) / v.length) : '–'; };
+    var grp = '<tr class="avg"><td>Grupo</td>';
+    for (d = 0; d < 7; d++) grp += d >= nd ? '<td class="fut">·</td>' : '<td class="c"><b>' + avg(gw[d]) + '</b><i>' + (gu[d] ? fmtN(gu[d]) : '–') + '</i></td>';
+    grp += '<td class="c"><b>' + avg(gaw) + '</b><i>' + fmtN(gua) + '</i></td><td></td></tr>';
+    var cab = '<th>Atleta</th>'; for (d = 0; d < 7; d++) cab += '<th>' + RSD[d] + ' ' + new Date(START + (m + d) * DAY).getUTCDate() + '</th>'; cab += '<th>Semana</th><th>PSE<br>média</th>';
+    var tit = fmtDate(m) + ' a ' + fmtDate(m + 6);
+    out.innerHTML = '<article class="paper rs"><header><p class="kicker">1% · Relatório do treinador</p><h2>' + esc(mods.join(' · ')) + ' · semana ' + tit + '</h2><p class="small">' + idx.length + (idx.length === 1 ? ' atleta' : ' atletas') + (LIVE ? '' : ' · dados de exemplo') + '</p></header>' +
+      (alerts.length ? '<div class="rs-al"><b>Atenção (' + alerts.length + ')</b>' + alerts.map(function (t) { return '<span>' + t + '</span>'; }).join('') + '</div>' : '<p class="small">Sem alertas esta semana.</p>') +
+      '<div class="scroll"><table class="rt rs"><thead><tr>' + cab + '</tr></thead><tbody>' + rows + grp + '</tbody></table></div>' +
+      '<p class="small">Cada dia: wellness (cor) por cima e carga em UA por baixo. Semana: wellness médio e UA total. Wellness (4 a 20, menor é melhor): verde abaixo de 10, âmbar de 10 a 12,9, vermelho a partir de 13. PSE média ponderada pelos minutos; manhã e tarde somadas. "–" = sem registo.</p></article>';
+    lastText = 'Resumo ' + tit + '\n' + (alerts.length ? 'Atenção: ' + alerts.map(function (t) { return t.replace(/&amp;/g, '&'); }).join(' | ') + '\n' : '') + txt.join('\n');
+    $('#rep-actions').hidden = false; $('#rep-msg').textContent = ''; $('#rep-text').hidden = true;
+  }
+  $('#rs-go').addEventListener('click', renderSimples);
+  $('#rs-sem').addEventListener('change', function () { if (repModo === 'simples' && !$('#rep-out').hidden) renderSimples(); });
+  $('#rep-go').addEventListener('click', function () { repModo = 'full'; ACRK = ''; renderReport(); });
   $('#rep-motivos').addEventListener('change', function () { if (!$('#rep-out').hidden) renderReport(); });
   $('#rep-list').addEventListener('change', function () { if (!$('#rep-out').hidden) renderReport(); });
   $('#rep-copy').addEventListener('click', function () {
