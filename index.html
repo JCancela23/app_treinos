@@ -3072,11 +3072,42 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     var d = new Date(ts), p = function (n) { return (n < 10 ? '0' : '') + n; };
     return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' · ' + p(d.getHours()) + ':' + p(d.getMinutes());
   }
+  var NT_AT = { percebi: 'Percebi', ainda_doi: 'Ainda dói', passou: 'Já passou', outro: 'Outra coisa' };
+  function ntAtl(x) {
+    var tx = x.atleta_atalho === 'outro' ? (x.atleta_texto || '') : (NT_AT[x.atleta_atalho] || '') + (x.atleta_texto ? ' · ' + x.atleta_texto : '');
+    return tx;
+  }
+  function ntConv(x) {
+    var h = '';
+    (x.historico || []).forEach(function (m) {
+      var eu = m.de === 'a', tx = eu ? (m.atalho === 'outro' ? (m.texto || '') : (NT_AT[m.atalho] || '') + (m.texto ? ' · ' + m.texto : '')) : (m.texto || '');
+      h += '<div class="' + (eu ? 'nmine' : 'nresp lida') + '" style="margin-top:6px"><span class="small">' + (eu ? 'Tu' : 'Treinador') + ' · ' + esc(ntQuando(m.em)) + '</span><br>' + esc(tx).replace(/\n/g, '<br>') + '</div>';
+    });
+    return h;
+  }
   function ntResp(x, comBtn) {
     var nova = !x.lida || NT.novos[x.id];
-    return '<div class="nresp' + (x.lida && !NT.novos[x.id] ? ' lida' : '') + '" data-nresp-id="' + esc(x.id) + '"><b>Resposta do treinador</b>' + (nova ? '<span class="nnova">nova</span>' : '') + (comBtn && x.nota ? '<div class="small" style="margin-top:2px">À tua nota: “' + esc(String(x.nota).length > 90 ? String(x.nota).slice(0, 90) + '…' : x.nota) + '”</div>' : '') +
-      '<div>' + esc(x.resposta).replace(/\n/g, '<br>') + '</div><div class="small">' + esc(ntQuando(x.resposta_em)) + '</div>' +
-      (comBtn && !x.lida ? '<button class="chip" type="button" data-nlida="' + esc(x.id) + '" style="margin-top:6px">Percebi</button>' : '') + '</div>';
+    var h = ntConv(x) + '<div class="nresp' + (x.lida && !NT.novos[x.id] ? ' lida' : '') + '" data-nresp-id="' + esc(x.id) + '"><b>Resposta do treinador</b>' + (nova ? '<span class="nnova">nova</span>' : '') + (comBtn && x.nota ? '<div class="small" style="margin-top:2px">À tua nota: “' + esc(String(x.nota).length > 90 ? String(x.nota).slice(0, 90) + '…' : x.nota) + '”</div>' : '') +
+      '<div>' + esc(x.resposta).replace(/\n/g, '<br>') + '</div><div class="small">' + esc(ntQuando(x.resposta_em)) + '</div>';
+    if (x.pode_responder) {
+      h += '<div class="nrp" data-nrp-box="' + esc(x.id) + '" data-tipo="' + esc(x.tipo) + '" style="margin-top:8px"><div class="small">Podes responder uma vez:</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">' +
+        ['percebi', 'ainda_doi', 'passou', 'outro'].map(function (k) { return '<button class="chip" type="button" data-nrp="' + k + '">' + NT_AT[k] + (k === 'outro' ? '…' : '') + '</button>'; }).join('') +
+        '</div><div class="nrp-txt" hidden style="margin-top:6px"><textarea maxlength="200" rows="2" style="width:100%" placeholder="Escreve a tua resposta (máx. 200 caracteres)"></textarea><button class="chip" type="button" data-nrp-send style="margin-top:4px">Enviar</button></div><div class="small nrp-err" style="color:#b3261e"></div></div>';
+    } else if (x.atleta_atalho && x.atleta_resp_em && x.atleta_resp_em >= x.resposta_em) {
+      h += '<div class="nmine" style="margin-top:8px"><span class="small">A tua resposta · ' + esc(ntQuando(x.atleta_resp_em)) + '</span><br>' + esc(ntAtl(x)).replace(/\n/g, '<br>') + '</div>' +
+        (x.resolvida ? '' : '<div class="small" style="margin-top:4px">À espera do treinador.</div>');
+    }
+    if (x.resolvida) h += '<div class="small" style="margin-top:6px">✔ Conversa resolvida.</div>';
+    return h + '</div>';
+  }
+  function ntEnviar(box, atalho, texto) {
+    var er = box.querySelector('.nrp-err'); er.textContent = '';
+    box.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+    return rpc('atleta_responder_nota', { p_atleta: sess.id, p_pin: sess.pin, p_tipo: box.getAttribute('data-tipo'), p_id: box.getAttribute('data-nrp-box'), p_atalho: atalho, p_texto: texto || null }).then(function (r) {
+      if (r && r.ok) { return notasLoad().then(function () { var p = $('#notas-panel'); if (p && !p.hidden) $('#anotas-body').innerHTML = notasHtml(); }); }
+      box.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+      er.textContent = r && r.erro === 'limite' ? 'Já respondeste a esta mensagem.' : r && r.erro === 'texto' ? 'Escreve a tua resposta.' : 'Não foi possível enviar. Tenta outra vez.';
+    }).catch(function (e) { box.querySelectorAll('button').forEach(function (b) { b.disabled = false; }); er.textContent = netErr(e); });
   }
   function ntBlocoResp(p, bl) {
     var d = (p && p.feito) || HOJE, h = '';
@@ -3133,6 +3164,14 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       if (sess) { ['mac-panel', 'per-panel', 'evo-panel', 'tes-panel', 'nat-panel'].forEach(function (id) { var x = $('#' + id); if (x) x.hidden = true; }); $('#notas-panel').hidden = true; notasAbrir(); setTimeout(pnSync, 60); }
       return;
     }
+    var rb = t.closest('[data-nrp]');
+    if (rb && sess) {
+      var bx = rb.closest('[data-nrp-box]'), k = rb.getAttribute('data-nrp');
+      if (k === 'outro') { bx.querySelector('.nrp-txt').hidden = false; var ta = bx.querySelector('textarea'); if (ta) ta.focus(); } else ntEnviar(bx, k, '');
+      return;
+    }
+    var sb = t.closest('[data-nrp-send]');
+    if (sb && sess) { var bx2 = sb.closest('[data-nrp-box]'); ntEnviar(bx2, 'outro', bx2.querySelector('textarea').value); return; }
     var b = t.closest('[data-nlida]');
     if (b) {
       var id = b.getAttribute('data-nlida'); ntMarcar([id]).then(function () {

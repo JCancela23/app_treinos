@@ -3127,11 +3127,42 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     var d = new Date(ts), p = function (n) { return (n < 10 ? '0' : '') + n; };
     return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' · ' + p(d.getHours()) + ':' + p(d.getMinutes());
   }
+  var NT_AT = { percebi: 'Percebi', ainda_doi: 'Ainda dói', passou: 'Já passou', outro: 'Outra coisa' };
+  function ntAtl(x) {
+    var tx = x.atleta_atalho === 'outro' ? (x.atleta_texto || '') : (NT_AT[x.atleta_atalho] || '') + (x.atleta_texto ? ' · ' + x.atleta_texto : '');
+    return tx;
+  }
+  function ntConv(x) {
+    var h = '';
+    (x.historico || []).forEach(function (m) {
+      var eu = m.de === 'a', tx = eu ? (m.atalho === 'outro' ? (m.texto || '') : (NT_AT[m.atalho] || '') + (m.texto ? ' · ' + m.texto : '')) : (m.texto || '');
+      h += '<div class="' + (eu ? 'nmine' : 'nresp lida') + '" style="margin-top:6px"><span class="small">' + (eu ? 'Tu' : 'Treinador') + ' · ' + esc(ntQuando(m.em)) + '</span><br>' + esc(tx).replace(/\n/g, '<br>') + '</div>';
+    });
+    return h;
+  }
   function ntResp(x, comBtn) {
     var nova = !x.lida || NT.novos[x.id];
-    return '<div class="nresp' + (x.lida && !NT.novos[x.id] ? ' lida' : '') + '" data-nresp-id="' + esc(x.id) + '"><b>Resposta do treinador</b>' + (nova ? '<span class="nnova">nova</span>' : '') + (comBtn && x.nota ? '<div class="small" style="margin-top:2px">À tua nota: “' + esc(String(x.nota).length > 90 ? String(x.nota).slice(0, 90) + '…' : x.nota) + '”</div>' : '') +
-      '<div>' + esc(x.resposta).replace(/\n/g, '<br>') + '</div><div class="small">' + esc(ntQuando(x.resposta_em)) + '</div>' +
-      (comBtn && !x.lida ? '<button class="chip" type="button" data-nlida="' + esc(x.id) + '" style="margin-top:6px">Percebi</button>' : '') + '</div>';
+    var h = ntConv(x) + '<div class="nresp' + (x.lida && !NT.novos[x.id] ? ' lida' : '') + '" data-nresp-id="' + esc(x.id) + '"><b>Resposta do treinador</b>' + (nova ? '<span class="nnova">nova</span>' : '') + (comBtn && x.nota ? '<div class="small" style="margin-top:2px">À tua nota: “' + esc(String(x.nota).length > 90 ? String(x.nota).slice(0, 90) + '…' : x.nota) + '”</div>' : '') +
+      '<div>' + esc(x.resposta).replace(/\n/g, '<br>') + '</div><div class="small">' + esc(ntQuando(x.resposta_em)) + '</div>';
+    if (x.pode_responder) {
+      h += '<div class="nrp" data-nrp-box="' + esc(x.id) + '" data-tipo="' + esc(x.tipo) + '" style="margin-top:8px"><div class="small">Podes responder uma vez:</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">' +
+        ['percebi', 'ainda_doi', 'passou', 'outro'].map(function (k) { return '<button class="chip" type="button" data-nrp="' + k + '">' + NT_AT[k] + (k === 'outro' ? '…' : '') + '</button>'; }).join('') +
+        '</div><div class="nrp-txt" hidden style="margin-top:6px"><textarea maxlength="200" rows="2" style="width:100%" placeholder="Escreve a tua resposta (máx. 200 caracteres)"></textarea><button class="chip" type="button" data-nrp-send style="margin-top:4px">Enviar</button></div><div class="small nrp-err" style="color:#b3261e"></div></div>';
+    } else if (x.atleta_atalho && x.atleta_resp_em && x.atleta_resp_em >= x.resposta_em) {
+      h += '<div class="nmine" style="margin-top:8px"><span class="small">A tua resposta · ' + esc(ntQuando(x.atleta_resp_em)) + '</span><br>' + esc(ntAtl(x)).replace(/\n/g, '<br>') + '</div>' +
+        (x.resolvida ? '' : '<div class="small" style="margin-top:4px">À espera do treinador.</div>');
+    }
+    if (x.resolvida) h += '<div class="small" style="margin-top:6px">✔ Conversa resolvida.</div>';
+    return h + '</div>';
+  }
+  function ntEnviar(box, atalho, texto) {
+    var er = box.querySelector('.nrp-err'); er.textContent = '';
+    box.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+    return rpc('atleta_responder_nota', { p_atleta: sess.id, p_pin: sess.pin, p_tipo: box.getAttribute('data-tipo'), p_id: box.getAttribute('data-nrp-box'), p_atalho: atalho, p_texto: texto || null }).then(function (r) {
+      if (r && r.ok) { return notasLoad().then(function () { var p = $('#notas-panel'); if (p && !p.hidden) $('#anotas-body').innerHTML = notasHtml(); }); }
+      box.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+      er.textContent = r && r.erro === 'limite' ? 'Já respondeste a esta mensagem.' : r && r.erro === 'texto' ? 'Escreve a tua resposta.' : 'Não foi possível enviar. Tenta outra vez.';
+    }).catch(function (e) { box.querySelectorAll('button').forEach(function (b) { b.disabled = false; }); er.textContent = netErr(e); });
   }
   function ntBlocoResp(p, bl) {
     var d = (p && p.feito) || HOJE, h = '';
@@ -3188,6 +3219,14 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       if (sess) { ['mac-panel', 'per-panel', 'evo-panel', 'tes-panel', 'nat-panel'].forEach(function (id) { var x = $('#' + id); if (x) x.hidden = true; }); $('#notas-panel').hidden = true; notasAbrir(); setTimeout(pnSync, 60); }
       return;
     }
+    var rb = t.closest('[data-nrp]');
+    if (rb && sess) {
+      var bx = rb.closest('[data-nrp-box]'), k = rb.getAttribute('data-nrp');
+      if (k === 'outro') { bx.querySelector('.nrp-txt').hidden = false; var ta = bx.querySelector('textarea'); if (ta) ta.focus(); } else ntEnviar(bx, k, '');
+      return;
+    }
+    var sb = t.closest('[data-nrp-send]');
+    if (sb && sess) { var bx2 = sb.closest('[data-nrp-box]'); ntEnviar(bx2, 'outro', bx2.querySelector('textarea').value); return; }
     var b = t.closest('[data-nlida]');
     if (b) {
       var id = b.getAttribute('data-nlida'); ntMarcar([id]).then(function () {
@@ -4821,9 +4860,9 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       tGet('sessoes', 'select=atleta_id,data,pse,minutos&order=data,id'),
       tGet('treinos', 'select=atleta_id,data,tipo&order=data,id'),
       tGet('registos_serie', 'select=atleta_id,data,serie,carga_kg,reps,vbt_ms,tempo_s,cmj_cm,bj_cm,pse_ex,item:treino_itens(reps,registo,exercicios(nome,padrao,lateralidade,core_tipo,registo))&order=data,id'),
-      tGet('notas_bloco', 'select=id,atleta_id,data,bloco,motivo,nota,resposta,resposta_em,resposta_lida&order=data,id').catch(function () { return tGet('notas_bloco', 'select=id,atleta_id,data,bloco,motivo,nota&order=data,id'); }),
+      tGet('notas_bloco', 'select=id,atleta_id,data,bloco,motivo,nota,resposta,resposta_em,resposta_lida,historico,atleta_atalho,atleta_texto,atleta_resp_em,atleta_resp_lida,resolvida&order=data,id').catch(function () { return tGet('notas_bloco', 'select=id,atleta_id,data,bloco,motivo,nota&order=data,id'); }),
       tGet('competicoes', 'select=id,atleta_id,data,nome,local,ref&order=data,id').catch(function () { return tGet('competicoes', 'select=id,atleta_id,data,nome,local&order=data,id'); }),
-      tGet('faltas', 'select=id,atleta_id,data,motivo,nota,resposta,resposta_em,resposta_lida,treino:treinos(data,nome)&order=data,id').catch(function () { return tGet('faltas', 'select=id,atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id'); }).catch(function () { return []; }),
+      tGet('faltas', 'select=id,atleta_id,data,motivo,nota,resposta,resposta_em,resposta_lida,historico,atleta_atalho,atleta_texto,atleta_resp_em,atleta_resp_lida,resolvida,treino:treinos(data,nome)&order=data,id').catch(function () { return tGet('faltas', 'select=id,atleta_id,data,motivo,nota,treino:treinos(data,nome)&order=data,id'); }).catch(function () { return []; }),
       tGet('resultados_bloco', 'select=atleta_id,treino_id,data,bloco,formato,tempo_s,rondas,reps,completo,nota&order=data,id').catch(function () { return []; }),
       tGet('treino_blocos', 'select=treino_id,bloco,formato,nome,rondas,tc_min,duracao_min,intervalo_min,duracao_s,intervalo_s').catch(function () { return []; }),
       tGet('notas_vistas', 'select=tipo,nota_id,hash').catch(function () { return []; }),
@@ -4981,9 +5020,11 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       if (!n.id || (!n.nota && !n.motivo)) return;
       if (atletaId && n.atleta_id !== atletaId) return;
       var at = nom[n.atleta_id]; if (!at || at.ativo === false || (!atletaId && isEu(at))) return;
-      var h = notaHash(mot, n.nota), it = { tipo: tipo, id: n.id, at: n.atleta_id, nome: at.nome, mod: at.grupo === 'pt' ? 'Online training' : (at.modalidade || ''), data: dataX, onde: onde, motivo: mot || '', nota: n.nota || '', hash: h, resposta: n.resposta || '', resp_em: n.resposta_em || null, lida: !!n.resposta_lida };
-      it.novo = NOTV[tipo + '|' + n.id] !== h && dataX >= lim;
-      it.dor = notaDor(it);
+      var h = notaHash(mot, n.nota), it = { tipo: tipo, id: n.id, at: n.atleta_id, nome: at.nome, mod: at.grupo === 'pt' ? 'Online training' : (at.modalidade || ''), data: dataX, onde: onde, motivo: mot || '', nota: n.nota || '', hash: h, resposta: n.resposta || '', resp_em: n.resposta_em || null, lida: !!n.resposta_lida, hist: n.historico || [], a_at: n.atleta_atalho || '', a_tx: n.atleta_texto || '', a_em: n.atleta_resp_em || null, a_lida: n.atleta_resp_lida !== false, resolvida: !!n.resolvida };
+      it.aresp = !!(it.a_at && it.a_em && it.resp_em && it.a_em >= it.resp_em);
+      it.anova = it.aresp && !it.a_lida && !it.resolvida;
+      it.novo = (NOTV[tipo + '|' + n.id] !== h && dataX >= lim) || it.anova;
+      it.dor = notaDor(it) || (it.aresp && it.a_at === 'ainda_doi' && !it.resolvida);
       out.push(it);
     }
     (RAWD.D.notas || []).forEach(function (n) { add('bloco', n, 'bloco ' + (n.bloco || ''), n.motivo, n.data); });
@@ -5012,6 +5053,11 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   function notasMarcar(its) {
     if (!its.length) return Promise.resolve();
     its.forEach(function (it) { NOTV[it.tipo + '|' + it.id] = it.hash; });
+    its.filter(function (it) { return it.anova; }).forEach(function (it) {
+      it.anova = false; it.a_lida = true;
+      var arr = it.tipo === 'falta' ? RAWD.D.faltas : RAWD.D.notas; (arr || []).forEach(function (n) { if (n.id === it.id) n.atleta_resp_lida = true; });
+      tReq('/rest/v1/' + (it.tipo === 'falta' ? 'faltas' : 'notas_bloco') + '?id=eq.' + encodeURIComponent(it.id), { method: 'PATCH', body: { atleta_resp_lida: true }, headers: { Prefer: 'return=minimal' } }).catch(function () { /* tenta depois */ });
+    });
     var body = its.map(function (it) { return { tipo: it.tipo, nota_id: it.id, hash: it.hash }; });
     return tReq('/rest/v1/notas_vistas?on_conflict=tipo,nota_id', { method: 'POST', body: body, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' } })
       .catch(function () { try { var o = JSON.parse(lsGet('alvo.notv') || '{}'); its.forEach(function (it) { o[it.tipo + '|' + it.id] = it.hash; }); lsSet('alvo.notv', JSON.stringify(o)); } catch (e) { /* sem armazenamento */ } });
@@ -5022,19 +5068,47 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     try { var o = JSON.parse(lsGet('alvo.notv') || '{}'); Object.keys(o).forEach(function (k) { if (!NOTV[k]) NOTV[k] = o[k]; }); } catch (e) { /* ignora */ }
   }
   var NRESP = { edit: '' };
+  var NT_AT = { percebi: 'Percebi', ainda_doi: 'Ainda dói', passou: 'Já passou', outro: 'Outra coisa' };
+  function notaAtTxt(at, tx) { return at === 'outro' ? (tx || '') : (NT_AT[at] || '') + (tx ? ' · ' + tx : ''); }
   function notaRespHtml(it) {
     if (!it.id || it.tipo === 'ex') return '';
-    var key = it.tipo + '|' + it.id;
-    if (NRESP.edit === key) return '<div class="nresp"><label class="small" for="nresp-t">Resposta ao atleta</label><textarea class="bnota" id="nresp-t" rows="3" placeholder="Escreve a resposta. O atleta vê-a na app.">' + esc(it.resposta || '') + '</textarea><div class="chips"><button class="primary" type="button" data-nresp-save="' + esc(key) + '" style="padding:8px 16px">Guardar resposta</button><button class="chip" type="button" data-nresp-x="1">Cancelar</button>' + (it.resposta ? '<button class="chip" type="button" data-nresp-del="' + esc(key) + '">Apagar resposta</button>' : '') + '</div><p class="small" id="nresp-m" role="status"></p></div>';
-    if (it.resposta) return '<div class="nresp' + (it.lida ? ' lida' : '') + '"><b>A tua resposta</b> <span class="small">· ' + (it.lida ? 'lida pelo atleta' : 'ainda não lida pelo atleta') + '</span><div>' + esc(it.resposta).replace(/\n/g, '<br>') + '</div><button class="chip" type="button" data-nresp="' + esc(key) + '" style="margin-top:6px">Editar</button></div>';
-    return '<button class="chip" type="button" data-nresp="' + esc(key) + '" style="margin-top:6px">Responder</button>';
+    var key = it.tipo + '|' + it.id, h = '';
+    (it.hist || []).forEach(function (m) {
+      var eu = m.de === 'a';
+      h += '<div class="nresp lida" style="margin-top:4px"><span class="small">' + (eu ? 'Atleta' : 'Tu') + ' · ' + esc(fmtHora(m.em)) + '</span><div>' + esc(eu ? notaAtTxt(m.atalho, m.texto) : (m.texto || '')).replace(/\n/g, '<br>') + '</div></div>';
+    });
+    if (NRESP.edit === key) {
+      var ini = it.aresp ? '' : (it.resposta || '');
+      return h + (it.aresp ? '<div class="nresp"><b>A tua resposta anterior</b><div>' + esc(it.resposta).replace(/\n/g, '<br>') + '</div></div><div class="nresp' + (it.anova ? '' : ' lida') + '"><b>Atleta</b> <span class="small">· ' + esc(fmtHora(it.a_em)) + '</span><div>' + esc(notaAtTxt(it.a_at, it.a_tx)) + '</div></div>' : '') + '<div class="nresp"><label class="small" for="nresp-t">Resposta ao atleta</label><textarea class="bnota" id="nresp-t" rows="3" placeholder="Escreve a resposta. O atleta vê-a na app.">' + esc(ini) + '</textarea><div class="chips"><button class="primary" type="button" data-nresp-save="' + esc(key) + '" style="padding:8px 16px">Guardar resposta</button><button class="chip" type="button" data-nresp-x="1">Cancelar</button>' + (it.resposta && !it.aresp ? '<button class="chip" type="button" data-nresp-del="' + esc(key) + '">Apagar resposta</button>' : '') + '</div><p class="small" id="nresp-m" role="status"></p></div>';
+    }
+    if (it.resposta) {
+      h += '<div class="nresp' + (it.lida ? ' lida' : '') + '"><b>A tua resposta</b> <span class="small">· ' + (it.lida ? 'lida pelo atleta' : 'ainda não lida pelo atleta') + '</span><div>' + esc(it.resposta).replace(/\n/g, '<br>') + '</div>';
+      if (it.aresp) {
+        h += '<div class="nmine" style="margin-top:6px"><span class="small">Resposta do atleta · ' + esc(fmtHora(it.a_em)) + (it.anova ? ' · <b>nova</b>' : '') + '</span><div>' + esc(notaAtTxt(it.a_at, it.a_tx)).replace(/\n/g, '<br>') + '</div></div>';
+      } else if (!it.resolvida) h += '<div class="small" style="margin-top:4px">O atleta ainda pode responder uma vez.</div>';
+      if (it.resolvida) h += '<div class="small" style="margin-top:6px">✔ Conversa resolvida.</div>';
+      else h += '<div class="chips" style="margin-top:6px"><button class="chip" type="button" data-nresp="' + esc(key) + '">' + (it.aresp ? 'Responder' : 'Editar') + '</button>' + (it.aresp ? '<button class="chip" type="button" data-nresp-ok="' + esc(key) + '">Marcar como resolvida</button>' : '') + '</div>';
+      return h + '</div>';
+    }
+    return h + '<button class="chip" type="button" data-nresp="' + esc(key) + '" style="margin-top:6px">Responder</button>';
   }
-  function notaRespGuardar(key, txt) {
+  function fmtHora(ts) { if (!ts) return ''; var d = new Date(ts), p = function (n) { return (n < 10 ? '0' : '') + n; }; return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' · ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+  function notaRespGuardar(key, txt, resolver) {
     var pr = key.split('|'), tipo = pr[0], id = pr[1], tab = tipo === 'falta' ? 'faltas' : 'notas_bloco';
-    var body = txt ? { resposta: txt, resposta_em: new Date().toISOString(), resposta_lida: false } : { resposta: null, resposta_em: null, resposta_lida: false };
+    var arr = tipo === 'falta' ? RAWD.D.faltas : RAWD.D.notas, cur = null;
+    (arr || []).forEach(function (n) { if (n.id === id) cur = n; });
+    var body;
+    if (resolver) body = { resolvida: true, atleta_resp_lida: true };
+    else if (!txt) body = { resposta: null, resposta_em: null, resposta_lida: false };
+    else {
+      body = { resposta: txt, resposta_em: new Date().toISOString(), resposta_lida: false };
+      if (cur && cur.resposta && cur.atleta_atalho && cur.atleta_resp_em && cur.atleta_resp_em >= cur.resposta_em) {
+        body.historico = (cur.historico || []).concat([{ de: 't', texto: cur.resposta, em: cur.resposta_em }, { de: 'a', atalho: cur.atleta_atalho, texto: cur.atleta_texto || '', em: cur.atleta_resp_em }]);
+        body.atleta_atalho = null; body.atleta_texto = null; body.atleta_resp_em = null; body.atleta_resp_lida = true;
+      }
+    }
     return tReq('/rest/v1/' + tab + '?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: body, headers: { Prefer: 'return=minimal' } }).then(function () {
-      var arr = tipo === 'falta' ? RAWD.D.faltas : RAWD.D.notas;
-      (arr || []).forEach(function (n) { if (n.id === id) { n.resposta = body.resposta; n.resposta_em = body.resposta_em; n.resposta_lida = false; } });
+      (arr || []).forEach(function (n) { if (n.id === id) Object.keys(body).forEach(function (k) { n[k] = body[k]; }); });
     });
   }
   function notaHtml(it, comAt, semResp) {
@@ -5050,12 +5124,13 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     p.innerHTML = h;
     p.querySelectorAll('[data-nf]').forEach(function (b) { b.addEventListener('click', function () { NOTF = b.getAttribute('data-nf'); notasRender(a); }); });
     p.querySelectorAll('[data-nresp]').forEach(function (b) { b.addEventListener('click', function () { NRESP.edit = b.getAttribute('data-nresp'); notasRender(a); var t = $('#nresp-t'); if (t) t.focus(); }); });
+    p.querySelectorAll('[data-nresp-ok]').forEach(function (b) { b.addEventListener('click', function () { b.disabled = true; notaRespGuardar(b.getAttribute('data-nresp-ok'), '', true).then(function () { notasRender(a); liveTrainerNotasAlert(); }).catch(function () { b.disabled = false; }); }); });
     p.querySelectorAll('[data-nresp-x]').forEach(function (b) { b.addEventListener('click', function () { NRESP.edit = ''; notasRender(a); }); });
     p.querySelectorAll('[data-nresp-save],[data-nresp-del]').forEach(function (b) { b.addEventListener('click', function () {
       var del = b.hasAttribute('data-nresp-del'), key = b.getAttribute(del ? 'data-nresp-del' : 'data-nresp-save'), txt = del ? '' : ($('#nresp-t').value || '').trim();
       if (!del && !txt) { var m0 = $('#nresp-m'); if (m0) { m0.textContent = 'Escreve a resposta.'; m0.className = 'err'; } return; }
       b.disabled = true; var m = $('#nresp-m'); if (m) m.textContent = 'A guardar…';
-      notaRespGuardar(key, txt).then(function () { NRESP.edit = ''; notasRender(a); }).catch(function (e) { b.disabled = false; var m2 = $('#nresp-m'); if (m2) { m2.textContent = (e && e.status === 400) ? 'Falta aplicar o SQL das respostas no Supabase.' : 'Não foi possível guardar. Tenta outra vez.'; m2.className = 'err'; } });
+      notaRespGuardar(key, txt).then(function () { NRESP.edit = ''; notasRender(a); liveTrainerNotasAlert(); }).catch(function (e) { b.disabled = false; var m2 = $('#nresp-m'); if (m2) { m2.textContent = (e && e.status === 400) ? 'Falta aplicar o SQL das respostas no Supabase.' : 'Não foi possível guardar. Tenta outra vez.'; m2.className = 'err'; } });
     }); });
     var bt = $('#notas-vistas'); if (bt) bt.addEventListener('click', function () { notasMarcar(nv).then(function () { notasRender(a); liveTrainerNotasAlert(); try { renderSemana(); } catch (e) { /* opcional */ } }); });
   }
