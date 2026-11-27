@@ -131,6 +131,7 @@ button { cursor: pointer; }
 .vid { font-size: .85rem; font-weight: 600; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
 .rex { margin-top: 6px; display: grid; gap: 6px; } .rex-btn { justify-self: start; border: 1px solid var(--crit, #c0262d); color: var(--crit, #c0262d); background: transparent; border-radius: 16px; padding: 5px 12px; font: inherit; font-size: .82rem; cursor: pointer; } .rex-btn.on { background: var(--crit, #c0262d); color: #fff; }
 .rex-box { display: grid; gap: 6px; border-left: 3px solid var(--crit, #c0262d); background: var(--crit-soft, #fdf0f0); border-radius: 8px; padding: 8px 10px; } .rex-in { width: 100%; box-sizing: border-box; font: inherit; font-size: .9rem; padding: 8px; border: 1px solid var(--line, #ccc); border-radius: 8px; } .rex-ro { color: var(--crit, #c0262d); margin: 4px 0 0; }
+.mv-leg { color: var(--accent, #1c6b36); margin: 2px 0 6px; }
 .bnotas { display: grid; gap: 8px; }
 .bnota { min-height: 64px; font-family: var(--font-body); font-size: .9rem; }
 
@@ -3180,7 +3181,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     ord.forEach(function (k) {
       var L = por[k], r = null; rk.forEach(function (x) { if (x.nome.toLowerCase().trim() + '|' + x.unidade === k) r = x; });
       var u = L.length ? L[0].unidade : r.unidade, nome = L.length ? L[0].nome : r.nome, rkd = TES_RK.indexOf(nome.toLowerCase().trim()) >= 0 || u === 'ms', menos = L.length && L[0].melhor === 'menos';
-      h += '<div class="tes-box"><b>' + esc(nome) + '</b>';
+      h += '<div class="tes-box"><b>' + esc(nome) + '</b>' + (u === 'ms' ? '<div class="small mv-leg">m/s = velocidade média (MV) da fase concêntrica</div>' : '');
       if (L.length) {
         var last = L[L.length - 1], best = L.reduce(function (a, b) { return (menos ? b.valor < a.valor : b.valor > a.valor) ? b : a; });
         h += ' <span class="small">· ' + (rkd ? 'último ' + esc(tesFmt(last.valor, u)) + ' (' + esc(tesDt(last.data)) + ')' : 'melhor ' + esc(tesFmt(best.valor, u))) + '</span>';
@@ -4505,7 +4506,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         o.ver_pse ? tGet('sessoes', 'select=atleta_id,data,pse,minutos&order=data,id') : Promise.resolve([]),
         o.ver_pse ? tGet('sessoes_modalidade', 'select=atleta_id,data,periodo,foco,minutos,pse,distancia_m&order=data,id').catch(function () { return []; }) : Promise.resolve([]),
         (o.ver_treinos || o.ver_pse) ? tGet('treinos', 'select=atleta_id,data,tipo&order=data,id').catch(function () { return []; }) : Promise.resolve([]),
-        o.ver_testes ? tGet('testes', 'select=atleta_id,data,nome,valor,unidade,categoria,melhor,peso_kg&validado=eq.true&order=data,id').catch(function () { return []; }) : Promise.resolve([]),
+        o.ver_testes ? tGet('testes', 'select=atleta_id,data,nome,valor,unidade,categoria,melhor,potencia_w:extra->>potencia_w&validado=eq.true&order=data,id').catch(function () { return []; }) : Promise.resolve([]),
         (o.ver_lesoes || o.editar_lesoes) ? tGet('lesoes', 'select=id,atleta_id,inicio,zona,nota,retorno_parcial,retorno_total,origem&order=inicio.desc,criado_em.desc').catch(function () { return []; }) : Promise.resolve([]),
         (o.ver_lesoes || o.editar_lesoes) ? Promise.all([tGet('notas_bloco', 'select=id,atleta_id,data,bloco,motivo,nota&motivo=eq.' + encodeURIComponent('Lesão ou dor') + '&order=data.desc').catch(function () { return []; }), tGet('notas_exercicio', 'select=id,atleta_id,data,bloco,exercicio_nome,acao,motivo,zona,troca_nome,nota&order=data.desc').catch(function () { return []; })]).then(function (q) { return (q[0] || []).concat((q[1] || []).map(function (n) { return { id: n.id, atleta_id: n.atleta_id, data: n.data, bloco: n.bloco, nota: (n.exercicio_nome || 'Exercício') + ' · ' + rexMotivoTxt(n) + (n.nota ? ': ' + n.nota : '') }; })); }) : Promise.resolve([]),
         (o.ver_lesoes || o.editar_lesoes) ? tGet('faltas', 'select=id,atleta_id,data,motivo,nota&motivo=eq.lesao&order=data.desc').catch(function () { return []; }) : Promise.resolve([])
@@ -4572,24 +4573,28 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     var mods = []; Object.keys(OBSAT).forEach(function (id) { var m = OBSAT[id].modalidade; if (m && mods.indexOf(m) < 0) mods.push(m); }); mods.sort();
     if (!OBRK.m || mods.indexOf(OBRK.m) < 0) OBRK.m = mods.indexOf('Natação') >= 0 ? 'Natação' : mods[0];
     var fv = function (v) { return x.u === 'tempo' && typeof gTesFmt === 'function' ? gTesFmt(v, 'tempo') : String(Math.round(+v * 100) / 100).replace('.', ','); };
+    var usaW = x.u === 'ms' && /^pull/i.test(x.nome) && OBSTES.some(function (t) { return t.nome === x.nome && t.potencia_w != null; }), modoW = usaW && OBRK.p === 'w';
+    var vv = function (t) { return modoW ? +t.potencia_w : +t.valor; };
     var h = '<div class="field"><label for="or-t">Teste</label><select class="sel" id="or-t">' + ord.map(function (k) { return '<option value="' + esc(k) + '"' + (k === OBRK.t ? ' selected' : '') + '>' + esc(por[k].cat + ' · ' + por[k].nome + (por[k].u === 'ms' ? ' (m/s)' : '')) + '</option>'; }).join('') + '</select></div>';
+    if (x.u === 'ms') h += '<p class="small mv-leg">m/s = velocidade média (MV) da fase concêntrica' + (usaW ? ' · W ≈ peso × 9,81 × MV' : '') + '</p>';
+    if (usaW) h += '<div class="chips" role="group" aria-label="Ordenar por">' + [['v', 'Velocidade (m/s)'], ['w', 'Potência (W)']].map(function (c) { return '<button type="button" class="chip" data-or-p="' + c[0] + '" aria-pressed="' + ((modoW ? 'w' : 'v') === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div>';
     if (mods.length > 1) h += '<div class="chips">' + mods.map(function (m) { return '<button type="button" class="chip" data-or-m="' + esc(m) + '" aria-pressed="' + (m === OBRK.m) + '">' + esc(m) + '</button>'; }).join('') + '</div>';
     [['M', 'Masculino'], ['F', 'Feminino']].forEach(function (g) {
       var last = {};
       OBSTES.forEach(function (t) { if (t.nome !== x.nome || t.unidade !== x.u) return; var o = OBSAT[t.atleta_id]; if (!o || o.modalidade !== OBRK.m || o.genero !== g[0]) return; var q = last[t.atleta_id]; if (!q || t.data > q.data) last[t.atleta_id] = t; });
-      var R = Object.keys(last).map(function (k) { return last[k]; }).sort(function (p, q) { return asc ? +p.valor - +q.valor : +q.valor - +p.valor; });
+      var R = Object.keys(last).map(function (k) { return last[k]; }).filter(function (t) { return !modoW || t.potencia_w != null; }).sort(function (p, q) { return asc ? +p.valor - +q.valor : vv(q) - vv(p); });
       h += '<p class="kicker" style="margin-top:12px">' + g[1] + ' (' + R.length + ')</p>';
       if (!R.length) { h += '<p class="small">Sem resultados.</p>'; return; }
       var dmax = R.reduce(function (m, t) { return t.data > m ? t.data : m; }, '');
-      h += '<div style="overflow:auto"><table class="rt" style="width:100%"><thead><tr><th>#</th><th>Atleta</th><th>' + esc(un || 'Valor') + '</th>' + (x.u === 'ms' ? '<th>Peso (kg)</th>' : '') + '<th>Data</th></tr></thead><tbody>' + R.map(function (t, i) {
+      h += '<div style="overflow:auto"><table class="rt" style="width:100%"><thead><tr><th>#</th><th>Atleta</th><th>' + (modoW ? 'W</th><th>m/s' : esc(un || 'Valor')) + '</th>' + '<th>Data</th></tr></thead><tbody>' + R.map(function (t, i) {
         var old = (new Date(dmax) - new Date(t.data)) / 864e5 > 45;
-        return '<tr' + (old ? ' style="opacity:.6"' : '') + '><td>' + (i + 1) + '</td><td>' + esc((OBSAT[t.atleta_id] || {}).nome || '') + '</td><td><b>' + esc(fv(t.valor)) + '</b></td>' + (x.u === 'ms' ? '<td>' + (t.peso_kg == null ? '' : String(+t.peso_kg).replace('.', ',')) + '</td>' : '') + '<td>' + fmtD(t.data) + '</td></tr>';
+        return '<tr' + (old ? ' style="opacity:.6"' : '') + '><td>' + (i + 1) + '</td><td>' + esc((OBSAT[t.atleta_id] || {}).nome || '') + '</td><td><b>' + (modoW ? esc(String(Math.round(+t.potencia_w))) + '</b></td><td>' + esc(fv(t.valor)) + '</td>' : esc(fv(t.valor)) + '</b></td>') + '<td>' + fmtD(t.data) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
     });
     out.innerHTML = h + '<p class="small">Resultado mais recente de cada atleta, só testes validados. Esbatido: mais de 45 dias antes do mais recente do grupo.</p>';
   }
   document.addEventListener('change', function (e) { if (OBS && e.target && e.target.id === 'or-t') { OBRK.t = e.target.value; obsRankRender(); } });
-  document.addEventListener('click', function (e) { var b = OBS && e.target && e.target.closest && e.target.closest('[data-or-m]'); if (b) { OBRK.m = b.getAttribute('data-or-m'); obsRankRender(); } });
+  document.addEventListener('click', function (e) { var bp = OBS && e.target && e.target.closest && e.target.closest('[data-or-p]'); if (bp) { OBRK.p = bp.getAttribute('data-or-p'); obsRankRender(); return; } var b = OBS && e.target && e.target.closest && e.target.closest('[data-or-m]'); if (b) { OBRK.m = b.getAttribute('data-or-m'); obsRankRender(); } });
   var OBSLES = [], OBSDOR = [], OBSFAL = [], OBLMSG = '';
   function obsLesCarregarRecarrega() {
     return tGet('lesoes', 'select=id,atleta_id,inicio,zona,nota,retorno_parcial,retorno_total,origem&order=inicio.desc,criado_em.desc').then(function (rows) { OBSLES = rows || []; });
