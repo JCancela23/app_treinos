@@ -4846,10 +4846,15 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     WODD = { res: (RAWD.wod.res || []).filter(function (x) { return ok[x.atleta_id]; }), cfg: RAWD.wod.cfg || [] }; renderWod();
   }
   function liveSetScope(sc) {
+    /* o painel de gestão (G) segue sempre o grupo atual, mesmo que outra parte falhe */
+    var gs = sc === 'pt' ? 'pt' : 'main';
+    if (typeof gSetScope === 'function' && G.all && G.scope !== gs) gSetScope(sc);
     if (SCOPE === sc) return;
     SCOPE = sc;
-    if (RAWD) { liveBuildScope(); refreshTrainerUI(); }
-    if (typeof gSetScope === 'function' && G.all) gSetScope(sc);
+    if (RAWD) {
+      try { liveBuildScope(); refreshTrainerUI(); } catch (e) { if (window.console) console.error(e); }
+      try { liveTrainerWellAlert(); } catch (e0) { /* opcional */ } try { liveTrainerBday(); } catch (e1) { /* opcional */ } try { liveTrainerAcwrAlert(); } catch (e2) { /* opcional */ } try { liveTrainerNotasAlert(); } catch (e3) { /* opcional */ }
+    }
   }
   function carregarTodos() {
     var hojeISO = localISO();
@@ -5019,7 +5024,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     function add(tipo, n, onde, mot, dataX) {
       if (!n.id || (!n.nota && !n.motivo)) return;
       if (atletaId && n.atleta_id !== atletaId) return;
-      var at = nom[n.atleta_id]; if (!at || at.ativo === false || (!atletaId && isEu(at))) return;
+      var at = nom[n.atleta_id]; if (!at || at.ativo === false || (!atletaId && scopeDe(at) !== SCOPE)) return;
       var h = notaHash(mot, n.nota), it = { tipo: tipo, id: n.id, at: n.atleta_id, nome: at.nome, mod: at.grupo === 'pt' ? 'Online training' : (at.modalidade || ''), data: dataX, onde: onde, motivo: mot || '', nota: n.nota || '', hash: h, resposta: n.resposta || '', resp_em: n.resposta_em || null, lida: !!n.resposta_lida, hist: n.historico || [], a_at: n.atleta_atalho || '', a_tx: n.atleta_texto || '', a_em: n.atleta_resp_em || null, a_lida: n.atleta_resp_lida !== false, resolvida: !!n.resolvida };
       it.aresp = !!(it.a_at && it.a_em && it.resp_em && it.a_em >= it.resp_em);
       it.anova = it.aresp && !it.a_lida && !it.resolvida;
@@ -5031,7 +5036,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
     (RAWD.D.faltas || []).forEach(function (f) { add('falta', f, 'não fez ' + (f.treino && f.treino.nome ? '“' + f.treino.nome + '”' : 'o treino'), MOTIVO_TXT[f.motivo] || f.motivo, (f.treino && f.treino.data) || f.data); });
     (RAWD.D.notasEx || []).forEach(function (n) {
       if (!n.id || (atletaId && n.atleta_id !== atletaId)) return;
-      var at = nom[n.atleta_id]; if (!at || at.ativo === false || (!atletaId && isEu(at))) return;
+      var at = nom[n.atleta_id]; if (!at || at.ativo === false || (!atletaId && scopeDe(at) !== SCOPE)) return;
       var mot = rexMotivoTxt(n), h = notaHash(mot, n.nota);
       var it = { tipo: 'ex', id: n.id, at: n.atleta_id, nome: at.nome, mod: at.grupo === 'pt' ? 'Online training' : (at.modalidade || ''), data: n.data, onde: (n.exercicio_nome || 'exercício') + ' (' + rexBlocoNome(n.bloco) + ')', motivo: mot, nota: n.nota || '', hash: h, resposta: '', resp_em: null, lida: false };
       it.novo = NOTV['ex|' + n.id] !== h && n.data >= lim;
@@ -5689,13 +5694,13 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   function liveTrainerBday() {
     var v = $('#view-treinador'); if (!v) return;
     tGet('atletas', 'select=nome,grupo,modalidade,ativo,nascimento&nascimento=not.is.null').then(function (rows) {
-      var h = RAWD && RAWD.hoje ? RAWD.hoje : localISO(), md = h.slice(5), L = rows.filter(function (a) { return a.ativo !== false && a.nascimento && a.nascimento.slice(5) === md; });
+      var h = RAWD && RAWD.hoje ? RAWD.hoje : localISO(), md = h.slice(5), L = rows.filter(function (a) { return a.ativo !== false && a.nascimento && a.nascimento.slice(5) === md && scopeDe(a) === SCOPE; });
       var el = $('#t-bday'); if (el) el.remove();
-      if (!L.length || lsGet('alvo.tbday') === h) return;
+      if (!L.length || lsGet('alvo.tbday' + SCOPE) === h) return;
       el = document.createElement('div'); el.id = 't-bday'; el.className = 'mac-warn'; el.setAttribute('role', 'status'); el.style.margin = '10px 14px';
       el.innerHTML = '<b>Hoje fazem anos 🎂</b><br>' + L.map(function (a) { return esc(a.nome) + ' <span class="small">· ' + (a.grupo === 'pt' ? 'Online training' : esc(a.modalidade || '')) + '</span>'; }).join('<br>') + '<br><button class="chip" type="button" id="t-bday-ok">Ok, vi</button>';
       v.insertBefore(el, v.firstChild);
-      $('#t-bday-ok').addEventListener('click', function () { lsSet('alvo.tbday', h); el.remove(); });
+      $('#t-bday-ok').addEventListener('click', function () { lsSet('alvo.tbday' + SCOPE, h); el.remove(); });
     }).catch(function () {});
   }
   /* avisos já vistos: guardados um a um (atleta + dia), para não voltarem a aparecer */
@@ -5704,7 +5709,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   function liveTrainerWellAlert() {
     var v = $('#view-treinador'), el = $('#t-walert'); if (!v || !RAWD) return;
     var hj = RAWD.hoje, ont = isoAdd(hj, -1), por = {}, nomes = {};
-    (RAWD.D.atletas || []).forEach(function (a) { if (a.ativo !== false && a.grupo !== 'presencial' && !isEu(a)) nomes[a.id] = a; });
+    (RAWD.D.atletas || []).forEach(function (a) { if (a.ativo !== false && a.grupo !== 'presencial' && scopeDe(a) === SCOPE) nomes[a.id] = a; });
     (RAWD.D.wellness || []).forEach(function (w) {
       var a = nomes[w.atleta_id]; if (!a || w.data < ont) return;
       var t = (w.sono || 0) + (w.fadiga || 0) + (w.dor || 0) + (w.stress || 0);
@@ -5970,6 +5975,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       G.hasEmail = !!G.all.length && G.all[0].hasOwnProperty('email');
       G.hasPerfil = !!G.all.length && G.all[0].hasOwnProperty('objetivo');
       gSetScope(typeof SCOPE !== 'undefined' ? SCOPE : (G.scope || 'main'));
+      if (typeof TAB !== 'undefined' && TAB === 'online' && ONG[ONSUB]) G.tab = ONG[ONSUB];
       if (!G.semana) G.semana = isoAdd(gMon(localISO()), 7);
       if (!G.plan) G.plan = gNewPlan();
       gRender();
