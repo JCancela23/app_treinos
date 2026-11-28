@@ -6294,7 +6294,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   function gMacCalc(r, treinos, sessoes, itens, blocos, regs, resB, tests) {
     var W = [], w = r.a, out = { w: [], bm: [] }, byW = {};
     while (w <= r.b) { W.push(w); byW[w] = { w: w, p: 0, a: 0, c: 0, cal: 0, seg: 0, n: 0 }; w = isoAdd(w, 7); }
-    var dataT = {}; treinos.forEach(function (t) { dataT[t.id] = t.data; });
+    var dataT = {}, condT = {}; treinos.forEach(function (t) { dataT[t.id] = t.data; condT[t.id] = /cond/i.test(t.nome || ''); });
     var feitoT = {}; sessoes.forEach(function (s) { if (s.treino_id) feitoT[s.treino_id] = true; });
     var regsI = {}; regs.forEach(function (g) { (regsI[g.item_id] = regsI[g.item_id] || []).push(g); });
     var blocoK = {}; blocos.forEach(function (b) { blocoK[b.treino_id + '|' + b.bloco] = b; });
@@ -6308,7 +6308,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       if (reg === 'nenhum') return;
       var bk = it.circuito != null ? it.treino_id + '|' + it.bloco + '#' + it.circuito : null, b = bk ? blocoK[bk] : null;
       var num = gMacNum(it.reps);
-      if (b && T.indexOf(b.formato) >= 0) { (timed[bk] = timed[bk] || { b: b, d: d, w: W0, its: [], key: bk }).its.push({ it: it, num: num }); return; }
+      if (b && T.indexOf(b.formato) >= 0 && condT[it.treino_id]) { (timed[bk] = timed[bk] || { b: b, d: d, w: W0, its: [], key: bk }).its.push({ it: it, num: num }); return; }
       var rg = regsI[it.id] || [], tot = 0;
       if (reg === 'reps' || reg === 'carga') rg.forEach(function (g) { tot += g.reps || 0; });
       else if (reg === 'tempo') { rg.forEach(function (g) { W0.seg += g.tempo_s || 0; }); return; }
@@ -6365,7 +6365,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       var pc = R.ref && x.f > 0 && i !== 1 && i !== 2 ? Math.round((x.f / R.ref - 1) * 100) : null;
       h += '<tr><td>S' + (i + 1) + ' <span class="small">' + gFmt(x.w) + '</span></td><td>' + x.p + '</td><td>' + x.a + '</td><td><b>' + x.f + '</b></td><td>' + (i === 1 || i === 2 ? '<span class="small">ref.</span>' : pc == null ? '—' : '<b style="color:' + (pc <= -30 && pc >= -40 ? '#3fcf7c' : '#e9a23b') + '">' + (pc > 0 ? '+' : '') + pc + '%</b>') + '</td><td>' + x.c + (x.cal ? '<br><span class="small">+' + x.cal + ' cal</span>' : '') + '</td></tr>';
     });
-    h += '</table></div><p class="small">Força = principal + acessório (mede a descarga). Referência = média das semanas 2 e 3' + (R.ref ? ' (' + Math.round(R.ref) + ')' : '') + '. Cond. = blocos EMOM, AMRAP, For time e Tabata, contados à parte (voltas × repetições); calorias e metros ficam fora das repetições. Hold e tempo contam em segundos e não entram.</p></div>';
+    h += '</table></div><p class="small">Força = principal + acessório (mede a descarga). Referência = média das semanas 2 e 3' + (R.ref ? ' (' + Math.round(R.ref) + ')' : '') + '. Cond. = só os blocos EMOM, AMRAP, For time e Tabata dos treinos com «conditioning» no nome, contados à parte (voltas × repetições); nos outros treinos esses blocos contam como força; calorias e metros ficam fora das repetições. Hold e tempo contam em segundos e não entram.</p></div>';
     return h;
   }
   function gMacSemF(w) { var z = MC.res && MC.res.w ? MC.res.w.filter(function (q) { return q.w === w; })[0] : null; return z && z.f ? z.f : 0; }
