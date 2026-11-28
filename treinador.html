@@ -319,6 +319,11 @@ table.rt { min-width: 0; font-size: .85rem; }
 .gctl { display: flex; gap: 6px; flex-wrap: wrap; align-items: end; }
 .gn { display: grid; gap: 2px; font-size: .7rem; color: var(--muted); font-weight: 600; }
 .gteste { display: flex; gap: 8px; align-items: center; flex-basis: 100%; font-size: .78rem; }
+.mac-tb { width: 100%; min-width: 0; border-collapse: collapse; font-size: .76rem; letter-spacing: 0; }
+.mac-tb th { letter-spacing: 0; text-transform: none; }
+.mac-tb th { text-align: right; font-weight: 600; opacity: .65; padding: 4px 2px; font-size: .66rem; }
+.mac-tb th:first-child, .mac-tb td:first-child { text-align: left; }
+.mac-tb td { text-align: right; padding: 6px 2px; border-top: 1px solid rgba(255,255,255,.07); }
 .gteste input[type=checkbox] { width: 20px; height: 20px; min-height: 0; flex: none; }
 .gn input { width: 76px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px; font-weight: 600; }
 .gn select { max-width: 190px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px; font-weight: 600; font-size: .8rem; }
@@ -6228,7 +6233,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
   }
 
   /* ---------- macro do aluno (Online training): fase, objetivo e treinos de cada semana ---------- */
-  var MC = { aid: '', mes: '', rows: null, err: '', msg: '' }, MCDIAS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+  var MC = { aid: '', mes: '', rows: null, res: null, err: '', msg: '' }, MCDIAS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
       MCMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   function gMacRange() {
     var ini = MC.mes + '-01', y = +MC.mes.slice(0, 4), m = +MC.mes.slice(5, 7), fimMes = isoAdd(new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10), -1);
@@ -6257,9 +6262,113 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         w: x[4].filter(function (w) { return w.atleta_id === id; }),
         a: x[3].filter(function (a) { return a.atleta_id === id; })
       };
+      MC.res = null;
       gRenderMacro();
+      gMacResumoLoad(r, MC.rows.t, x[1].filter(function (s) { return s.atleta_id === id; }), id);
     }).catch(function (e) { MC.err = gFail(e); MC.rows = null; gRenderMacro(); });
   }
+  /* ---------- resumo do mês: benchmarks (testes marcados) e volume de repetições ---------- */
+  function gMacResumoLoad(r, treinos, sessoes, aid) {
+    var ids = treinos.map(function (t) { return t.id; });
+    if (!ids.length) { MC.res = { w: [], bm: [], W: [] }; gRenderMacro(); return; }
+    var q = 'treino_id=in.(' + ids.join(',') + ')', a = encodeURIComponent(aid);
+    Promise.all([
+      tGet('treino_itens', 'select=id,treino_id,bloco,ordem,series,reps,registo,circuito,grupo,exercicios(nome,registo)&' + q),
+      tGet('treino_blocos', 'select=treino_id,bloco,formato,rondas&' + q),
+      tGet('registos_serie', 'select=item_id,data,serie,carga_kg,reps,tempo_s,feito&atleta_id=eq.' + a + '&data=gte.' + r.a + '&data=lte.' + r.b),
+      tGet('resultados_bloco', 'select=treino_id,bloco,rondas,reps,completo&atleta_id=eq.' + a + '&' + q),
+      tGet('testes', 'select=nome,data,valor,unidade,extra&atleta_id=eq.' + a + '&origem=eq.campo&unidade=in.(reps,kg,tempo)&data=gte.' + r.a + '&data=lte.' + r.b + '&order=data')
+    ]).then(function (x) {
+      if (MC.aid !== aid) return;
+      MC.res = gMacCalc(r, treinos, sessoes, x[0], x[1], x[2], x[3], x[4]);
+      gRenderMacro();
+    }).catch(function () { MC.res = null; });
+  }
+  function gMacNum(txt) {
+    var t = String(txt == null ? '' : txt).trim().toLowerCase(), m = t.match(/^(\d+(?:[.,]\d+)?)\s*(?:[-–a]\s*\d+)?\s*([a-zç]*)$/);
+    if (!m) return { n: null, u: '' };
+    var n = parseFloat(m[1].replace(',', '.')), u = m[2] || '';
+    if (u === 'min') { n *= 60; u = 's'; }
+    return { n: n, u: u };
+  }
+  function gMacCalc(r, treinos, sessoes, itens, blocos, regs, resB, tests) {
+    var W = [], w = r.a, out = { w: [], bm: [] }, byW = {};
+    while (w <= r.b) { W.push(w); byW[w] = { w: w, p: 0, a: 0, c: 0, cal: 0, seg: 0, n: 0 }; w = isoAdd(w, 7); }
+    var dataT = {}; treinos.forEach(function (t) { dataT[t.id] = t.data; });
+    var feitoT = {}; sessoes.forEach(function (s) { if (s.treino_id) feitoT[s.treino_id] = true; });
+    var regsI = {}; regs.forEach(function (g) { (regsI[g.item_id] = regsI[g.item_id] || []).push(g); });
+    var blocoK = {}; blocos.forEach(function (b) { blocoK[b.treino_id + '|' + b.bloco] = b; });
+    var resK = {}; resB.forEach(function (b) { resK[b.treino_id + '|' + b.bloco] = b; });
+    var timed = {}, T = ['emom', 'amrap', 'fortime', 'tabata'];
+    itens.forEach(function (it) {
+      if (it.bloco !== 'principal' && it.bloco !== 'acessorio') return;
+      var d = dataT[it.treino_id]; if (!d) return;
+      var W0 = byW[gMon(d)]; if (!W0) return;
+      var ex = it.exercicios || {}, reg = it.registo || ex.registo || 'feito';
+      if (reg === 'nenhum') return;
+      var bk = it.circuito != null ? it.treino_id + '|' + it.bloco + '#' + it.circuito : null, b = bk ? blocoK[bk] : null;
+      var num = gMacNum(it.reps);
+      if (b && T.indexOf(b.formato) >= 0) { (timed[bk] = timed[bk] || { b: b, d: d, w: W0, its: [], key: bk }).its.push({ it: it, num: num }); return; }
+      var rg = regsI[it.id] || [], tot = 0;
+      if (reg === 'reps' || reg === 'carga') rg.forEach(function (g) { tot += g.reps || 0; });
+      else if (reg === 'tempo') { rg.forEach(function (g) { W0.seg += g.tempo_s || 0; }); return; }
+      else if (reg === 'kg') return;
+      else {
+        var feitas = rg.filter(function (g) { return reg === 'feito' ? g.feito : true; }).length;
+        if (num.u === 's') { W0.seg += feitas * (num.n || 0); return; }
+        if (num.u === 'cal') { W0.cal += feitas * (num.n || 0); return; }
+        if (num.u && num.u !== 'reps') return;
+        tot = feitas * (num.n || 0);
+      }
+      if (it.bloco === 'principal') W0.p += tot; else W0.a += tot;
+      if (rg.length) W0.n++;
+    });
+    Object.keys(timed).forEach(function (k) {
+      var g = timed[k], res = resK[k], feito = feitoT[g.key.split('|')[0]], rondas = res && res.rondas != null ? res.rondas : (res && res.completo && g.b.rondas ? g.b.rondas : null);
+      if (rondas == null) rondas = feito || res ? (g.b.rondas || Math.max.apply(null, g.its.map(function (x) { return x.it.series || 1; }))) : 0;
+      var per = 0, cal = 0;
+      g.its.forEach(function (x) { if (x.num.n == null) return; if (x.num.u === 'cal') cal += x.num.n; else if (!x.num.u || x.num.u === 'reps') per += x.num.n; });
+      g.w.c += rondas * per + (res && res.reps ? res.reps : 0); g.w.cal += rondas * cal;
+    });
+    W.forEach(function (x) { byW[x].f = byW[x].p + byW[x].a; out.w.push(byW[x]); });
+    out.ref = out.w.length > 2 && out.w[1].f > 0 && out.w[2].f > 0 ? (out.w[1].f + out.w[2].f) / 2 : null;
+    var bm = {};
+    tests.forEach(function (t) {
+      var wk = gMon(t.data); if (!byW[wk]) return;
+      var o = bm[t.nome] = bm[t.nome] || { nome: t.nome, u: t.unidade, v: {} }, v = +t.valor;
+      if (o.v[wk] == null || v > o.v[wk].v) o.v[wk] = { v: v, reps: t.extra && t.extra.reps };
+    });
+    out.bm = Object.keys(bm).sort().map(function (k) { return bm[k]; });
+    out.W = W;
+    return out;
+  }
+  function gMacVal(u, x) {
+    if (!x) return '—';
+    if (u === 'tempo') return Math.floor(x.v / 60) + ':' + ('0' + Math.round(x.v % 60)).slice(-2);
+    return String(x.v).replace('.', ',') + (u === 'kg' ? ' kg' + (x.reps ? '×' + x.reps : '') : '');
+  }
+  function gMacResumoHtml() {
+    var R = MC.res; if (!R || !R.W || !R.W.length) return '';
+    var h = '<div class="gbox"><p class="kicker">Benchmarks do mês</p>';
+    if (!R.bm.length) h += '<p class="small">Ainda sem benchmarks. Marca «Benchmark» num exercício ao planear e, quando o aluno o registar, a melhor marca aparece aqui e nos Testes.</p>';
+    else {
+      h += '<div style="overflow-x:auto"><table class="mac-tb"><tr><th>Exercício</th>' + R.W.map(function (w, i) { return '<th>S' + (i + 1) + '</th>'; }).join('') + '<th>Δ</th></tr>';
+      R.bm.forEach(function (o) {
+        var ws = R.W.filter(function (w) { return o.v[w]; }), d = '';
+        if (ws.length > 1) { var dv = o.v[ws[ws.length - 1]].v - o.v[ws[0]].v; d = '<b style="color:' + (dv >= 0 ? '#3fcf7c' : '#e9a23b') + '">' + (dv > 0 ? '+' : '') + (o.u === 'tempo' ? Math.round(dv) + ' s' : String(Math.round(dv * 100) / 100).replace('.', ',') + (o.u === 'kg' ? ' kg' : '')) + '</b>'; }
+        h += '<tr><td>' + esc(o.nome) + '<br><span class="small">' + (o.u === 'reps' ? 'reps' : o.u === 'kg' ? 'kg × reps' : 'tempo') + '</span></td>' + R.W.map(function (w) { return '<td>' + gMacVal(o.u, o.v[w]) + '</td>'; }).join('') + '<td>' + d + '</td></tr>';
+      });
+      h += '</table></div>';
+    }
+    h += '</div><div class="gbox"><p class="kicker">Volume de repetições</p><div style="overflow-x:auto"><table class="mac-tb"><tr><th>Sem.</th><th>Princ.</th><th>Acess.</th><th>Força</th><th>vs ref.</th><th>Cond.</th></tr>';
+    R.w.forEach(function (x, i) {
+      var pc = R.ref && x.f > 0 && i !== 1 && i !== 2 ? Math.round((x.f / R.ref - 1) * 100) : null;
+      h += '<tr><td>S' + (i + 1) + ' <span class="small">' + gFmt(x.w) + '</span></td><td>' + x.p + '</td><td>' + x.a + '</td><td><b>' + x.f + '</b></td><td>' + (i === 1 || i === 2 ? '<span class="small">ref.</span>' : pc == null ? '—' : '<b style="color:' + (pc <= -30 && pc >= -40 ? '#3fcf7c' : '#e9a23b') + '">' + (pc > 0 ? '+' : '') + pc + '%</b>') + '</td><td>' + x.c + (x.cal ? '<br><span class="small">+' + x.cal + ' cal</span>' : '') + '</td></tr>';
+    });
+    h += '</table></div><p class="small">Força = principal + acessório (mede a descarga). Referência = média das semanas 2 e 3' + (R.ref ? ' (' + Math.round(R.ref) + ')' : '') + '. Cond. = blocos EMOM, AMRAP, For time e Tabata, contados à parte (voltas × repetições); calorias e metros ficam fora das repetições. Hold e tempo contam em segundos e não entram.</p></div>';
+    return h;
+  }
+  function gMacSemF(w) { var z = MC.res && MC.res.w ? MC.res.w.filter(function (q) { return q.w === w; })[0] : null; return z && z.f ? z.f : 0; }
   function gMacEstado(t) {
     var s = MC.rows.s.filter(function (x) { return x.treino_id === t.id; })[0];
     if (s) return '<span class="small">✓ feito a ' + gFmt(s.data) + ' · PSE ' + s.pse + '</span>';
@@ -6273,7 +6382,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       pts.map(function (a) { return '<option value="' + a.id + '"' + (a.id === MC.aid ? ' selected' : '') + '>' + esc(a.nome) + (a._mod ? ' · ' + esc(a._mod) : '') + '</option>'; }).join('') + '</select></div></div>' +
       '<div class="mac-hd"><button class="chip" data-act="mc-mes" data-n="-1" aria-label="Mês anterior">‹</button><b>' + MCMES[+MC.mes.slice(5, 7) - 1] + ' ' + MC.mes.slice(0, 4) + '</b><button class="chip" data-act="mc-mes" data-n="1" aria-label="Mês seguinte">›</button></div>' +
       '<p class="small">1.º define o mês: fase, objetivo e treinos de cada semana (o tema é o nome do treino). 2.º planeia os exercícios semana a semana, em «Planear exercícios».</p>' +
-      (MC.err ? '<p class="err">' + esc(MC.err) + '</p>' : '') + '<p class="small" id="g-msg-mac" role="status">' + esc(MC.msg || '') + '</p></div>';
+      (MC.err ? '<p class="err">' + esc(MC.err) + '</p>' : '') + '<p class="small" id="g-msg-mac" role="status">' + esc(MC.msg || '') + '</p></div>' + gMacResumoHtml();
     if (!pts.length) { el.innerHTML = '<p class="small">Ainda não há alunos de Online training.</p>'; return; }
     if (!MC.rows) { el.innerHTML = h + '<p class="small">A carregar…</p>'; return; }
     var r = gMacRange(), hj = localISO(), cur = gMon(hj), w = r.a;
@@ -6281,7 +6390,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
       var f = MC.rows.w.filter(function (x) { return x.semana === w; })[0] || {}, fim = isoAdd(w, 6);
       var ts = MC.rows.t.filter(function (t) { return t.data >= w && t.data <= fim; });
       var feitos = ts.filter(function (t) { return MC.rows.s.some(function (s) { return s.treino_id === t.id; }); }).length;
-      h += '<div class="gbox' + (w === cur ? ' mac-cur' : '') + '"><div class="mac-wh"><b>' + gFmt(w) + ' – ' + gFmt(fim) + (w === cur ? ' · esta semana' : '') + '</b><span class="small">' + feitos + '/' + ts.length + ' feitos</span></div>' +
+      h += '<div class="gbox' + (w === cur ? ' mac-cur' : '') + '"><div class="mac-wh"><b>' + gFmt(w) + ' – ' + gFmt(fim) + (w === cur ? ' · esta semana' : '') + '</b><span class="small">' + feitos + '/' + ts.length + ' feitos' + (gMacSemF(w) ? ' · força ' + gMacSemF(w) + ' reps' : '') + '</span></div>' +
         '<div class="inline"><div class="field"><label for="mf-' + w + '">Fase</label><input class="dt" id="mf-' + w + '" data-mc="sem" data-w="' + w + '" maxlength="40" placeholder="ex.: Acumulação" value="' + esc(f.fase || '') + '"></div></div>' +
         '<div class="field"><label for="mo-' + w + '">Objetivo da semana</label><input class="dt" id="mo-' + w + '" data-mc="sem" data-w="' + w + '" maxlength="120" placeholder="ex.: aumentar volume na suspensão" value="' + esc(f.objetivo || '') + '"></div>' +
         '<div class="field"><label for="mt-' + w + '">Nota para o aluno (opcional)</label><textarea class="dt" id="mt-' + w + '" data-mc="nota" data-w="' + w + '" rows="2" maxlength="400" placeholder="ex.: Esta semana foca-te na respiração">' + esc(f.nota || '') + '</textarea></div>';
@@ -7379,7 +7488,7 @@ table.ac tr.ac-r{cursor:pointer} .ac-h{display:flex;flex-wrap:wrap;gap:3px;paddi
         (ult ? '<label class="gn">Descanso (s)<input inputmode="numeric" data-f="desc" data-d="' + i + '" data-k="' + o.k + '" value="' + esc(o.it.desc || '') + '"></label>' : '') +
         '<label class="gn">PSE alvo (0 a 10)<input inputmode="decimal" data-f="pse" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.pse || '') + '"></label>' +
         (((o.it.mreg || reg) === 'vbt' || o.it.vel) ? '<label class="gn">Velocidade alvo (m/s)<input inputmode="decimal" data-f="vel" data-d="' + i + '" data-k="' + o.k + '" placeholder="opcional" value="' + esc(o.it.vel || '') + '"></label>' : '') +
-        (((o.it.mreg || reg) === 'vbt' || (o.it.mreg || reg) === 'bj') ? '<label class="gn gteste"><input type="checkbox" data-f="teste" data-d="' + i + '" data-k="' + o.k + '"' + (o.it.teste ? ' checked' : '') + '> Teste</label>' : '') +
+        ((o.it.mreg || reg) !== 'nenhum' && (o.it.mreg || reg) !== 'feito' ? '<label class="gn gteste"><input type="checkbox" data-f="teste" data-d="' + i + '" data-k="' + o.k + '"' + (o.it.teste ? ' checked' : '') + '> ' + (((o.it.mreg || reg) === 'vbt' || (o.it.mreg || reg) === 'bj') ? 'Teste' : 'Benchmark (guardar nos Testes)') + '</label>' : '') +
         '<button class="chip" data-act="pv" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + (!!o.it.pv) + '">Pedir vídeo</button>' +
         (pos > 0 && !emom ? '<button class="chip" data-act="lig" data-d="' + i + '" data-k="' + o.k + '" aria-pressed="' + lig + '">Com o anterior</button>' : '') +
         '<label class="gn">O que o atleta regista<select data-f="mreg" data-d="' + i + '" data-k="' + o.k + '"><option value=""' + (!o.it.mreg ? ' selected' : '') + '>Por defeito (' + esc(gRegLabel(reg)) + ')</option>' +
